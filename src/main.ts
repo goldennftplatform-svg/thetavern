@@ -54,6 +54,32 @@ const elModal = $("modal-demplar");
 const elModalBody = $("modal-body");
 const elBtnCharter = $("btn-charter");
 const elBtnCloseModal = $("btn-close-modal");
+const elBtnModalX = $("btn-modal-x");
+const elBtnSkipGate = $("btn-skip-gate");
+
+function openDemplarModal() {
+  elModalBody.textContent = demplarModalIntro;
+  elModal.classList.add("is-open");
+  elModal.setAttribute("aria-hidden", "false");
+}
+
+function closeDemplarModal() {
+  elModal.classList.remove("is-open");
+  elModal.setAttribute("aria-hidden", "true");
+}
+
+elBtnCharter.addEventListener("click", () => {
+  openDemplarModal();
+});
+elBtnCloseModal.addEventListener("click", () => {
+  closeDemplarModal();
+});
+elBtnModalX.addEventListener("click", () => {
+  closeDemplarModal();
+});
+elModal.querySelector(".modal-backdrop")?.addEventListener("click", () => {
+  closeDemplarModal();
+});
 
 elTitle.textContent = GAME_TITLE;
 elTag.textContent = tavernTeasers[Math.floor(Math.random() * tavernTeasers.length)]!;
@@ -382,6 +408,11 @@ elSlack.addEventListener("click", () => nudgeReel(-0.055));
 elHeave.addEventListener("click", () => nudgeReel(0.055));
 
 window.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" && elModal.classList.contains("is-open")) {
+    e.preventDefault();
+    closeDemplarModal();
+    return;
+  }
   if (state.phase === "fish_cast" && e.code === "Space") {
     e.preventDefault();
     chargeActive = true;
@@ -429,14 +460,6 @@ function fillNotices() {
   });
 }
 
-elBtnCharter.addEventListener("click", () => {
-  elModalBody.textContent = demplarModalIntro;
-  elModal.hidden = false;
-});
-elBtnCloseModal.addEventListener("click", () => {
-  elModal.hidden = true;
-});
-
 async function ensurePixelFonts() {
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
@@ -461,17 +484,26 @@ async function bootTrail() {
   }
 }
 
-$("btn-enter-name").addEventListener("click", async () => {
+async function startGameFromGate() {
   const name = elNick.value.trim() || "Anonymous Angler";
   state = initialState(name.slice(0, 28));
   elGate.hidden = true;
   elGame.hidden = false;
+  closeDemplarModal();
   fillNotices();
   await ensurePixelFonts();
   loadedTheme = await loadDailyMediaTheme();
   await bootTrail();
   resizeCanvas();
   setPhase("enter");
+}
+
+$("btn-enter-name").addEventListener("click", () => {
+  void startGameFromGate();
+});
+elBtnSkipGate.addEventListener("click", () => {
+  elNick.value = "";
+  void startGameFromGate();
 });
 
 requestAnimationFrame(() => {

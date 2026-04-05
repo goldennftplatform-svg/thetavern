@@ -93,6 +93,80 @@ h3,
   color: var(--jade);
 }
 
+/* Mystical name gate — impossible to miss */
+.gate-ritual {
+  margin-top: 20px;
+  padding-top: 22px;
+  border: 4px solid var(--gold);
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 24px rgba(248, 216, 32, 0.15),
+    6px 6px 0 var(--line);
+}
+
+.gate-eyebrow {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.38rem;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+#nickname-gate #gate-title {
+  font-size: 0.62rem;
+  color: var(--ink);
+  line-height: 1.6;
+  margin-bottom: 14px;
+  text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.gate-lead {
+  margin: 0 0 18px;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.gate-label {
+  display: block;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.42rem;
+  color: var(--jade);
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+}
+
+.gate-ritual input#nickname {
+  min-height: 64px;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  border-width: 4px;
+  border-color: var(--gold);
+  box-shadow:
+    inset 4px 4px 0 rgba(0, 0, 0, 0.35),
+    0 0 0 2px #000;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.gate-ritual input#nickname:focus {
+  outline: none;
+  border-color: var(--jade);
+  box-shadow:
+    inset 4px 4px 0 rgba(0, 0, 0, 0.35),
+    0 0 0 3px var(--jade);
+}
+
+.gate-hint {
+  margin: 0 0 18px;
+  font-size: 1rem;
+}
+
+.gate-cta {
+  margin-bottom: 4px;
+}
+
 .muted {
   color: var(--muted);
   font-size: 1.1rem;
@@ -315,22 +389,57 @@ canvas#well {
   font-weight: bold;
 }
 
+/* Class-based open state — avoids [hidden] vs display bugs; flex centers the card over a full-screen backdrop */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.82);
-  display: grid;
-  place-items: center;
+  z-index: 2147483000;
+  display: none;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
-  z-index: 10000;
+  pointer-events: none;
+}
+
+.modal.is-open {
+  display: flex;
+  pointer-events: auto;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 0;
+  cursor: pointer;
 }
 
 .modal-inner {
+  position: relative;
+  z-index: 1;
   max-width: 420px;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  pointer-events: auto;
+}
+
+.modal-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: auto;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.65rem;
+  line-height: 1;
+  z-index: 2;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.gate-card #btn-skip-gate {
+  margin-top: 12px;
 }
 
 .modal-inner p {

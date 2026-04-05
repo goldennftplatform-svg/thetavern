@@ -20,10 +20,26 @@
         <div id="trail-status" class="pill muted"></div>
       </header>
 
-      <section id="nickname-gate" class="card">
-        <h2>By what name shall the hall know you?</h2>
-        <input id="nickname" type="text" maxlength="28" placeholder="Your tavern name" autocomplete="username" />
-        <button type="button" id="btn-enter-name" class="btn primary big">Enter the Moonwell hall</button>
+      <section id="nickname-gate" class="card gate-card gate-ritual" aria-labelledby="gate-title">
+        <p class="gate-eyebrow">Rite of the rim</p>
+        <h2 id="gate-title" class="gate-title">Speak thy mystical name</h2>
+        <p class="gate-lead">
+          The Moonwell hears titles, not birth names. What shall we carve in the water when you cast?
+        </p>
+        <label class="gate-label" for="nickname">Thy name at the well</label>
+        <input
+          id="nickname"
+          type="text"
+          maxlength="28"
+          placeholder="e.g. Morrow Three-Hooks · Cinder-Vex · Luck-Sour Mae"
+          autocomplete="username"
+          inputmode="text"
+          autofocus
+          aria-describedby="gate-hint"
+        />
+        <p id="gate-hint" class="gate-hint muted">28 runes max. Patrons, bards, and shadow-names welcome.</p>
+        <button type="button" id="btn-enter-name" class="btn primary big gate-cta">Bind name &amp; step into the hall</button>
+        <button type="button" id="btn-skip-gate" class="btn ghost big">Enter nameless — as a wandering guest</button>
       </section>
 
       <main id="game" hidden>
@@ -66,8 +82,17 @@
       </main>
     </div>
 
-    <div id="modal-demplar" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-inner card">
+    <div
+      id="modal-demplar"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      aria-hidden="true"
+    >
+      <div class="modal-backdrop" aria-hidden="true"></div>
+      <div class="modal-inner card" role="document">
+        <button type="button" id="btn-modal-x" class="btn modal-x" aria-label="Close charter">✕</button>
         <h2 id="modal-title">The Herald’s charter</h2>
         <p id="modal-body"></p>
         <a class="btn primary big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Open Demplar on X</a>
