@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>The Moonwell Anglers</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="top">
+        <h1 id="title">The Moonwell Anglers</h1>
+        <p id="tagline" class="muted"></p>
+        <div id="trail-status" class="pill muted"></div>
+      </header>
+
+      <section id="nickname-gate" class="card">
+        <h2>By what name shall the hall know you?</h2>
+        <input id="nickname" type="text" maxlength="28" placeholder="Your tavern name" autocomplete="username" />
+        <button type="button" id="btn-enter-name" class="btn primary big">Enter the Moonwell hall</button>
+      </section>
+
+      <main id="game" hidden>
+        <div class="hud">
+          <span id="hud-renown"></span>
+          <span id="hud-tokens"></span>
+          <span id="hud-season"></span>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="well" width="520" height="420" aria-label="Moonwell fishing"></canvas>
+        </div>
+
+        <div id="phase-text" class="card lore"></div>
+
+        <div class="actions" id="actions">
+          <button type="button" id="btn-primary" class="btn primary big"></button>
+        </div>
+
+        <div id="reel-controls" class="reel-pair" hidden>
+          <button type="button" id="btn-slack" class="btn big ghost">Slack line</button>
+          <button type="button" id="btn-heave" class="btn big">Heave</button>
+        </div>
+
+        <button type="button" id="btn-strike" class="btn strike big" hidden>Strike!</button>
+
+        <aside class="card board">
+          <h3>Tavern notice board</h3>
+          <ul id="notices"></ul>
+          <button type="button" id="btn-charter" class="btn linkish">Read the charter scroll (optional)</button>
+        </aside>
+
+        <footer class="credits">
+          <span id="credits-text"></span>
+          <a href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
+          ·
+          <a href="/bigboard.html" target="_blank" rel="noopener">Hall of the Angler (projector)</a>
+        </footer>
+      </main>
+    </div>
+
+    <div id="modal-demplar" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-inner card">
+        <h2 id="modal-title">The Herald’s charter</h2>
+        <p id="modal-body"></p>
+        <a class="btn primary big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Open Demplar on X</a>
+        <button type="button" id="btn-close-modal" class="btn ghost big">Close</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
