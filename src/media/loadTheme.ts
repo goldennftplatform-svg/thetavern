@@ -12,9 +12,14 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
+function assetUrl(path: string): string {
+  const p = path.startsWith("/") ? path.slice(1) : path;
+  return `${import.meta.env.BASE_URL}${p}`;
+}
+
 export async function loadDailyMediaTheme(): Promise<LoadedMediaTheme | null> {
   try {
-    const res = await fetch("/media/manifest.json", { cache: "no-store" });
+    const res = await fetch(assetUrl("media/manifest.json"), { cache: "no-store" });
     if (!res.ok) return null;
     const manifest = (await res.json()) as MediaManifest;
     const list = manifest.platforms ?? [];
@@ -28,7 +33,8 @@ export async function loadDailyMediaTheme(): Promise<LoadedMediaTheme | null> {
       LAYER_KEYS.map(async (key) => {
         const file = platform.layers[key];
         if (!file) return;
-        const url = `${platform.path}/${file}`;
+        const rel = platform.path.replace(/^\//, "");
+        const url = assetUrl(`${rel}/${file}`);
         const img = await loadImage(url);
         if (img) images[key] = img;
       }),

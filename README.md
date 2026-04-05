@@ -4,6 +4,21 @@ Repo: [github.com/goldennftplatform-svg/thetavern](https://github.com/goldennftp
 
 Vite + TypeScript client, Express + Socket.IO trail server, Vercel-ready static output. Fantasy tavern ritual centered on the **Moonwell** fishing loop; **Demplar** appears in lore, notices, and an optional charter modal ([Demplar on X](https://x.com/DemplarOfficial)).
 
+## No login for players (Vercel wall?)
+
+- **This game has no accounts.** If someone hits a **“Log in to Vercel”** (or SSO) screen, that is **Vercel Deployment Protection** on your project — not this repo’s code.
+- **Fix (Vercel):** Project → **Settings → Deployment Protection** — turn off **Vercel Authentication** (and similar) for **Production** (and Previews if you want public previews). On **Hobby**, production is usually public by default; protected **Preview** URLs often look like `*.vercel.app` with auth.
+- **Avoid Vercel entirely for the static site:** enable **GitHub Pages** (workflow below). Visitors only need the GitHub Pages URL — **no Vercel account**.
+
+### GitHub Pages (public, no Vercel)
+
+1. Repo → **Settings → Pages** → **Build and deployment**: source **GitHub Actions**.  
+2. Push `main`; workflow **Deploy to GitHub Pages** builds `dist/` and publishes it.  
+3. Site: `https://<org>.github.io/<repo>/` (e.g. `https://goldennftplatform-svg.github.io/thetavern/`).  
+4. Forks: workflow sets `GITHUB_PAGES_BASE` from the repo name automatically; `vite` uses it so assets resolve under the subpath.
+
+Trail server (Socket.IO) is still separate — use your tunnel URL + `TRAIL_CORS_ORIGIN` including the `github.io` origin if you use Pages.
+
 ## GitHub (first push)
 
 ```bash
@@ -29,7 +44,20 @@ If the remote already has commits, use `git pull origin main --rebase` before pu
 - `npm run build` — client + bigboard to `dist/` (runs `media:scan` first)
 - `npm run server` — trail server (default port `3847`, override with `TRAIL_PORT`)
 - `npm run live` — trail server + Vite dev (LAN-friendly `--host`)
-- `npm run dev` / `npm run preview` — client only
+- **`npm run dashboard`** — same as `live`, but prints the **dashboard URL** (`/bigboard.html`) in the terminal first
+- `npm run dev` / `npm run preview` — client only (dashboard **won’t** be live without `npm run server` in another terminal)
+
+### Why the “dashboard” isn’t as plug-and-play as some other stacks (e.g. zEMOTA-style)
+
+Many apps ship **one** server or **one** Vercel project where the UI and realtime API share the same origin. **Thetavern** is intentionally split:
+
+| Piece | What it is |
+|--------|------------|
+| **Vercel** | Only **static files** from `dist/` (game + bigboard HTML). No Node Socket.IO there. |
+| **Trail server** | Separate **Node** process (`npm run server`) for Socket.IO — must be running (or tunneled) for the dashboard feed + map to go live. |
+| **Port `3847`** | If you start the server twice, you get **`EADDRINUSE`** — kill the old process or change `TRAIL_PORT`. |
+
+**Dashboard URLs:** after deploy, open **`/dashboard`** or **`/bigboard.html`** (rewrites in `vercel.json`). Locally: **`http://127.0.0.1:5173/bigboard.html`** while `npm run dashboard` (or `live`) is running.
 
 ## Deploy (tunnel + env)
 

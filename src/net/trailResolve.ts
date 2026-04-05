@@ -23,7 +23,7 @@ export async function resolveTrailServerUrl(): Promise<{ url: string; source: Tr
   if (stored) return { url: stored.replace(/\/$/, ""), source: "localStorage" };
 
   try {
-    const res = await fetch("/trail.json", { cache: "no-store" });
+    const res = await fetch(`${import.meta.env.BASE_URL}trail.json`, { cache: "no-store" });
     if (res.ok) {
       const j = (await res.json()) as { trailUrl?: string };
       const u = j.trailUrl?.trim();

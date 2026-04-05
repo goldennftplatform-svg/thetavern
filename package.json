@@ -10,7 +10,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
-    "live": "concurrently -n srv,web -c blue,green \"npm run server\" \"vite --host\""
+    "live": "concurrently -n srv,web -c blue,green \"npm run server\" \"vite --host\"",
+    "dashboard": "node scripts/print-dashboard-url.mjs && concurrently -n srv,web -c blue,green \"npm run server\" \"vite --host\""
   },
   "dependencies": {
     "cors": "^2.8.5",

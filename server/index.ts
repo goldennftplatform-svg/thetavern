@@ -66,6 +66,17 @@ io.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`[trail] Moonwell hall listening on :${PORT} (polling+websocket)`);
-});
+httpServer
+  .listen(PORT, () => {
+    console.log(`[trail] Moonwell hall listening on :${PORT} (polling+websocket)`);
+  })
+  .on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `[trail] Port ${PORT} is already in use (another trail server?). Stop it or set TRAIL_PORT in .env — Windows: netstat -ano | findstr :${PORT} then taskkill /PID <pid> /F`,
+      );
+    } else {
+      console.error("[trail] Server error:", err.message);
+    }
+    process.exit(1);
+  });
