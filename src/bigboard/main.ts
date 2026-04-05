@@ -1,9 +1,11 @@
 import { resolveTrailServerUrl } from "../net/trailResolve";
 import { connectTrail } from "../net/trailClient";
+import { drawTavernMap, resizeMapCanvas, type MapPatron } from "./tavernMap";
 
 const feedEl = document.getElementById("feed")!;
 const patronsEl = document.getElementById("patrons")!;
 const statusEl = document.getElementById("status")!;
+const mapCanvas = document.getElementById("tavern-map") as HTMLCanvasElement;
 
 type Deed = {
   ts?: number;
@@ -24,6 +26,32 @@ function lineForDeed(d: Deed): string {
   return `${who} did a deed worth telling.`;
 }
 
+let patronList: MapPatron[] = [];
+let flashLine = "";
+let flashTimer = 0;
+
+function redrawMap() {
+  drawTavernMap(mapCanvas, patronList, flashLine);
+}
+
+function setFlash(line: string) {
+  flashLine = line;
+  window.clearTimeout(flashTimer);
+  flashTimer = window.setTimeout(() => {
+    flashLine = "";
+    redrawMap();
+  }, 5000);
+  redrawMap();
+}
+
+function onPatrons(p: { patrons: { name: string }[] }) {
+  patronList = p.patrons.map((x) => ({ name: x.name }));
+  patronsEl.textContent = patronList.length
+    ? `${patronList.length} at the rim: ${patronList.map((x) => x.name).join(" · ")}`
+    : "The rim is quiet — cast soon.";
+  redrawMap();
+}
+
 async function main() {
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
@@ -31,17 +59,25 @@ async function main() {
   } catch {
     /* optional */
   }
+
+  const resize = () => {
+    resizeMapCanvas(mapCanvas);
+    redrawMap();
+  };
+  resize();
+  window.addEventListener("resize", resize);
+
   statusEl.textContent = "Connecting to the hall…";
   const { url, source } = await resolveTrailServerUrl();
-  statusEl.textContent = url ? `Hall link (${source})` : "Offline hall — static feed only";
+  statusEl.textContent = url ? `Hall link (${source})` : "Offline hall — map is demo-only";
 
   let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
   if (url) {
     try {
       client = await connectTrail(url, source, { name: "Hall of the Angler", projector: true });
-      statusEl.textContent = "Live — Hall of the Angler";
+      statusEl.textContent = "Live — top-down hall";
     } catch {
-      statusEl.textContent = "Could not reach trail server";
+      statusEl.textContent = "Could not reach trail server — map offline";
     }
   }
 
@@ -53,14 +89,17 @@ async function main() {
       row.textContent = lineForDeed(d);
       feedEl.prepend(row);
       while (feedEl.children.length > 24) feedEl.removeChild(feedEl.lastChild!);
+      setFlash(lineForDeed(d));
     });
-    socket.on("moonwell:patrons", (p: { patrons: { name: string }[] }) => {
-      patronsEl.textContent = p.patrons.length
-        ? `At the Moonwell: ${p.patrons.map((x) => x.name).join(" · ")}`
-        : "The well is quiet — cast soon.";
-    });
+    socket.on("moonwell:patrons", onPatrons);
   } else {
-    patronsEl.textContent = "Projector mode — start the trail server for live names.";
+    patronsEl.textContent = "Demo: start trail server + open main game to see live tokens here.";
+    patronList = [
+      { name: "Example" },
+      { name: "Angler" },
+      { name: "Guest" },
+    ];
+    redrawMap();
   }
 }
 

@@ -77,28 +77,20 @@
           <span id="credits-text"></span>
           <a href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
           ·
-          <a href="/bigboard.html" target="_blank" rel="noopener">Hall of the Angler (projector)</a>
+          <a href="/bigboard.html" target="_blank" rel="noopener">Tavern bigboard (top-down)</a>
         </footer>
       </main>
     </div>
 
-    <div
-      id="modal-demplar"
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-      aria-hidden="true"
-    >
-      <div class="modal-backdrop" aria-hidden="true"></div>
-      <div class="modal-inner card" role="document">
+    <dialog id="modal-demplar" class="charter-dialog" aria-labelledby="modal-title">
+      <div class="charter-panel card">
         <button type="button" id="btn-modal-x" class="btn modal-x" aria-label="Close charter">✕</button>
         <h2 id="modal-title">The Herald’s charter</h2>
         <p id="modal-body"></p>
         <a class="btn primary big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Open Demplar on X</a>
         <button type="button" id="btn-close-modal" class="btn ghost big">Close</button>
       </div>
-    </div>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

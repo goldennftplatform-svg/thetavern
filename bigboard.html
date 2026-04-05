@@ -16,10 +16,20 @@
     <div class="bigboard">
       <header>
         <h1>Hall of the Angler</h1>
-        <p class="muted">Live deeds from the Moonwell — big catches, omens, renown</p>
+        <p class="muted">Top-down tavern &amp; Moonwell — live patrons and deeds</p>
         <p id="status" class="pill"></p>
-        <p id="patrons" class="patrons-line"></p>
       </header>
+
+      <section class="tavern-map-section card" aria-label="Tavern floor map">
+        <h2 class="map-heading">Tavern floor (top-down)</h2>
+        <p class="muted map-sub">Tokens = anglers at the rim. Center = the Moonwell.</p>
+        <div class="tavern-map-frame">
+          <canvas id="tavern-map" width="720" height="440" aria-label="Top-down map of the hall and Moonwell"></canvas>
+        </div>
+        <p id="patrons" class="patrons-line"></p>
+      </section>
+
+      <h2 class="feed-heading">Deeds &amp; catches</h2>
       <section id="feed" class="feed"></section>
     </div>
     <script type="module" src="/src/bigboard/main.ts"></script>

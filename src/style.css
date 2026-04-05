@@ -87,10 +87,11 @@ h3,
 
 #nickname-gate h2,
 .board h3,
-.modal-inner h2 {
+.charter-panel h2 {
   font-size: 0.55rem;
   margin: 0 0 12px;
   color: var(--jade);
+  padding-right: 48px;
 }
 
 /* Mystical name gate — impossible to miss */
@@ -389,40 +390,33 @@ canvas#well {
   font-weight: bold;
 }
 
-/* Class-based open state — avoids [hidden] vs display bugs; flex centers the card over a full-screen backdrop */
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483000;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  pointer-events: none;
+/* Native <dialog> — reliable close (Escape, backdrop) vs div+hidden hacks */
+.charter-dialog {
+  border: none;
+  padding: 0;
+  margin: auto;
+  max-width: calc(100vw - 16px);
+  background: transparent;
+  z-index: 2147483647;
 }
 
-.modal.is-open {
-  display: flex;
-  pointer-events: auto;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.82);
-  z-index: 0;
+.charter-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.88);
   cursor: pointer;
 }
 
-.modal-inner {
+.charter-panel {
   position: relative;
-  z-index: 1;
+  margin: 0 auto;
   max-width: 420px;
-  width: 100%;
+  width: min(420px, 92vw);
   display: flex;
   flex-direction: column;
   gap: 14px;
-  pointer-events: auto;
+}
+
+.charter-panel p {
+  font-size: 1.15rem;
 }
 
 .modal-x {
@@ -442,8 +436,53 @@ canvas#well {
   margin-top: 12px;
 }
 
-.modal-inner p {
-  font-size: 1.15rem;
+/* Fallback if <dialog> API missing (open attribute only) */
+.charter-dialog[open]:not(:modal) {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  max-width: none;
+}
+
+.tavern-map-section {
+  margin-top: 20px;
+}
+
+.map-heading,
+.feed-heading {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.48rem;
+  color: var(--jade);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.feed-heading {
+  margin-top: 28px;
+}
+
+.map-sub {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.tavern-map-frame {
+  border: 4px solid var(--line);
+  box-shadow: 6px 6px 0 var(--line);
+  background: #1a1008;
+  overflow: hidden;
+  line-height: 0;
+}
+
+#tavern-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .bigboard-body {

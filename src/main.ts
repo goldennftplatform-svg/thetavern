@@ -50,7 +50,7 @@ const canvas = $("well") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 const elNotices = $("notices");
 const elCredits = $("credits-text");
-const elModal = $("modal-demplar");
+const elModal = $("modal-demplar") as HTMLDialogElement;
 const elModalBody = $("modal-body");
 const elBtnCharter = $("btn-charter");
 const elBtnCloseModal = $("btn-close-modal");
@@ -59,26 +59,41 @@ const elBtnSkipGate = $("btn-skip-gate");
 
 function openDemplarModal() {
   elModalBody.textContent = demplarModalIntro;
-  elModal.classList.add("is-open");
-  elModal.setAttribute("aria-hidden", "false");
+  if (typeof elModal.showModal === "function") {
+    if (!elModal.open) elModal.showModal();
+  } else {
+    elModal.setAttribute("open", "");
+  }
 }
 
 function closeDemplarModal() {
-  elModal.classList.remove("is-open");
-  elModal.setAttribute("aria-hidden", "true");
+  if (typeof elModal.close === "function") {
+    elModal.close();
+  } else {
+    elModal.removeAttribute("open");
+  }
 }
 
 elBtnCharter.addEventListener("click", () => {
   openDemplarModal();
 });
-elBtnCloseModal.addEventListener("click", () => {
+elBtnCloseModal.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
   closeDemplarModal();
 });
-elBtnModalX.addEventListener("click", () => {
+elBtnModalX.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
   closeDemplarModal();
 });
-elModal.querySelector(".modal-backdrop")?.addEventListener("click", () => {
-  closeDemplarModal();
+
+/* Backdrop / scrim: any click not inside the charter card closes (works with native <dialog>) */
+elModal.addEventListener("click", (e) => {
+  const panel = elModal.querySelector(".charter-panel");
+  if (panel && e.target instanceof Node && !panel.contains(e.target)) {
+    closeDemplarModal();
+  }
 });
 
 elTitle.textContent = GAME_TITLE;
@@ -408,11 +423,6 @@ elSlack.addEventListener("click", () => nudgeReel(-0.055));
 elHeave.addEventListener("click", () => nudgeReel(0.055));
 
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" && elModal.classList.contains("is-open")) {
-    e.preventDefault();
-    closeDemplarModal();
-    return;
-  }
   if (state.phase === "fish_cast" && e.code === "Space") {
     e.preventDefault();
     chargeActive = true;
