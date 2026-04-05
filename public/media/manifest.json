@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "generatedAt": "2026-04-05T07:47:12.058Z",
+  "hint": "Add MEdiaFiles/<name>/ with banner.jpg, crest.png, sky.webp, deck.jpg - or drop images in MEdiaFiles root. Run npm run media:scan.",
+  "platforms": [
+    {
+      "id": "thetavern-stash",
+      "name": "Imported deck",
+      "path": "/media/platforms/thetavern-stash",
+      "layers": {
+        "banner": "banner.jpg",
+        "crest": "crest.jpg"
+      }
+    }
+  ]
+}

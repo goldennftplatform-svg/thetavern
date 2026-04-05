@@ -17,9 +17,16 @@ git push -u origin main
 
 If the remote already has commits, use `git pull origin main --rebase` before pushing.
 
+## MEdiaFiles → daily fishing decks
+
+- Drop images in **`MEdiaFiles/`** (root or subfolders). See **`MEdiaFiles/README.md`** for layer names (`banner`, `crest`, `sky`, `deck`).
+- **`npm run media:scan`** copies assets to **`public/media/`** and writes **`manifest.json`**. Runs automatically as **`prebuild`** before **`npm run build`**.
+- The game picks a platform by **UTC date** so the same “deck” shows for everyone that day; add more folders for rotation variety.
+
 ## Scripts
 
-- `npm run build` — client + bigboard to `dist/`
+- `npm run media:scan` — sync `MEdiaFiles/` → `public/media/`
+- `npm run build` — client + bigboard to `dist/` (runs `media:scan` first)
 - `npm run server` — trail server (default port `3847`, override with `TRAIL_PORT`)
 - `npm run live` — trail server + Vite dev (LAN-friendly `--host`)
 - `npm run dev` / `npm run preview` — client only

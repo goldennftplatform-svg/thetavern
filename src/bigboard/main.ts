@@ -25,6 +25,12 @@ function lineForDeed(d: Deed): string {
 }
 
 async function main() {
+  try {
+    await document.fonts.load('400 10px "Press Start 2P"');
+    await document.fonts.load('400 24px "VT323"');
+  } catch {
+    /* optional */
+  }
   statusEl.textContent = "Connecting to the hall…";
   const { url, source } = await resolveTrailServerUrl();
   statusEl.textContent = url ? `Hall link (${source})` : "Offline hall — static feed only";

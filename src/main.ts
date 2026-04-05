@@ -20,6 +20,9 @@ import {
 import { initialState } from "./game/state";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
+import { loadDailyMediaTheme, platformLabel } from "./media/loadTheme";
+import { utcDayKey } from "./media/dailyPick";
+import type { LoadedMediaTheme } from "./media/types";
 import { rollCatch } from "./minigames/fishing";
 import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
@@ -42,6 +45,7 @@ const elHeave = $("btn-heave");
 const elHudR = $("hud-renown");
 const elHudT = $("hud-tokens");
 const elHudS = $("hud-season");
+const elHudDeck = $("hud-deck");
 const canvas = $("well") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 const elNotices = $("notices");
@@ -57,6 +61,7 @@ elCredits.textContent = creditsLine;
 
 let state: GameState = initialState("Traveler");
 let socket: Socket | null = null;
+let loadedTheme: LoadedMediaTheme | null = null;
 
 /** Scratch for one fishing attempt */
 let castQuality = 0;
@@ -91,21 +96,34 @@ function hud() {
   elHudR.textContent = `Renown: ${state.renown}`;
   elHudT.textContent = `Tavern tokens: ${state.tokens}`;
   elHudS.textContent = seasonFlavor[state.season];
+  if (loadedTheme) {
+    elHudDeck.textContent = `DECK: ${platformLabel(loadedTheme.platform, utcDayKey())}`;
+    elHudDeck.hidden = false;
+  } else {
+    elHudDeck.textContent = "";
+    elHudDeck.hidden = true;
+  }
 }
 
 function drawWell(phaseOverride?: GamePhase) {
   const phase = phaseOverride ?? state.phase;
   const w = canvas.clientWidth || 520;
   const h = canvas.clientHeight || 420;
-  drawMoonwell(ctx, {
-    phase,
-    castPower: state.castPower,
-    biteOpen: state.biteWindowOpen,
-    waitPulse,
-    reelTension: state.reelTension,
-    reelProgress: state.reelProgress,
-    seasonTint: seasonTints[state.season] ?? "#b8e8ff",
-  }, w, h);
+  drawMoonwell(
+    ctx,
+    {
+      phase,
+      castPower: state.castPower,
+      biteOpen: state.biteWindowOpen,
+      waitPulse,
+      reelTension: state.reelTension,
+      reelProgress: state.reelProgress,
+      seasonTint: seasonTints[state.season] ?? "#b8e8ff",
+    },
+    w,
+    h,
+    loadedTheme,
+  );
 }
 
 function setPhase(next: GamePhase) {
@@ -419,6 +437,15 @@ elBtnCloseModal.addEventListener("click", () => {
   elModal.hidden = true;
 });
 
+async function ensurePixelFonts() {
+  try {
+    await document.fonts.load('400 10px "Press Start 2P"');
+    await document.fonts.load('400 24px "VT323"');
+  } catch {
+    /* network fonts optional */
+  }
+}
+
 async function bootTrail() {
   const { url, source } = await resolveTrailServerUrl();
   if (!url) {
@@ -440,6 +467,8 @@ $("btn-enter-name").addEventListener("click", async () => {
   elGate.hidden = true;
   elGame.hidden = false;
   fillNotices();
+  await ensurePixelFonts();
+  loadedTheme = await loadDailyMediaTheme();
   await bootTrail();
   resizeCanvas();
   setPhase("enter");
