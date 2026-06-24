@@ -17,9 +17,18 @@ import {
   tavernTeasers,
   triviaWell,
 } from "./content/lore";
+import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
+import {
+  CHANCE_GAMES,
+  resolveHighLow,
+  resolveOverUnder,
+  rollOverUnderTarget,
+  type ChanceGameId,
+} from "./minigames/chance";
+import { buildMoonwellDeck, MOONWELL_DECK_LORE, shuffleDeck } from "./minigames/moonwellDeck";
 import { loadDailyMediaTheme, platformLabel } from "./media/loadTheme";
 import { utcDayKey } from "./media/dailyPick";
 import type { LoadedMediaTheme } from "./media/types";
@@ -27,8 +36,23 @@ import { rollCatch } from "./minigames/fishing";
 import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
+import { initMobileShellClass } from "./mobile-detect";
+import {
+  chanceGameButtonHtml,
+  feastButtonHtml,
+  hubChoiceHtml,
+  renderCardRow,
+  renderNightBanner,
+  wireHubClicks,
+} from "./ui/tavernHub";
+
+initMobileShellClass();
 
 const $ = (id: string) => document.getElementById(id)!;
+
+/** Slightly longer strike window on touch (coarse pointer) */
+const touchFriendly =
+  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 const elTitle = $("title");
 const elTag = $("tagline");
@@ -46,6 +70,7 @@ const elHudR = $("hud-renown");
 const elHudT = $("hud-tokens");
 const elHudS = $("hud-season");
 const elHudDeck = $("hud-deck");
+const elHudBuff = $("hud-buff");
 const canvas = $("well") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 const elNotices = $("notices");
@@ -133,6 +158,171 @@ function announceCatch(c: CatchResult) {
   });
 }
 
+function announceHall(kind: string, text: string, renown?: number) {
+  socket?.emit("hall:announce_deed", { kind, text, renown });
+}
+
+function ensureDeck(min = 8) {
+  if (state.deck.length < min) {
+    state.deck = shuffleDeck(buildMoonwellDeck());
+  }
+}
+
+function drawFromDeck(n: number) {
+  ensureDeck(n);
+  const drawn = state.deck.splice(0, n);
+  return drawn;
+}
+
+function applyFoodOnCatch(c: CatchResult): CatchResult {
+  const buff = state.foodBuff;
+  if (!buff) return c;
+  let renown = c.renown + (buff.renownBonus ?? 0);
+  let tokens = c.tokens + (buff.tokenBonus ?? 0);
+  state.foodBuff = undefined;
+  return { ...c, renown, tokens };
+}
+
+function consumeCastFloor(): number {
+  return state.foodBuff?.castFloor ?? 0;
+}
+
+function biteWindowBonusMs(): number {
+  return state.foodBuff?.biteBonusMs ?? 0;
+}
+
+function buildWellHubHtml(): string {
+  const night = tonightUtc();
+  const buffLine = state.foodBuff
+    ? `<p class="muted">Kitchen buff active: ${state.foodBuff.label}</p>`
+    : "";
+  return `${renderNightBanner(night.title, night.tagline, night.herald)}
+    <p>The Moonwell breathes. Hooks clink. Choose your next move — most paths return here.</p>
+    <p class="muted">Season: ${state.season}. Tokens: ${state.tokens}.</p>
+    ${buffLine}
+    <div class="hub-grid" id="hub-grid">
+      ${hubChoiceHtml("F", "Cast into the Moonwell", "The spine of the night — skill, luck, and lore.", "fish", "gold")}
+      ${hubChoiceHtml("C", "Games of chance", "High/Low & Over/Under on the Moonwell deck.", "chance_menu", "jade")}
+      ${hubChoiceHtml("K", "Kitchen specials", "Pretzels, peanuts, corndogs, pie — tonight's board.", "feast_menu", "jade")}
+    </div>
+    <p class="deck-lore muted">${MOONWELL_DECK_LORE}</p>`;
+}
+
+function wirePhaseHub() {
+  wireHubClicks(elPhase, handleHubAction);
+}
+
+function handleHubAction(action: string) {
+  if (action === "fish") {
+    if (state.tokens < 1) {
+      state.tokens += 1;
+      hud();
+    }
+    setPhase("fish_cast");
+    return;
+  }
+  if (action === "chance_menu") {
+    setPhase("chance_pick");
+    return;
+  }
+  if (action === "feast_menu") {
+    setPhase("feast");
+    return;
+  }
+  if (action === "back:well") {
+    setPhase("well");
+    return;
+  }
+  if (action.startsWith("chance:")) {
+    const id = action.slice(7) as ChanceGameId;
+    startChanceGame(id);
+    return;
+  }
+  if (action.startsWith("feast:")) {
+    const id = action.slice(6) as FoodId;
+    buyFeast(id);
+  }
+}
+
+function startChanceGame(id: ChanceGameId) {
+  const game = CHANCE_GAMES.find((g) => g.id === id)!;
+  if (state.tokens < game.stake) {
+    elPhase.innerHTML = `<p class="muted">You need ${game.stake} token to sit at this table.</p>
+      <div class="hub-grid">${hubChoiceHtml("←", "Back to the well", "", "back:well", "ghost")}</div>`;
+    elPrimary.hidden = true;
+    wirePhaseHub();
+    return;
+  }
+  state.chanceGame = id;
+  state.chanceCards = [];
+  if (id === "over_under") {
+    state.overUnderTarget = rollOverUnderTarget();
+  }
+  setPhase("chance_play");
+}
+
+function buyFeast(id: FoodId) {
+  const night = tonightUtc();
+  if (!night.specials.includes(id)) return;
+  if (state.feastsEaten.includes(id)) return;
+  const f = foodItem(id);
+  if (state.tokens < f.cost) {
+    elPhase.innerHTML = `<p class="muted">The kitchen wants ${f.cost} token${f.cost === 1 ? "" : "s"} for ${f.name}.</p>
+      <div class="hub-grid">${hubChoiceHtml("←", "Back to the well", "", "back:well", "ghost")}</div>`;
+    elPrimary.hidden = true;
+    wirePhaseHub();
+    return;
+  }
+  state.tokens -= f.cost;
+  state.feastsEaten.push(id);
+  state.foodBuff = {
+    foodId: id,
+    label: f.buffLabel,
+    biteBonusMs: f.biteBonusMs,
+    renownBonus: f.renownBonus,
+    tokenBonus: f.tokenBonus,
+    castFloor: f.castFloor,
+  };
+  announceHall("feast", `Supped on ${f.name} — ${f.buffLabel}`);
+  hud();
+  setPhase("well");
+}
+
+function finishChance(guess: "high" | "low" | "over" | "under") {
+  const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
+  if (state.tokens < game.stake) {
+    setPhase("well");
+    return;
+  }
+
+  let result;
+  if (state.chanceGame === "high_low") {
+    const first = state.chanceCards[0]!;
+    const second = drawFromDeck(1)[0]!;
+    state.chanceCards = [first, second];
+    result = resolveHighLow(game.stake, first, second, guess as "high" | "low");
+  } else {
+    const drawn = drawFromDeck(1)[0]!;
+    state.chanceCards = [drawn];
+    result = resolveOverUnder(
+      game.stake,
+      drawn,
+      state.overUnderTarget ?? 8,
+      guess as "over" | "under",
+    );
+  }
+
+  state.tokens = Math.max(0, state.tokens + result.tokenDelta);
+  state.renown += result.renownDelta;
+  if (result.outcome === "win" && !state.titles.includes("Moonwell Sharp")) {
+    state.titles.push("Moonwell Sharp");
+  }
+  state.chanceLastResult = result;
+  announceHall("gamble", result.detail, result.renownDelta);
+  hud();
+  setPhase("chance_result");
+}
+
 function hud() {
   elHudR.textContent = `Renown: ${state.renown}`;
   elHudT.textContent = `Tavern tokens: ${state.tokens}`;
@@ -143,6 +333,13 @@ function hud() {
   } else {
     elHudDeck.textContent = "";
     elHudDeck.hidden = true;
+  }
+  if (state.foodBuff) {
+    elHudBuff.textContent = `BUFF: ${state.foodBuff.label}`;
+    elHudBuff.hidden = false;
+  } else {
+    elHudBuff.textContent = "";
+    elHudBuff.hidden = true;
   }
 }
 
@@ -182,19 +379,25 @@ function setPhase(next: GamePhase) {
   else setPresence(true);
 
   switch (next) {
-    case "enter":
-      elPhase.innerHTML = `<p>${tavernTeasers[Math.floor(Math.random() * tavernTeasers.length)]}</p>
+    case "enter": {
+      const night = tonightUtc();
+      elPhase.innerHTML = `${renderNightBanner(night.title, night.tagline, night.herald)}
+        <p>${tavernTeasers[Math.floor(Math.random() * tavernTeasers.length)]}</p>
         <p class="muted">${seasonFlavor[state.season]}</p>`;
       elPrimary.textContent = "Step into the tavern hall";
       break;
-    case "herald":
-      elPhase.innerHTML = `<p><strong>Herald:</strong> ${heraldLines[Math.floor(Math.random() * heraldLines.length)]}</p>`;
+    }
+    case "herald": {
+      const night = tonightUtc();
+      elPhase.innerHTML = `<p><strong>Herald:</strong> ${heraldLines[Math.floor(Math.random() * heraldLines.length)]}</p>
+        <p class="muted">${night.herald}</p>`;
       elPrimary.textContent = "Approach the Moonwell";
       break;
+    }
     case "well":
-      elPhase.innerHTML = `<p>The Moonwell breathes mist. Hooks clink like bells. This is the heart of the night—cast, and the hall remembers.</p>
-        <p class="muted">Season: ${state.season}. Tokens: ${state.tokens}. Most paths return here.</p>`;
-      elPrimary.textContent = "Cast into the Moonwell";
+      elPhase.innerHTML = buildWellHubHtml();
+      elPrimary.hidden = true;
+      wirePhaseHub();
       break;
     case "fish_cast":
       state.castPower = 0;
@@ -277,6 +480,78 @@ function setPhase(next: GamePhase) {
       });
       break;
     }
+    case "chance_pick":
+      elPhase.innerHTML = `<p><strong>Games of chance</strong> — the Moonwell deck only. Even pips, doubled faces.</p>
+        <div class="hub-grid" id="hub-grid">
+          ${CHANCE_GAMES.map((g) => chanceGameButtonHtml(g.id, g.name, g.blurb, g.stake)).join("")}
+          ${hubChoiceHtml("←", "Back to the well", "Return to the hub.", "back:well", "ghost")}
+        </div>`;
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    case "chance_play": {
+      const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
+      if (state.chanceGame === "high_low") {
+        if (state.chanceCards.length === 0) {
+          state.chanceCards = drawFromDeck(1);
+        }
+        const first = state.chanceCards[0]!;
+        elPhase.innerHTML = `<p><strong>${game.name}</strong> — stake ${game.stake} token. Call the next card.</p>
+          ${renderCardRow([first])}
+          <div class="chance-actions" id="chance-actions">
+            <button type="button" class="btn big primary" data-guess="high">Higher</button>
+            <button type="button" class="btn big ghost" data-guess="low">Lower</button>
+          </div>`;
+      } else {
+        const mark = state.overUnderTarget ?? 8;
+        elPhase.innerHTML = `<p><strong>${game.name}</strong> — stake ${game.stake} token.</p>
+          <p class="chance-mark">House mark: ${mark}</p>
+          <p class="muted">One draw from the Moonwell deck — over or under the mark?</p>
+          <div class="chance-actions" id="chance-actions">
+            <button type="button" class="btn big primary" data-guess="over">Over ${mark}</button>
+            <button type="button" class="btn big ghost" data-guess="under">Under ${mark}</button>
+          </div>`;
+      }
+      elPrimary.hidden = true;
+      elPhase.querySelectorAll<HTMLButtonElement>("[data-guess]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const g = btn.getAttribute("data-guess") as "high" | "low" | "over" | "under";
+          finishChance(g);
+        });
+      });
+      break;
+    }
+    case "chance_result": {
+      const r = state.chanceLastResult!;
+      const cards = renderCardRow(r.cards);
+      const outcomeCls =
+        r.outcome === "win"
+          ? "chance-outcome-win"
+          : r.outcome === "push"
+            ? "muted"
+            : "chance-outcome-lose";
+      elPhase.innerHTML = `<p><strong>${r.title}</strong> — <span class="${outcomeCls}">${r.outcome.toUpperCase()}</span></p>
+        ${cards}
+        <p>${r.detail}</p>
+        <p class="muted">Tokens ${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} · Renown +${r.renownDelta}</p>`;
+      elPrimary.hidden = false;
+      elPrimary.textContent = "Back to the well";
+      break;
+    }
+    case "feast": {
+      const night = tonightUtc();
+      elPhase.innerHTML = `<p><strong>Kitchen board</strong> — ${night.title}</p>
+        <p class="muted">One serving per special per night. Buff applies to your next cast.</p>
+        <div class="hub-grid" id="hub-grid">
+          ${night.specials
+            .map((id) => feastButtonHtml(id, state.feastsEaten.includes(id)))
+            .join("")}
+          ${hubChoiceHtml("←", "Back to the well", "Return without ordering.", "back:well", "ghost")}
+        </div>`;
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
     default:
       break;
   }
@@ -308,7 +583,7 @@ function scheduleBiteWindow() {
       state.biteWindowOpen = false;
       elStrike.hidden = true;
       setPhase("fish_reel");
-    }, 620 + Math.random() * 220);
+    }, touchFriendly ? 820 + biteWindowBonusMs() + Math.random() * 320 : 620 + biteWindowBonusMs() + Math.random() * 220);
   }, delay);
 }
 
@@ -344,13 +619,13 @@ function startReelLoop() {
         reelQuality,
         season: state.season,
       });
-      state.lastCatch = result;
-      state.renown += result.renown;
-      state.tokens += result.tokens;
+      state.lastCatch = applyFoodOnCatch(result);
+      state.renown += state.lastCatch.renown;
+      state.tokens += state.lastCatch.tokens;
       state.catalog.add(result.fishId);
       if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) state.titles.push("Charter Angler");
       if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) state.titles.push("Omen Reader");
-      announceCatch(result);
+      announceCatch(state.lastCatch);
       hud();
       setPhase("resolve");
     }
@@ -366,18 +641,14 @@ elPrimary.addEventListener("click", () => {
     case "herald":
       setPhase("well");
       break;
-    case "well":
-      if (state.tokens < 1) {
-        state.tokens += 1;
-        hud();
-      }
-      setPhase("fish_cast");
-      break;
     case "resolve":
       setPhase("renown");
       break;
     case "renown":
       setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
+      break;
+    case "chance_result":
+      setPhase("well");
       break;
     default:
       break;
@@ -393,7 +664,7 @@ elPrimary.addEventListener("pointerdown", (e) => {
 function finishCast() {
   if (state.phase !== "fish_cast") return;
   chargeActive = false;
-  castQuality = state.castPower;
+  castQuality = Math.max(consumeCastFloor(), state.castPower);
   window.cancelAnimationFrame(rafCast);
   setPhase("fish_wait");
 }
@@ -459,6 +730,8 @@ function fillNotices() {
   elNotices.innerHTML = "";
   const items = [
     demplarNotice,
+    `Tonight: ${tonightUtc().title} — ${tonightUtc().tagline}`,
+    "Moonwell deck: fifty-two cards, even pips only, doubled faces.",
     "Big catches are sung here before they are sold.",
     "Duels of wit: loser buys the next round of bait.",
     "The one that got away is always mythic—check the Hall board.",

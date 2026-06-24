@@ -1,0 +1,258 @@
+/* Tavern hub — pick cards, night banner, Moonwell playing cards */
+
+.night-banner {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 4px solid var(--gold-dim);
+  background: linear-gradient(135deg, rgba(42, 24, 80, 0.95), rgba(18, 8, 26, 0.98));
+  box-shadow:
+    0 0 0 2px #000,
+    var(--mobile-glow, 0 0 28px rgba(248, 216, 32, 0.12)),
+    4px 4px 0 var(--line);
+  border-radius: var(--mobile-panel-r, 0);
+  animation: night-banner-glow 4s ease-in-out infinite;
+}
+
+@keyframes night-banner-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #000,
+      0 0 20px rgba(248, 216, 32, 0.1),
+      4px 4px 0 var(--line);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #000,
+      0 0 36px rgba(56, 240, 168, 0.14),
+      4px 4px 0 var(--line);
+  }
+}
+
+.night-banner-eyebrow {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.36rem;
+  color: var(--jade);
+  margin: 0 0 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.night-banner-title {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.48rem, 2vw, 0.58rem);
+  color: var(--gold);
+  margin: 0 0 6px;
+  text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.night-banner-tag {
+  margin: 0 0 8px;
+  font-size: 1.08rem;
+  color: var(--ink);
+}
+
+.night-banner-herald {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.hub-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.hub-pick {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: 4px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--line);
+  border-radius: var(--mobile-panel-r, 0);
+  font-family: inherit;
+  transition: transform 0.06s ease, filter 0.06s ease;
+}
+
+.hub-pick:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.hub-pick:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.hub-pick:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hub-pick--gold {
+  border-color: var(--gold-dim);
+  background: rgba(201, 160, 16, 0.12);
+}
+
+.hub-pick--jade {
+  border-color: var(--jade-dk);
+  background: rgba(16, 144, 96, 0.1);
+}
+
+.hub-pick--ghost {
+  border-color: var(--muted);
+  background: var(--bg0);
+}
+
+.hub-pick-letter {
+  flex-shrink: 0;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.55rem;
+  color: var(--gold);
+  min-width: 1.6rem;
+  text-align: center;
+  padding-top: 2px;
+}
+
+.hub-pick-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.hub-pick-body strong {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.42rem;
+  color: var(--jade);
+  line-height: 1.5;
+}
+
+.feast-ate {
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.playing-card {
+  width: 72px;
+  height: 100px;
+  border: 4px solid var(--line);
+  background: var(--panel-hi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 4px 4px 0 var(--line);
+  border-radius: 8px;
+  animation: card-deal 0.35s ease-out;
+}
+
+@keyframes card-deal {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.playing-card--back {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--panel),
+    var(--panel) 4px,
+    var(--bg1) 4px,
+    var(--bg1) 8px
+  );
+  color: var(--gold);
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.5rem;
+}
+
+.playing-card-rank {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.48rem;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.playing-card--wands {
+  border-color: var(--gold-dim);
+}
+.playing-card--cups {
+  border-color: var(--jade-dk);
+}
+.playing-card--coins {
+  border-color: #c9a010;
+}
+.playing-card--swords {
+  border-color: var(--danger-dk);
+}
+
+.chance-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.chance-mark {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.55rem;
+  color: var(--gold);
+  text-align: center;
+  margin: 12px 0;
+  text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.chance-outcome-win {
+  color: var(--jade);
+}
+
+.chance-outcome-lose {
+  color: var(--danger);
+}
+
+.hud-buff {
+  flex-basis: 100%;
+  color: var(--jade);
+  font-size: 0.36rem;
+  opacity: 0.95;
+}
+
+.deck-lore {
+  font-size: 0.98rem;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px dashed rgba(248, 216, 32, 0.25);
+}
+
+html.tavern-mobile .playing-card {
+  width: 64px;
+  height: 88px;
+}
+
+html.tavern-mobile .chance-actions {
+  grid-template-columns: 1fr;
+}
+
+html.tavern-mobile .hub-pick {
+  min-height: 3.25rem;
+}

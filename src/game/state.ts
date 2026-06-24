@@ -1,4 +1,5 @@
 import { SEASONS } from "../content/lore";
+import { buildMoonwellDeck, shuffleDeck } from "../minigames/moonwellDeck";
 import type { GameState } from "./types";
 
 export function initialState(nickname: string): GameState {
@@ -18,5 +19,8 @@ export function initialState(nickname: string): GameState {
     reelTension: 0.35,
     perilIndex: 0,
     triviaIndex: 0,
+    deck: shuffleDeck(buildMoonwellDeck()),
+    chanceCards: [],
+    feastsEaten: [],
   };
 }

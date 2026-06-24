@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#12081a" />
+    <meta name="color-scheme" content="dark" />
     <title>Dashboard — Hall of the Angler (Moonwell)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,24 +18,57 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body class="bigboard-body crt-skin">
-    <div class="bigboard">
-      <header>
+    <div id="bb-app" class="bb-root">
+      <header class="bb-header">
         <h1>Hall of the Angler</h1>
-        <p class="muted">Top-down tavern &amp; Moonwell — live patrons and deeds</p>
-        <p id="status" class="pill"></p>
+        <p class="muted">The Great Table — sit around the Moonwell, watch catches &amp; wagers live</p>
+        <div class="bb-status-row">
+          <span id="bb-live" class="bb-live-chip">
+            <span id="bb-live-dot" class="bb-live-dot bb-live-dot--off"></span>
+            <span id="status">Connecting…</span>
+          </span>
+        </div>
       </header>
 
-      <section class="tavern-map-section card" aria-label="Tavern floor map">
-        <h2 class="map-heading">Tavern floor (top-down)</h2>
-        <p class="muted map-sub">Tokens = anglers at the rim. Center = the Moonwell.</p>
-        <div class="tavern-map-frame">
-          <canvas id="tavern-map" width="720" height="440" aria-label="Top-down map of the hall and Moonwell"></canvas>
-        </div>
-        <p id="patrons" class="patrons-line"></p>
-      </section>
+      <main class="bb-main">
+        <section class="bb-map-stage" aria-label="Giant tavern table">
+          <div class="bb-map-frame">
+            <canvas
+              id="tavern-map"
+              width="960"
+              height="520"
+              aria-label="Top-down view of the Great Table and Moonwell"
+            ></canvas>
+            <div class="bb-vignette" aria-hidden="true"></div>
+            <div id="bb-callout" class="bb-callout" hidden></div>
+          </div>
+          <p id="patrons" class="bb-patrons-line"></p>
+        </section>
 
-      <h2 class="feed-heading">Deeds &amp; catches</h2>
-      <section id="feed" class="feed"></section>
+        <aside class="bb-feed-col">
+          <h2 class="bb-feed-heading">Deeds tonight</h2>
+          <div id="feed" class="bb-feed"></div>
+        </aside>
+      </main>
+
+      <footer class="bb-dock" id="bb-dock">
+        <div class="bb-dock-panel">
+          <strong>Tonight</strong>
+          <span id="bb-dock-night">—</span>
+        </div>
+        <div class="bb-dock-panel">
+          <strong>At the table</strong>
+          <span id="bb-dock-patrons">Waiting for anglers…</span>
+        </div>
+        <div class="bb-dock-panel bb-dock-fact-wrap">
+          <strong>Herald's whisper</strong>
+          <span id="bb-dock-fact" class="bb-dock-fact">—</span>
+        </div>
+        <div class="bb-dock-panel">
+          <strong>Join the hall</strong>
+          <a id="bb-play-link" class="bb-play-link" href="../index.html">Open Moonwell Anglers</a>
+        </div>
+      </footer>
     </div>
     <script type="module" src="/src/bigboard/main.ts"></script>
   </body>

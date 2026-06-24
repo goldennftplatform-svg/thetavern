@@ -1,4 +1,7 @@
 import type { FishRarity, Season } from "../content/lore";
+import type { FoodId } from "../content/tavernNights";
+import type { ChanceGameId, ChanceResult } from "../minigames/chance";
+import type { MoonwellCard } from "../minigames/moonwellDeck";
 
 export type GamePhase =
   | "enter"
@@ -10,7 +13,20 @@ export type GamePhase =
   | "resolve"
   | "renown"
   | "peril"
-  | "trivia";
+  | "trivia"
+  | "chance_pick"
+  | "chance_play"
+  | "chance_result"
+  | "feast";
+
+export type FoodBuff = {
+  foodId: FoodId;
+  label: string;
+  biteBonusMs?: number;
+  renownBonus?: number;
+  tokenBonus?: number;
+  castFloor?: number;
+};
 
 export type CatchResult = {
   fishId: string;
@@ -39,4 +55,12 @@ export type GameState = {
   reelTension: number;
   perilIndex: number;
   triviaIndex: number;
+  /** Moonwell deck + tavern games */
+  deck: MoonwellCard[];
+  chanceGame?: ChanceGameId;
+  chanceCards: MoonwellCard[];
+  overUnderTarget?: number;
+  chanceLastResult?: ChanceResult;
+  foodBuff?: FoodBuff;
+  feastsEaten: FoodId[];
 };

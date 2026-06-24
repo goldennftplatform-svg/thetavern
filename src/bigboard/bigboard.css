@@ -1,0 +1,335 @@
+/* Hall of the Angler — projector / TV wall (EzraMOTA-style shell, tavern table map) */
+
+.bb-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg0);
+  color: var(--ink);
+}
+
+.bb-header {
+  padding: 16px 20px 8px;
+  flex-shrink: 0;
+}
+
+.bb-header h1 {
+  margin: 0 0 8px;
+}
+
+.bb-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.bb-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.38rem;
+  color: var(--jade);
+  padding: 8px 12px;
+  border: 3px solid var(--jade-dk);
+  background: rgba(16, 144, 96, 0.12);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+.bb-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--jade);
+  animation: bb-live-pulse 1.4s ease-in-out infinite;
+}
+
+.bb-live-dot--off {
+  background: var(--muted);
+  animation: none;
+}
+
+@keyframes bb-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
+.bb-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 0 16px 16px;
+  min-height: 0;
+}
+
+@media (min-width: 900px) {
+  .bb-main {
+    grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+    padding: 0 20px 20px;
+  }
+}
+
+.bb-map-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.bb-map-frame {
+  position: relative;
+  flex: 1;
+  border: 4px solid var(--line);
+  box-shadow:
+    6px 6px 0 var(--line),
+    0 0 48px rgba(248, 216, 32, 0.08);
+  background: #1a1008;
+  overflow: hidden;
+  line-height: 0;
+  container-type: inline-size;
+}
+
+.bb-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+#tavern-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 280px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.bb-patrons-line {
+  margin: 10px 0 0;
+  font-size: 1.1rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.bb-feed-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.bb-feed-heading {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.48rem;
+  color: var(--jade);
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.bb-feed {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bb-deed {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--panel);
+  border: 4px solid var(--line);
+  box-shadow: 4px 4px 0 var(--line);
+  padding: 12px 14px;
+  font-size: 1.08rem;
+  line-height: 1.4;
+  animation: bb-feed-in 0.45s ease-out;
+}
+
+@keyframes bb-feed-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bb-deed--catch {
+  border-color: var(--gold-dim);
+  background: rgba(201, 160, 16, 0.08);
+}
+
+.bb-deed--gamble {
+  border-color: var(--jade-dk);
+}
+
+.bb-deed--feast {
+  border-color: #c9a010;
+}
+
+.bb-feed-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.bb-deed--gamble .bb-feed-icon {
+  color: var(--jade);
+}
+
+.bb-deed-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.bb-callout {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 5;
+  max-width: min(92%, 640px);
+  padding: 12px 18px;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.38rem, 1.2vw, 0.48rem);
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.88);
+  border: 3px solid var(--gold-dim);
+  box-shadow: 0 0 24px rgba(248, 216, 32, 0.25);
+  text-align: center;
+  line-height: 1.55;
+  animation: bb-callout-in 0.35s ease-out;
+}
+
+@keyframes bb-callout-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.bb-dock {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 12px 20px 20px;
+  border-top: 4px solid var(--line);
+  background: rgba(18, 8, 26, 0.95);
+}
+
+.bb-dock-panel {
+  padding: 10px 12px;
+  border: 3px solid var(--line);
+  background: var(--panel);
+  box-shadow: 3px 3px 0 var(--line);
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.bb-dock-panel strong {
+  display: block;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.36rem;
+  color: var(--jade);
+  margin-bottom: 6px;
+}
+
+.bb-dock-fact {
+  animation: bb-fact-roll 0.5s ease-out;
+}
+
+@keyframes bb-fact-roll {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bb-play-link {
+  color: var(--gold);
+  font-weight: bold;
+}
+
+/* ——— Wall / projector mode (?wall=1 or large viewport) ——— */
+html.bb-wall .bb-header {
+  display: none;
+}
+
+html.bb-wall .bb-main {
+  grid-template-columns: minmax(0, 2.2fr) minmax(260px, 0.75fr);
+  padding: 12px;
+  gap: 12px;
+  height: calc(100dvh - 72px);
+}
+
+html.bb-wall .bb-dock {
+  padding: 8px 12px 12px;
+}
+
+html.bb-wall #tavern-map {
+  min-height: 0;
+  height: 100%;
+}
+
+html.bb-wall .bb-map-frame {
+  min-height: 0;
+  flex: 1;
+}
+
+html.bb-wall .bb-map-stage {
+  height: 100%;
+}
+
+html.bb-wall .bb-feed {
+  max-height: none;
+}
+
+html.bb-wall .bb-live-chip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+}
+
+html.bb-wall .bb-feed-heading {
+  font-size: 0.42rem;
+}
+
+html.bb-wall .bb-deed {
+  font-size: 0.98rem;
+  padding: 10px 12px;
+}
+
+html.bb-wall body.crt-skin::before {
+  opacity: 0.32;
+}

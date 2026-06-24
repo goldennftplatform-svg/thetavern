@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>The Moonwell Anglers</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,7 +34,7 @@
           id="nickname"
           type="text"
           maxlength="28"
-          placeholder="e.g. Morrow Three-Hooks · Cinder-Vex · Luck-Sour Mae"
+          placeholder="Morrow Three-Hooks, Cinder-Vex…"
           autocomplete="username"
           inputmode="text"
           autofocus
@@ -48,24 +51,28 @@
           <span id="hud-tokens"></span>
           <span id="hud-season"></span>
           <span id="hud-deck" class="hud-deck" title="Rotates daily (UTC) from MEdiaFiles scan"></span>
-        </div>
-
-        <div class="canvas-wrap">
-          <canvas id="well" width="520" height="420" aria-label="Moonwell fishing"></canvas>
+          <span id="hud-buff" class="hud-buff" hidden></span>
         </div>
 
         <div id="phase-text" class="card lore"></div>
+
+        <div class="well-stack">
+          <button type="button" id="btn-strike" class="btn strike big strike-cta" hidden>
+            Strike!
+          </button>
+          <div class="canvas-wrap">
+            <canvas id="well" width="520" height="420" aria-label="Moonwell fishing"></canvas>
+          </div>
+        </div>
 
         <div class="actions" id="actions">
           <button type="button" id="btn-primary" class="btn primary big"></button>
         </div>
 
         <div id="reel-controls" class="reel-pair" hidden>
-          <button type="button" id="btn-slack" class="btn big ghost">Slack line</button>
-          <button type="button" id="btn-heave" class="btn big">Heave</button>
+          <button type="button" id="btn-slack" class="btn big ghost reel-tap">Slack line</button>
+          <button type="button" id="btn-heave" class="btn big reel-tap">Heave</button>
         </div>
-
-        <button type="button" id="btn-strike" class="btn strike big" hidden>Strike!</button>
 
         <aside class="card board">
           <h3>Tavern notice board</h3>
@@ -77,6 +84,10 @@
           <span id="credits-text"></span>
           <a href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
           ·
+          <a href="https://knightsdemplar.com/" target="_blank" rel="noopener noreferrer">Knights Demplar</a>
+          ·
+          <a href="https://knightsofdegen.netlify.app/" target="_blank" rel="noopener noreferrer">Knights of Degen</a>
+          ·
           <a href="dashboard.html" target="_blank" rel="noopener">Dashboard (map + feed)</a>
         </footer>
       </main>
@@ -87,7 +98,8 @@
         <button type="button" id="btn-modal-x" class="btn modal-x" aria-label="Close charter">✕</button>
         <h2 id="modal-title">The Herald’s charter</h2>
         <p id="modal-body"></p>
-        <a class="btn primary big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Open Demplar on X</a>
+        <a class="btn primary big" href="https://knightsdemplar.com/" target="_blank" rel="noopener noreferrer">Knights Demplar</a>
+        <a class="btn ghost big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
         <button type="button" id="btn-close-modal" class="btn ghost big">Close</button>
       </div>
     </dialog>
