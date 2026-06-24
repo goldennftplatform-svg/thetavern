@@ -29,6 +29,9 @@ const CALLOUT_MS = 5200;
 const PATRON_PULSE_MS = 4000;
 const FACT_ROTATE_MS = 38_000;
 
+/** Preview anglers when the hall server is offline — keeps the table alive. */
+const DEMO_PATRONS: MapPatron[] = [{ name: "Example" }, { name: "Angler" }, { name: "Guest" }];
+
 type Deed = {
   ts?: number;
   kind?: string;
@@ -126,6 +129,14 @@ function refreshDock() {
   dockFact.classList.add("bb-dock-fact");
 }
 
+function showDemoHall(caption: string) {
+  patronList = DEMO_PATRONS.map((p) => ({ name: p.name }));
+  setLive(false, `Preview · ${tonightUtc().title}`);
+  patronsEl.textContent = caption;
+  refreshDock();
+  redrawMap();
+}
+
 function setLive(on: boolean, label: string) {
   statusEl.textContent = label;
   liveDot.classList.toggle("bb-live-dot--off", !on);
@@ -177,6 +188,10 @@ function setFlash(line: string, from?: string) {
 }
 
 function onPatrons(p: { patrons: { name: string }[] }) {
+  if (p.patrons.length === 0) {
+    showDemoHall("Live hall — preview tokens until an angler stands at the Moonwell.");
+    return;
+  }
   const prev = new Set(patronList.map((x) => x.name));
   patronList = p.patrons.map((x) => {
     const existing = patronList.find((e) => e.name === x.name);
@@ -186,9 +201,7 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   if (joined.length === 1) {
     setFlash(`${joined[0]!.name} pulled up a chair`, joined[0]!.name);
   }
-  patronsEl.textContent = patronList.length
-    ? `${patronList.length} at the Great Table: ${patronList.map((x) => x.name).join(" · ")}`
-    : "The table is empty — open the game and bind thy name.";
+  patronsEl.textContent = `${patronList.length} at the Great Table: ${patronList.map((x) => x.name).join(" · ")}`;
   refreshDock();
   redrawMap();
 }
@@ -220,12 +233,9 @@ async function main() {
   const { url } = await resolveTrailServerUrl();
 
   if (!url) {
-    setLive(false, `Tonight · ${night.title}`);
-    patronList = [];
-    patronsEl.textContent =
-      "Open the game and bind thy name — when a live hall is hosted, patrons appear at the Great Table.";
-    refreshDock();
-    redrawMap();
+    showDemoHall(
+      "Preview: Example, Angler & Guest at the table — open the game (same Wi‑Fi / localhost) for live seats.",
+    );
     return;
   }
 
@@ -236,11 +246,9 @@ async function main() {
     client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true });
     setLive(true, `Live · ${night.title}`);
   } catch {
-    setLive(false, `Tonight · ${night.title}`);
-    patronList = [];
-    patronsEl.textContent = "Live hall is resting — the table fills when the host is online.";
-    refreshDock();
-    redrawMap();
+    showDemoHall(
+      "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
+    );
     return;
   }
 
@@ -255,11 +263,12 @@ async function main() {
       }
     });
     socket.on("moonwell:patrons", onPatrons);
+    // Until real patrons arrive, keep the preview tokens bobbing at the table
+    if (patronList.length === 0) {
+      showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
+    }
   } else {
-    patronList = [];
-    patronsEl.textContent = "Waiting for anglers at the rim.";
-    refreshDock();
-    redrawMap();
+    showDemoHall("Preview seats at the Great Table.");
   }
 }
 
