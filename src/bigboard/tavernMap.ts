@@ -221,7 +221,7 @@ export function drawTavernMap(
   }
 
   const sorted = [...patrons].sort((a, b) => hashName(a.name) - hashName(b.name));
-  sorted.forEach((p, i) => {
+  sorted.forEach((p) => {
     const seat = seats[hashName(p.name) % seats.length]!;
     const pulse = (p.pulseUntil ?? 0) > now;
     drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse);

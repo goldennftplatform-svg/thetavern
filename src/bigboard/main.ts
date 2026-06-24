@@ -98,7 +98,6 @@ let flashLine = "";
 let flashTimer = 0;
 let calloutTimer = 0;
 let animTick = 0;
-let rafId = 0;
 let factIndex = 0;
 
 const dockFacts = [
@@ -160,9 +159,9 @@ function startAnimLoop() {
   const tick = () => {
     animTick += 1;
     redrawMap();
-    rafId = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   };
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
 
 function setFlash(line: string, from?: string) {
@@ -217,24 +216,32 @@ async function main() {
   window.addEventListener("resize", resize);
   startAnimLoop();
 
-  setLive(false, "Connecting to the hall…");
-  const { url, source } = await resolveTrailServerUrl();
+  setLive(false, "Moonwell hall");
+  const { url } = await resolveTrailServerUrl();
 
   if (!url) {
-    setLive(false, "Offline — demo table");
-    patronList = [{ name: "Example" }, { name: "Angler" }, { name: "Guest" }];
-    patronsEl.textContent = "Demo seats — start trail server + game for live table.";
+    setLive(false, `Tonight · ${night.title}`);
+    patronList = [];
+    patronsEl.textContent =
+      "Open the game and bind thy name — when a live hall is hosted, patrons appear at the Great Table.";
     refreshDock();
     redrawMap();
     return;
   }
 
+  setLive(false, "Joining live hall…");
+
   let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
   try {
-    client = await connectTrail(url, source, { name: "Hall of the Angler", projector: true });
+    client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true });
     setLive(true, `Live · ${night.title}`);
   } catch {
-    setLive(false, "Trail unreachable — demo table");
+    setLive(false, `Tonight · ${night.title}`);
+    patronList = [];
+    patronsEl.textContent = "Live hall is resting — the table fills when the host is online.";
+    refreshDock();
+    redrawMap();
+    return;
   }
 
   const socket = client?.socket;
@@ -249,8 +256,8 @@ async function main() {
     });
     socket.on("moonwell:patrons", onPatrons);
   } else {
-    patronList = [{ name: "Example" }, { name: "Angler" }, { name: "Guest" }];
-    patronsEl.textContent = "Demo: start trail server + open main game for live seats.";
+    patronList = [];
+    patronsEl.textContent = "Waiting for anglers at the rim.";
     refreshDock();
     redrawMap();
   }

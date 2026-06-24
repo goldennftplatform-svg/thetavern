@@ -13,7 +13,7 @@ export function hubChoiceHtml(
   title: string,
   blurb: string,
   action: string,
-  accent?: "gold" | "jade" | "danger",
+  accent?: "gold" | "jade" | "danger" | "ghost",
 ): string {
   const cls = accent ? ` hub-pick--${accent}` : "";
   return `<button type="button" class="hub-pick${cls}" data-hub-action="${action}">

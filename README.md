@@ -19,7 +19,7 @@ Vite + TypeScript client, Express + Socket.IO trail server, Vercel-ready static 
 3. Site: `https://<org>.github.io/<repo>/` (e.g. `https://goldennftplatform-svg.github.io/thetavern/`).  
 4. Forks: workflow sets `GITHUB_PAGES_BASE` from the repo name automatically; `vite` uses it so assets resolve under the subpath.
 
-Trail server (Socket.IO) is still separate — use your tunnel URL + `TRAIL_CORS_ORIGIN` including the `github.io` origin if you use Pages.
+Trail server (Socket.IO) is still separate — use your tunnel URL + `TRAIL_CORS_ORIGIN` including the `github.io` origin if you use Pages. **Public builds ship an empty `trail.json`** so visitors never get localhost prompts; local `npm run live` auto-uses `127.0.0.1:3847` when you’re on localhost.
 
 ## GitHub (first push)
 

@@ -753,17 +753,18 @@ async function ensurePixelFonts() {
 }
 
 async function bootTrail() {
-  const { url, source } = await resolveTrailServerUrl();
+  const { url } = await resolveTrailServerUrl();
   if (!url) {
-    elTrail.textContent = "Hall link: offline (set VITE_TRAIL_SERVER_URL or /trail.json)";
+    elTrail.textContent = "Solo at the Moonwell — cast freely. Live hall is optional.";
     return;
   }
-  elTrail.textContent = `Hall link: ${url} (${source})`;
+  elTrail.textContent = "Joining the live hall…";
   try {
-    const c = await connectTrail(url, source, { name: state.nickname });
+    const c = await connectTrail(url, "trailJson", { name: state.nickname });
     socket = c.socket;
+    elTrail.textContent = "Live hall — other anglers may share the table.";
   } catch {
-    elTrail.textContent = `Hall link unreachable: ${url}`;
+    elTrail.textContent = "Live hall is resting — solo play works fine.";
   }
 }
 
