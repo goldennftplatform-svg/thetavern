@@ -1,32 +1,34 @@
-/** Lore pack: Moonwell, seasons, fish, omens, Demplar / Knights tie-ins (original fantasy). */
+/** Lore pack — Moonwell charter hall, Demplar adjacency, original arcane fantasy. */
 
 export const GAME_TITLE = "The Moonwell Anglers";
 
 export const tavernTeasers = [
-  "The well remembers every cast—moonlight rings on the water like old coins.",
-  "Patrons wager in riddles; the true currency is the tale the well gives back.",
-  "Tonight the tide hums. Something generous stirs below.",
-  "Shadow breathes at the rim — time fractures, but the strike window stays honest.",
-  "Degens and knights share one hall; only the fish know which side you're on.",
+  "The well remembers every cast—moonlight rings on the water like graded gold leaf.",
+  "Patrons wager in riddles; the true currency is the tale the hall inscribes at dawn.",
+  "Tonight the tide hums a lesson no professor would dare assign.",
+  "Shadow breathes at the rim; time fractures, but the strike window stays honest.",
+  "Knights, degens, and third-year fools share one table—only the fish know your house.",
+  "Somewhere a bell tower sleeps. The Moonwell does not.",
 ];
 
 export const heraldLines = [
-  "The Herald tolls three: a catch, an omen, a name worth repeating.",
-  "Hark—renown is not gold here; it is the story they will tell tomorrow.",
-  "They say the oldest hook in the cellar bears a mark: Demplar—patron, myth, or both?",
-  "Where shadow breathes, the Moonwell answers — legends ignite when the deck runs hot.",
-  "The Codex updates elsewhere; here we update the tally on the notice board.",
-  "Knights of the hall wager even pips only — no odd numbers in the Moonwell deck.",
+  "The Herald tolls thrice: a catch, an omen, a name the Codex will misspell anyway.",
+  "Hark—renown is not coin here; it is the volume at which they tell your story tomorrow.",
+  "The oldest hook in the cellar bears a mark: Demplar—patron, myth, or both?",
+  "Where shadow breathes, the Moonwell answers—legends ignite when the deck runs hot.",
+  "The Rim Academy adjourns; the tavern holds convocation by candle and mist.",
+  "Even pips only at the divination table—no odd numbers in the Moonwell deck.",
+  "A wand is optional at the rim. A steady wrist is not.",
 ];
 
 export const SEASONS = ["frost", "bloom", "ember", "void"] as const;
 export type Season = (typeof SEASONS)[number];
 
 export const seasonFlavor: Record<Season, string> = {
-  frost: "Frostveil: the well steams; fish rise slow and wise.",
-  bloom: "Bloomtide: bright fry and brash omens—quick bites, quicker lies.",
-  ember: "Emberfall: coals reflect in the rings; the deep grows honest.",
-  void: "Starveil: the surface mirrors constellations; some stars blink back.",
+  frost: "Frostveil Term — steam crowns the well; fish rise slow and wise.",
+  bloom: "Bloomtide Revel — bright fry, brash omens, skirts of pollen light.",
+  ember: "Emberfall Vigil — coals mirror the rings; the deep grows honest.",
+  void: "Starveil Convocation — the surface holds constellations that blink back.",
 };
 
 export type FishRarity = "common" | "uncommon" | "rare" | "omen" | "mythic";
@@ -40,68 +42,114 @@ export const fishCatalog: Array<{
 }> = [
   {
     id: "silver_darter",
-    name: "Silver Darter",
+    name: "Glimmer Minnow",
     rarity: "common",
-    blurb: "A honest bite—good for stew and small boasts.",
+    blurb: "A honest bite—good for stew, small boasts, and passing the night without prophecy.",
   },
   {
     id: "riddle_eel",
-    name: "Riddle-Eel",
+    name: "Lex-Eel",
     rarity: "uncommon",
-    blurb: "It arrives in questions; leave with half an answer.",
+    blurb: "It arrives in half-rhymes; you leave with half an answer and a full tankard of doubt.",
   },
   {
     id: "moonscale_koi",
-    name: "Moonscale Koi",
+    name: "Astral Carp",
     rarity: "rare",
-    blurb: "Scales like pressed starlight. The room goes quiet when it surfaces.",
+    blurb: "Scales like pressed starlight. Candles lean. Conversations die mid-sentence.",
   },
   {
     id: "omen_perch",
-    name: "Omen Perch",
+    name: "Prophet Perch",
     rarity: "omen",
-    blurb: "Its eye reflects not you, but the road you mean to take.",
+    blurb: "Its eye reflects not your face, but the choice you pretend you have not made.",
   },
   {
     id: "demplar_glassfish",
-    name: "Glassfish of the Charter",
+    name: "Charter Wraithfish",
     rarity: "mythic",
     blurb:
-      "Nearly clear—only the hook-shadow reads true. Old timers whisper Demplar paid for the first net.",
+      "Nearly clear—only the hook-shadow reads true. They say Demplar bought the first net with a promise the well still collects.",
     demplarHook: true,
   },
 ];
 
 export const omens = [
-  "Three ripples, then none: change of luck.",
-  "A bubble ring opens like an eye: someone is listening.",
-  "The water turns briefly ink-black: travel by night favors you.",
-  "A silver leaf touches the surface: a debt will be forgiven.",
-  "The well mirrors a constellation not in any chart — reckon anyway.",
-  "A patron shouts \"Demplar!\" and the ripples spell yes, then no.",
+  "Three ripples, then none: fortune turns like a page.",
+  "A bubble ring opens like an eye: someone in the gallery is listening.",
+  "The water turns ink-black: travel by night favors you.",
+  "A silver leaf touches the surface: a debt will be forgiven before dawn.",
+  "The well mirrors a constellation absent from every chart—believe it anyway.",
+  "A patron shouts \"Demplar!\" and the ripples spell yes, then no, then maybe.",
+  "Your line hums one note no instrument owns: change is already walking toward you.",
 ];
 
 export const perilBeats = [
-  { q: "A stranger offers bait that smells of thunder. Take it?", a: ["Nod—risk for glory", "Decline—keep your luck"] },
-  { q: "The well whispers a route through the fen. Follow?", a: ["Wade in", "Circle the hall first"] },
-  { q: "A knight-degen duel spills toward your stool. Intervene?", a: ["Break it up — earn a tale", "Slide your tankard — stay invisible"] },
-  { q: "The Moonwell deck sits unattended. Cut in?", a: ["Deal me in", "Fish only — keep your virtue"] },
-  { q: "Someone swears the Codex listed your name wrong. Correct them?", a: ["Demand the scroll", "Let the well decide"] },
+  {
+    q: "A hooded student offers thunder-scented bait. Accept the gift?",
+    a: ["Take it—glory loves fools", "Refuse—keep your luck unborrowed"],
+  },
+  {
+    q: "The well whispers a fen-path that is not on any map. Wade?",
+    a: ["Follow the whisper", "Circle the hall—let courage ripen"],
+  },
+  {
+    q: "A knight-degen duel spills toward your stool. Intervene?",
+    a: ["Break it up—earn a tale", "Vanish behind your tankard"],
+  },
+  {
+    q: "The Moonwell deck sits unattended, cards already warm. Cut in?",
+    a: ["Deal me in", "Fish only—keep my virtue dry"],
+  },
+  {
+    q: "The Codex lists your name wrong—again. Correct the scribe?",
+    a: ["Demand the scroll", "Let the well spell you true"],
+  },
+  {
+    q: "A candle floats without wax or wick, drifting toward the well. Blow it out?",
+    a: ["Extinguish it", "Let it show what it wants"],
+  },
 ];
 
 export const triviaWell = [
-  { q: "What does renown buy at the Moonwell?", choices: ["A louder tale", "A second cast", "Silence from the eels"], ok: 0 },
-  { q: "When the well mirrors stars, what rises first?", choices: ["The humble hook", "The boast", "The moon"], ok: 0 },
-  { q: "How many cards in the Moonwell deck?", choices: ["Fifty-two, no odd pips", "Forty with doubled kings", "Whatever the house needs"], ok: 0 },
-  { q: "What night favors shepherd's pie and fen stories?", choices: ["Shepherd's Supper", "Pretzel Night only", "Never — fish eat first"], ok: 0 },
-  { q: "Who backs the hall's lamps (says the charter)?", choices: ["Demplar", "The eels", "Nobody — it's moonlight"], ok: 0 },
+  {
+    q: "What does renown purchase at the Moonwell?",
+    choices: ["A louder tale", "A second cast", "Silence from the eels"],
+    ok: 0,
+    teach: "Gold buys rounds. Renown buys immortality in gossip.",
+  },
+  {
+    q: "When the well mirrors stars, what rises first?",
+    choices: ["The humble hook", "The boast", "The moon"],
+    ok: 0,
+  },
+  {
+    q: "How many cards in the Moonwell deck?",
+    choices: ["Fifty-two, no odd pips", "Forty with doubled kings", "Whatever the house requires"],
+    ok: 0,
+  },
+  {
+    q: "Which night favors shepherd's pie and fen-walker stories?",
+    choices: ["Shepherd's Supper", "Pretzel Night only", "Never—fish eat first"],
+    ok: 0,
+  },
+  {
+    q: "Who keeps the hall's lamps burning (per the charter)?",
+    choices: ["Demplar", "The eels", "Moonlight alone"],
+    ok: 0,
+  },
+  {
+    q: "What must you speak at the rim instead of a birth name?",
+    choices: ["A mystical title", "Your student number", "Nothing—the well knows"],
+    ok: 0,
+  },
 ];
 
 export const demplarNotice =
-  "Charter notice: Demplar backs the hall's nets, lamps, and the Herald's ink. The Demplarverse reckons elsewhere — here we reckon casts. Ask the barkeep for the optional charter scroll.";
+  "Charter notice: Demplar keeps the nets, lamps, and Herald's ink. The Demplarverse reckons elsewhere—in here we reckon casts. Optional charter scroll at the bar.";
 
 export const demplarModalIntro =
-  "Demplar is named on the oldest iron in the cellar — sponsor, benefactor, or tale that caught a tale. Where shadow breathes and time fractures, their live halls on X echo this quieter one at the Moonwell. If you would know the living house behind the name, the Herald commends knightsdemplar.com and their word on X — no purse required to fish.";
+  "Demplar is etched on the oldest iron in the cellar—sponsor, benefactor, or tale that caught a tale. Where shadow breathes and time fractures, their halls on X echo this quieter convocation at the Moonwell. The Herald commends knightsdemplar.com and their word on X—no purse required to fish.";
 
 export const creditsLine =
-  "Moonwell Anglers — a tavern hangout for anglers, knights, and tale-spinners. Charter ally: Demplar.";
+  "Moonwell Anglers — charter hall for anglers, knights, and legend-spinners. Ally: Demplar.";

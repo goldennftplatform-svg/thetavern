@@ -1,0 +1,83 @@
+/* Arcane hall atmosphere — pixel stars, gate glow (pairs with bit-chrome.css) */
+
+.arcane-skin::after {
+  background:
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.58) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='none'/%3E%3Crect x='4' y='6' width='2' height='2' fill='rgba(248,240,255,0.5)'/%3E%3Crect x='28' y='14' width='2' height='2' fill='rgba(248,216,32,0.45)'/%3E%3Crect x='52' y='8' width='2' height='2' fill='rgba(56,240,168,0.4)'/%3E%3Crect x='38' y='40' width='2' height='2' fill='rgba(248,240,255,0.35)'/%3E%3Crect x='10' y='48' width='2' height='2' fill='rgba(248,216,32,0.3)'/%3E%3C/svg%3E");
+  opacity: 0.95;
+  animation: arcane-drift 90s linear infinite;
+  image-rendering: pixelated;
+}
+
+@keyframes arcane-drift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 64px 128px, 0 0;
+  }
+}
+
+#app::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -20px;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 0%, rgba(248, 216, 32, 0.08), transparent 55%);
+  animation: arcane-pulse 5s steps(2) infinite;
+}
+
+@keyframes arcane-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+#app {
+  position: relative;
+}
+
+.gate-ritual {
+  animation: gate-breathe 4s steps(2) infinite;
+}
+
+@keyframes gate-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #000,
+      0 0 20px rgba(248, 216, 32, 0.15),
+      6px 6px 0 var(--line);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #000,
+      0 0 36px rgba(56, 240, 168, 0.22),
+      6px 6px 0 var(--line);
+  }
+}
+
+@keyframes mythic-glow {
+  0%,
+  100% {
+    opacity: 0.88;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcane-skin::after,
+  #app::before,
+  .gate-ritual {
+    animation: none;
+  }
+}

@@ -5,14 +5,14 @@ export type ChanceGameId = "high_low" | "over_under";
 export const CHANCE_GAMES: Array<{ id: ChanceGameId; name: string; blurb: string; stake: number }> = [
   {
     id: "high_low",
-    name: "High / Low",
-    blurb: "One card face up — call the next from the Moonwell deck.",
+    name: "Ascendant / Descendant",
+    blurb: "One card face up—call whether the next from the Moonwell deck climbs or falls.",
     stake: 1,
   },
   {
     id: "over_under",
-    name: "Over / Under",
-    blurb: "The house sets a mark; one draw decides if the mist runs hot or cold.",
+    name: "Mark of the Mist",
+    blurb: "The house sets an arcane mark; one draw decides if fortune runs hot or cold.",
     stake: 1,
   },
 ];
@@ -52,7 +52,7 @@ export function resolveHighLow(
   return {
     game: "high_low",
     outcome,
-    title: "High / Low",
+    title: "Ascendant / Descendant",
     detail:
       outcome === "push"
         ? `${first.label} then ${second.label} — push. The mist keeps your stake.`
@@ -87,7 +87,7 @@ export function resolveOverUnder(
   return {
     game: "over_under",
     outcome,
-    title: "Over / Under",
+    title: "Mark of the Mist",
     detail:
       outcome === "push"
         ? `${drawn.label} hits the mark (${target}) exactly — push.`

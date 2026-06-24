@@ -74,4 +74,4 @@ export function cardRankLabel(c: MoonwellCard): string {
 
 /** Deck lore blurb for the tavern UI */
 export const MOONWELL_DECK_LORE =
-  "The Moonwell deck: fifty-two cards, no odd pips — only evens, doubled faces, and four Moonwell Aces. House says ties favor the mist.";
+  "The Moonwell deck: fifty-two cards, no odd pips—evens, doubled faces, four Moonwell Aces. House lore says the mist reads ties as prophecy.";

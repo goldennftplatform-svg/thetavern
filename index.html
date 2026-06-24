@@ -10,12 +10,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&family=Press+Start+2P&family=Silkscreen&family=VT323&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body class="crt-skin">
+  <body class="crt-skin arcane-skin">
     <div id="app">
       <header class="top">
         <h1 id="title">The Moonwell Anglers</h1>
@@ -24,10 +24,10 @@
       </header>
 
       <section id="nickname-gate" class="card gate-card gate-ritual" aria-labelledby="gate-title">
-        <p class="gate-eyebrow">Rite of the rim</p>
+        <p class="gate-eyebrow">Rite of the rim · convocation</p>
         <h2 id="gate-title" class="gate-title">Speak thy mystical name</h2>
         <p class="gate-lead">
-          The Moonwell hears titles, not birth names. What shall we carve in the water when you cast?
+          The Moonwell hears titles, not birth names—what the charter hall will carve in the water when you cast.
         </p>
         <label class="gate-label" for="nickname">Thy name at the well</label>
         <input
@@ -40,8 +40,8 @@
           autofocus
           aria-describedby="gate-hint"
         />
-        <p id="gate-hint" class="gate-hint muted">28 runes max. Patrons, bards, and shadow-names welcome.</p>
-        <button type="button" id="btn-enter-name" class="btn primary big gate-cta">Bind name &amp; step into the hall</button>
+        <p id="gate-hint" class="gate-hint muted">28 runes max. Patrons, bards, and shadow-names welcome at the Great Table.</p>
+        <button type="button" id="btn-enter-name" class="btn primary big gate-cta">Bind name &amp; enter the charter hall</button>
         <button type="button" id="btn-skip-gate" class="btn ghost big">Enter nameless — as a wandering guest</button>
       </section>
 
@@ -75,7 +75,7 @@
         </div>
 
         <aside class="card board">
-          <h3>Tavern notice board</h3>
+          <h3>Notice board of the hall</h3>
           <ul id="notices"></ul>
           <button type="button" id="btn-charter" class="btn linkish">Read the charter scroll (optional)</button>
         </aside>

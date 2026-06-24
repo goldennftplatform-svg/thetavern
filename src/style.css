@@ -1,5 +1,7 @@
 @import "./css/mobile-shell.css";
 @import "./css/tavern-hub.css";
+@import "./css/arcane-atmosphere.css";
+@import "./css/bit-chrome.css";
 
 /* 8-bit / NES-adjacent tavern — chunky chrome, limited palette, pixel fonts (mobile-first base) */
 :root {
@@ -18,8 +20,8 @@
   --danger-dk: #a02818;
   --line: #000000;
   --shadow: #080410;
-  font-family: "VT323", "Courier New", monospace;
-  font-size: 20px;
+  font-family: var(--font-body, "VT323", "Courier New", monospace);
+  font-size: 21px;
   line-height: 1.25;
   background: var(--bg0);
   color: var(--ink);
@@ -99,7 +101,7 @@ h2,
 h3,
 .top h1,
 .bigboard h1 {
-  font-family: "Press Start 2P", monospace;
+  font-family: var(--font-micro, "Press Start 2P", monospace);
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.04em;

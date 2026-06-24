@@ -210,6 +210,8 @@ async function main() {
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
     await document.fonts.load('400 24px "VT323"');
+    await document.fonts.load('400 20px "Pixelify Sans"');
+    await document.fonts.load('400 14px "Silkscreen"');
   } catch {
     /* optional */
   }

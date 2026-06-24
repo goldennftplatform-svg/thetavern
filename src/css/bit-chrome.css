@@ -1,0 +1,322 @@
+/* Sexy 8-bit chrome — pixel fonts, neon, CRT grid, chunky NES shadows */
+
+:root {
+  --font-micro: "Press Start 2P", monospace;
+  --font-display: "Pixelify Sans", "Press Start 2P", monospace;
+  --font-label: "Silkscreen", "Press Start 2P", monospace;
+  --font-body: "VT323", "Courier New", monospace;
+  --pixel-shadow: 4px 4px 0 var(--line);
+  --pixel-shadow-sm: 3px 3px 0 var(--line);
+  --neon-gold: 0 0 12px rgba(248, 216, 32, 0.55), 0 0 28px rgba(248, 216, 32, 0.18);
+  --neon-jade: 0 0 10px rgba(56, 240, 168, 0.45), 0 0 22px rgba(56, 240, 168, 0.15);
+}
+
+html {
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+/* Finer pixel grid + stronger scanlines on CRT shell */
+.crt-skin::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.14) 0px,
+      rgba(0, 0, 0, 0.14) 1px,
+      transparent 1px,
+      transparent 2px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  opacity: 0.55;
+  animation: crt-flicker 8s steps(2) infinite;
+}
+
+@keyframes crt-flicker {
+  0%,
+  100% {
+    opacity: 0.52;
+  }
+  50% {
+    opacity: 0.58;
+  }
+}
+
+.arcane-skin {
+  background:
+    radial-gradient(ellipse 100% 70% at 50% -15%, rgba(120, 60, 200, 0.28), transparent 50%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(16, 100, 120, 0.22), transparent 45%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.08) 0px,
+      rgba(0, 0, 0, 0.08) 1px,
+      transparent 1px,
+      transparent 8px
+    ),
+    var(--bg0);
+}
+
+/* Title — chromatic pixel glow */
+.top h1,
+.bigboard h1 {
+  font-family: var(--font-micro);
+  font-size: clamp(0.58rem, 2.8vw, 0.76rem);
+  color: var(--gold);
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  filter: none;
+  text-shadow:
+    2px 2px 0 #000,
+    4px 4px 0 var(--shadow),
+    0 0 18px rgba(248, 216, 32, 0.45),
+    2px 0 0 rgba(255, 60, 120, 0.35),
+    -2px 0 0 rgba(60, 255, 200, 0.28);
+  animation: title-pulse 3.5s ease-in-out infinite;
+}
+
+@keyframes title-pulse {
+  0%,
+  100% {
+    text-shadow:
+      2px 2px 0 #000,
+      4px 4px 0 var(--shadow),
+      0 0 14px rgba(248, 216, 32, 0.35),
+      2px 0 0 rgba(255, 60, 120, 0.28),
+      -2px 0 0 rgba(60, 255, 200, 0.22);
+  }
+  50% {
+    text-shadow:
+      2px 2px 0 #000,
+      4px 4px 0 var(--shadow),
+      0 0 26px rgba(248, 216, 32, 0.65),
+      3px 0 0 rgba(255, 60, 120, 0.42),
+      -3px 0 0 rgba(60, 255, 200, 0.35);
+  }
+}
+
+#tagline,
+.arcane-prose,
+.gate-lead,
+.world-epigraph,
+.herald-block,
+.catch-reveal,
+.rarity-flourish,
+#phase-text.lore,
+#phase-text.lore p {
+  font-family: var(--font-body);
+  letter-spacing: 0.03em;
+}
+
+#tagline {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.35;
+  color: var(--jade);
+  text-shadow: var(--neon-jade), 2px 2px 0 var(--shadow);
+}
+
+.gate-eyebrow {
+  font-family: var(--font-label);
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.gate-lead,
+.world-epigraph {
+  font-size: 1.28rem;
+  line-height: 1.4;
+}
+
+.world-epigraph {
+  border-left: 4px solid var(--gold);
+  padding-left: 14px;
+  text-shadow: 1px 1px 0 var(--shadow);
+}
+
+.herald-block {
+  font-size: 1.26rem;
+}
+
+.herald-block strong {
+  font-family: var(--font-label);
+  font-size: 0.85rem;
+}
+
+#phase-text.lore {
+  font-size: 1.22rem;
+  line-height: 1.42;
+  border: 4px solid var(--gold-dim);
+  box-shadow:
+    var(--pixel-shadow),
+    var(--neon-gold),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4);
+  background:
+    linear-gradient(180deg, rgba(61, 36, 128, 0.35) 0%, var(--panel) 100%);
+}
+
+#phase-text.lore::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.04) 3px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+}
+
+.card {
+  box-shadow: var(--pixel-shadow);
+  background: linear-gradient(145deg, var(--panel-hi) 0%, var(--panel) 55%, #221040 100%);
+}
+
+.card::before {
+  border-color: rgba(248, 216, 32, 0.28);
+}
+
+.gate-ritual {
+  border-width: 4px;
+  background: linear-gradient(180deg, #321858 0%, var(--panel) 40%, #1a0c28 100%);
+}
+
+.gate-ritual input#nickname {
+  font-family: var(--font-body);
+  font-size: 1.45rem;
+}
+
+.btn {
+  font-family: var(--font-micro);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  image-rendering: pixelated;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #ffe840 0%, var(--gold) 35%, var(--gold-dim) 100%);
+  color: #1a0800;
+  box-shadow: var(--pixel-shadow-sm), var(--neon-gold);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn.strike {
+  background: linear-gradient(180deg, #ff7858 0%, var(--danger) 50%, var(--danger-dk) 100%);
+  box-shadow: var(--pixel-shadow-sm), 0 0 20px rgba(248, 88, 56, 0.45);
+  animation: strike-pulse 0.9s steps(2) infinite, strike-neon 1.2s ease-in-out infinite;
+}
+
+@keyframes strike-neon {
+  0%,
+  100% {
+    box-shadow: var(--pixel-shadow-sm), 0 0 16px rgba(248, 88, 56, 0.35);
+  }
+  50% {
+    box-shadow: var(--pixel-shadow-sm), 0 0 28px rgba(248, 88, 56, 0.65);
+  }
+}
+
+.btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--line);
+}
+
+.hud {
+  font-family: var(--font-micro);
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 3px solid var(--line);
+  box-shadow: var(--pixel-shadow-sm), inset 0 0 12px rgba(248, 216, 32, 0.06);
+}
+
+.pill {
+  font-family: var(--font-label);
+  font-size: 0.85rem;
+  box-shadow: var(--pixel-shadow-sm);
+}
+
+.canvas-wrap {
+  border: 4px solid var(--line);
+  box-shadow:
+    var(--pixel-shadow),
+    0 0 32px rgba(24, 140, 180, 0.35),
+    inset 0 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.catch-reveal strong {
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  text-shadow: var(--neon-gold), 2px 2px 0 var(--shadow);
+}
+
+.rarity-flourish {
+  font-size: 1.18rem;
+  color: var(--jade);
+  text-shadow: var(--neon-jade);
+}
+
+.rarity-flourish--mythic {
+  font-family: var(--font-display);
+  color: var(--gold);
+  text-shadow: var(--neon-gold);
+  animation: mythic-glow 1.4s steps(2) infinite;
+}
+
+.night-banner-title {
+  font-family: var(--font-display);
+  font-size: clamp(0.72rem, 3vw, 0.95rem);
+  letter-spacing: 0.04em;
+  text-shadow: var(--neon-gold), 3px 3px 0 var(--shadow);
+}
+
+.night-banner-eyebrow {
+  font-family: var(--font-label);
+  font-size: 0.78rem;
+}
+
+.hub-pick-body strong {
+  font-family: var(--font-label);
+  font-size: 0.78rem;
+}
+
+.playing-card-rank {
+  font-family: var(--font-micro);
+  font-size: 0.42rem;
+}
+
+.board h3,
+.charter-panel h2,
+#nickname-gate h2 {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  text-shadow: var(--neon-jade), 2px 2px 0 var(--shadow);
+}
+
+.lore kbd {
+  font-family: var(--font-label);
+  font-size: 0.72rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt-skin::before,
+  .top h1,
+  .btn.strike,
+  .rarity-flourish--mythic {
+    animation: none;
+  }
+}

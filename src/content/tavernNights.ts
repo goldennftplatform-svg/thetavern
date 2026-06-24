@@ -35,16 +35,16 @@ export const FOOD_MENU: Record<
   }
 > = {
   pretzel_twist: {
-    name: "Salt pretzel twists",
+    name: "Moon-salt pretzel twists",
     cost: 1,
-    blurb: "Twisted dough, moon-salt, and a dare to stay one more cast.",
+    blurb: "Twisted dough and rim-salt—the well loves a daring wrist.",
     buffLabel: "Salty luck — +1 token on your next landing.",
     tokenBonus: 1,
   },
   cheesecake_peanuts: {
     name: "Cheesecake peanuts",
     cost: 1,
-    blurb: "Sweet crunch from a recipe the Codex forgot to censor.",
+    blurb: "Sweet crunch from a recipe the Codex redacted in footnotes.",
     buffLabel: "Slow bite — the well waits longer when it nibbles.",
     biteBonusMs: 280,
   },
@@ -56,9 +56,9 @@ export const FOOD_MENU: Record<
     castFloor: 0.35,
   },
   shepherds_pie: {
-    name: "Shepherd's pie supper",
+    name: "Shepherd's pie of the fen",
     cost: 2,
-    blurb: "Steam, mash, and stories of fens walked under fractured time.",
+    blurb: "Steam, mash, and stories of paths walked where maps refuse to go.",
     buffLabel: "Full belly — +2 renown on your next catch.",
     renownBonus: 2,
   },
@@ -107,11 +107,11 @@ const NIGHTS: Record<number, TavernNight> = {
   },
   5: {
     id: "grand_hall",
-    title: "Grand Hall Night",
-    tagline: "Every special, every table loud.",
+    title: "Grand Convocation",
+    tagline: "Every delicacy, every table alight.",
     special: "shepherds_pie",
     specials: ["pretzel_twist", "cheesecake_peanuts", "corndog_carnival", "shepherds_pie"],
-    herald: "Grand Hall: pretzels, peanuts, corndogs, pie — and the Moonwell deck runs hot.",
+    herald: "Grand Convocation: pretzels, peanuts, corndogs, pie—and the Moonwell deck runs hot as prophecy.",
   },
   6: {
     id: "knightly_revel",

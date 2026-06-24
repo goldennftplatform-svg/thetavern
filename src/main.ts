@@ -13,10 +13,24 @@ import {
   fishCatalog,
   heraldLines,
   perilBeats,
-  seasonFlavor,
-  tavernTeasers,
   triviaWell,
 } from "./content/lore";
+import {
+  SUBTITLE_TAGLINES,
+  WORLD_EPIGRAPH,
+  castWhispers,
+  chanceTableIntro,
+  enterPrologues,
+  feastIntro,
+  hubVerse,
+  pickLine,
+  renownTitleHint,
+  resolveFlourish,
+  seasonArcane,
+  waitWhispers,
+  reelWhispers,
+  noticeBoardArcane,
+} from "./content/arcaneLore";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
@@ -122,7 +136,7 @@ elModal.addEventListener("click", (e) => {
 });
 
 elTitle.textContent = GAME_TITLE;
-elTag.textContent = tavernTeasers[Math.floor(Math.random() * tavernTeasers.length)]!;
+elTag.textContent = pickLine(SUBTITLE_TAGLINES);
 elCredits.textContent = creditsLine;
 
 let state: GameState = initialState("Traveler");
@@ -197,13 +211,13 @@ function buildWellHubHtml(): string {
     ? `<p class="muted">Kitchen buff active: ${state.foodBuff.label}</p>`
     : "";
   return `${renderNightBanner(night.title, night.tagline, night.herald)}
-    <p>The Moonwell breathes. Hooks clink. Choose your next move — most paths return here.</p>
-    <p class="muted">Season: ${state.season}. Tokens: ${state.tokens}.</p>
+    <p class="world-epigraph">${hubVerse}</p>
+    <p class="muted">${seasonArcane[state.season].name} — ${seasonArcane[state.season].verse}</p>
     ${buffLine}
     <div class="hub-grid" id="hub-grid">
-      ${hubChoiceHtml("F", "Cast into the Moonwell", "The spine of the night — skill, luck, and lore.", "fish", "gold")}
-      ${hubChoiceHtml("C", "Games of chance", "High/Low & Over/Under on the Moonwell deck.", "chance_menu", "jade")}
-      ${hubChoiceHtml("K", "Kitchen specials", "Pretzels, peanuts, corndogs, pie — tonight's board.", "feast_menu", "jade")}
+      ${hubChoiceHtml("F", "Cast the Moonwell", "The charter rite—skill, luck, and legend.", "fish", "gold")}
+      ${hubChoiceHtml("C", "Divination table", "Ascendant / Descendant & Mark of the Mist.", "chance_menu", "jade")}
+      ${hubChoiceHtml("K", "Enchanted kitchen", "Tonight's board—pretzels, peanuts, pie, and carnival fare.", "feast_menu", "jade")}
     </div>
     <p class="deck-lore muted">${MOONWELL_DECK_LORE}</p>`;
 }
@@ -324,9 +338,9 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
 }
 
 function hud() {
-  elHudR.textContent = `Renown: ${state.renown}`;
-  elHudT.textContent = `Tavern tokens: ${state.tokens}`;
-  elHudS.textContent = seasonFlavor[state.season];
+  elHudR.textContent = `Legend: ${state.renown}`;
+  elHudT.textContent = `Charter tokens: ${state.tokens}`;
+  elHudS.textContent = seasonArcane[state.season].name;
   if (loadedTheme) {
     elHudDeck.textContent = `DECK: ${platformLabel(loadedTheme.platform, utcDayKey())}`;
     elHudDeck.hidden = false;
@@ -381,16 +395,18 @@ function setPhase(next: GamePhase) {
   switch (next) {
     case "enter": {
       const night = tonightUtc();
+      const arc = seasonArcane[state.season];
       elPhase.innerHTML = `${renderNightBanner(night.title, night.tagline, night.herald)}
-        <p>${tavernTeasers[Math.floor(Math.random() * tavernTeasers.length)]}</p>
-        <p class="muted">${seasonFlavor[state.season]}</p>`;
-      elPrimary.textContent = "Step into the tavern hall";
+        <p class="world-epigraph">${WORLD_EPIGRAPH}</p>
+        <p>${pickLine(enterPrologues)}</p>
+        <p class="muted">${arc.name} — ${arc.verse}</p>`;
+      elPrimary.textContent = "Cross the threshold into the hall";
       break;
     }
     case "herald": {
       const night = tonightUtc();
-      elPhase.innerHTML = `<p><strong>Herald:</strong> ${heraldLines[Math.floor(Math.random() * heraldLines.length)]}</p>
-        <p class="muted">${night.herald}</p>`;
+      elPhase.innerHTML = `<div class="herald-block"><strong>The Herald proclaims</strong> ${heraldLines[Math.floor(Math.random() * heraldLines.length)]}</div>
+        <p class="muted arcane-prose">${night.herald}</p>`;
       elPrimary.textContent = "Approach the Moonwell";
       break;
     }
@@ -401,14 +417,14 @@ function setPhase(next: GamePhase) {
       break;
     case "fish_cast":
       state.castPower = 0;
-      elPhase.innerHTML = `<p>Draw the line true. <strong>Hold</strong> the cast button or press <kbd>Space</kbd> to fill the golden gauge, then <strong>release</strong> to send the hook.</p>`;
-      elPrimary.textContent = "Hold to draw — release to cast";
+      elPhase.innerHTML = `<p>${pickLine(castWhispers)}</p>`;
+      elPrimary.textContent = "Hold to channel — release to cast";
       startCastLoop();
       break;
     case "fish_wait":
       state.biteWindowOpen = false;
       struckBite = false;
-      elPhase.innerHTML = `<p>The ripples count your patience. When the well opens its jaw—<strong>strike</strong>!</p>`;
+      elPhase.innerHTML = `<p>${pickLine(waitWhispers)}</p>`;
       elPrimary.hidden = true;
       scheduleBiteWindow();
       break;
@@ -416,7 +432,7 @@ function setPhase(next: GamePhase) {
       state.reelTension = 0.45;
       state.reelProgress = 0;
       reelQuality = 0;
-      elPhase.innerHTML = `<p>The catch runs. Keep the bob in the <strong>jade band</strong>—Slack / Heave, or <kbd>A</kbd> / <kbd>D</kbd>.</p>`;
+      elPhase.innerHTML = `<p>${pickLine(reelWhispers)}</p>`;
       elPrimary.hidden = true;
       elReel.hidden = false;
       startReelLoop();
@@ -424,21 +440,25 @@ function setPhase(next: GamePhase) {
     case "resolve": {
       const c = state.lastCatch!;
       const extra = c.demplarTease
-        ? `<p class="muted">A scrap of rumor: the name <strong>Demplar</strong> rides this catch like a watermark.</p>`
+        ? `<p class="muted arcane-prose">A scrap of charter rumor: the name <strong>Demplar</strong> rides this catch like a watermark in glass.</p>`
         : "";
-      const om = c.omen ? `<p><em>Omen:</em> ${c.omen}</p>` : "";
-      elPhase.innerHTML = `<p>You land <strong>${c.name}</strong> <span class="muted">(${c.rarity})</span>.</p>
-        <p>${fishBlurb(c.fishId)}</p>${om}${extra}`;
-      elPrimary.textContent = "Claim renown";
+      const om = c.omen ? `<p class="arcane-prose"><em>Omen:</em> ${c.omen}</p>` : "";
+      const flourish = pickLine(resolveFlourish[c.rarity]);
+      const mythicCls = c.rarity === "mythic" ? " rarity-flourish--mythic" : "";
+      elPhase.innerHTML = `<p class="catch-reveal">From the veil you land <strong>${c.name}</strong> <span class="muted">(${c.rarity})</span>.</p>
+        <p class="arcane-prose">${fishBlurb(c.fishId)}</p>
+        <p class="rarity-flourish${mythicCls}">${flourish}</p>${om}${extra}`;
+      elPrimary.textContent = "Inscribe renown in the ledger";
       break;
     }
     case "renown":
-      elPhase.innerHTML = `<p>Renown swells: <strong>${state.renown}</strong>. Titles: ${state.titles.length ? state.titles.join(", ") : "none yet—the well is patient."}</p>`;
-      elPrimary.textContent = state.runCount % 2 === 0 ? "Face a perilous choice" : "Answer the well’s riddle";
+      elPhase.innerHTML = `<p class="arcane-prose">Legend swells: <strong>${state.renown}</strong>. Titles: ${state.titles.length ? state.titles.join(", ") : "none yet—the well is patient."}</p>
+        <p class="muted">${renownTitleHint(state.renown)}</p>`;
+      elPrimary.textContent = state.runCount % 2 === 0 ? "Face a perilous choice" : "Answer the well's riddle";
       break;
     case "peril": {
       const p = perilBeats[state.perilIndex % perilBeats.length]!;
-      elPhase.innerHTML = `<p><strong>Peril on the road:</strong> ${p.q}</p>
+      elPhase.innerHTML = `<p class="arcane-prose"><strong>Crossroads at the rim:</strong> ${p.q}</p>
         <div class="peril-pair" id="peril-pair"></div>`;
       elPrimary.hidden = true;
       const pair = elPhase.querySelector("#peril-pair")!;
@@ -460,7 +480,7 @@ function setPhase(next: GamePhase) {
     }
     case "trivia": {
       const t = triviaWell[state.triviaIndex % triviaWell.length]!;
-      elPhase.innerHTML = `<p><strong>Well riddle:</strong> ${t.q}</p>
+      elPhase.innerHTML = `<p class="arcane-prose"><strong>Well riddle:</strong> ${t.q}</p>
         <div class="trivia-btns" id="trivia-btns"></div>`;
       elPrimary.hidden = true;
       const wrap = elPhase.querySelector("#trivia-btns")!;
@@ -470,18 +490,24 @@ function setPhase(next: GamePhase) {
         b.className = "btn big ghost";
         b.textContent = c;
         b.addEventListener("click", () => {
-          state.renown += i === t.ok ? 4 : 1;
+          const correct = i === t.ok;
+          state.renown += correct ? 4 : 1;
           state.triviaIndex++;
           state.runCount++;
           hud();
-          setPhase("well");
+          if ("teach" in t && t.teach && correct) {
+            elPhase.innerHTML = `<p class="arcane-prose muted">${t.teach}</p>`;
+            window.setTimeout(() => setPhase("well"), 2200);
+          } else {
+            setPhase("well");
+          }
         });
         wrap.appendChild(b);
       });
       break;
     }
     case "chance_pick":
-      elPhase.innerHTML = `<p><strong>Games of chance</strong> — the Moonwell deck only. Even pips, doubled faces.</p>
+      elPhase.innerHTML = `<p class="arcane-prose"><strong>${chanceTableIntro}</strong></p>
         <div class="hub-grid" id="hub-grid">
           ${CHANCE_GAMES.map((g) => chanceGameButtonHtml(g.id, g.name, g.blurb, g.stake)).join("")}
           ${hubChoiceHtml("←", "Back to the well", "Return to the hub.", "back:well", "ghost")}
@@ -540,8 +566,8 @@ function setPhase(next: GamePhase) {
     }
     case "feast": {
       const night = tonightUtc();
-      elPhase.innerHTML = `<p><strong>Kitchen board</strong> — ${night.title}</p>
-        <p class="muted">One serving per special per night. Buff applies to your next cast.</p>
+      elPhase.innerHTML = `<p class="arcane-prose"><strong>${feastIntro}</strong> — ${night.title}</p>
+        <p class="muted">One serving per delicacy per night. The next cast remembers what you ate.</p>
         <div class="hub-grid" id="hub-grid">
           ${night.specials
             .map((id) => feastButtonHtml(id, state.feastsEaten.includes(id)))
@@ -730,11 +756,9 @@ function fillNotices() {
   elNotices.innerHTML = "";
   const items = [
     demplarNotice,
+    pickLine(noticeBoardArcane),
     `Tonight: ${tonightUtc().title} — ${tonightUtc().tagline}`,
-    "Moonwell deck: fifty-two cards, even pips only, doubled faces.",
-    "Big catches are sung here before they are sold.",
-    "Duels of wit: loser buys the next round of bait.",
-    "The one that got away is always mythic—check the Hall board.",
+    pickLine(noticeBoardArcane),
   ];
   items.forEach((t) => {
     const li = document.createElement("li");
@@ -747,6 +771,8 @@ async function ensurePixelFonts() {
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
     await document.fonts.load('400 24px "VT323"');
+    await document.fonts.load('400 20px "Pixelify Sans"');
+    await document.fonts.load('400 14px "Silkscreen"');
   } catch {
     /* network fonts optional */
   }
