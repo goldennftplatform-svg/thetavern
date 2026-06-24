@@ -2,6 +2,8 @@
 
 Repo: [github.com/goldennftplatform-svg/thetavern](https://github.com/goldennftplatform-svg/thetavern)
 
+**Live (GitHub Pages):** [Play](https://goldennftplatform-svg.github.io/thetavern/) · [Dashboard / Great Table](https://goldennftplatform-svg.github.io/thetavern/bigboard.html) · [Wall mode](https://goldennftplatform-svg.github.io/thetavern/bigboard.html?wall=1)
+
 Vite + TypeScript client, Express + Socket.IO trail server, Vercel-ready static output. Fantasy tavern ritual centered on the **Moonwell** fishing loop; **Demplar** appears in lore, notices, and an optional charter modal ([Demplar on X](https://x.com/DemplarOfficial)).
 
 ## No login for players (Vercel wall?)
