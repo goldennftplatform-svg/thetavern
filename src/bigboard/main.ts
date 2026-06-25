@@ -6,6 +6,8 @@ import { resolveTrailServerUrl } from "../net/trailResolve";
 import { connectTrail } from "../net/trailClient";
 import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
+import { pickLine } from "../content/arcaneLore";
+import { chronicleHeadings } from "../content/deedLore";
 import { tonightUtc } from "../content/tavernNights";
 import { bbIconForKind } from "./bbIcons";
 import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx } from "./tavernMap";
@@ -38,6 +40,7 @@ const DEMO_PATRONS: MapPatron[] = [{ name: "Example" }, { name: "Angler" }, { na
 type Deed = {
   ts?: number;
   kind?: string;
+  chronicle?: string;
   text?: string;
   renown?: number;
   fish?: string;
@@ -99,6 +102,14 @@ function cardArrow(cards?: Deed["cards"]): string {
   if (!cards?.length) return "";
   if (cards.length === 1) return cards[0]!.label;
   return `${cards[0]!.label} → ${cards[1]!.label}`;
+}
+
+function deedLines(d: Deed): { main: string; sub?: string } {
+  if (d.chronicle) {
+    const tail = d.renown ? ` ★${d.renown}` : "";
+    return { main: `${d.chronicle}${tail}`, sub: d.text };
+  }
+  return { main: lineForDeed(d) };
 }
 
 function lineForDeed(d: Deed): string {
@@ -186,9 +197,13 @@ function countLiveActivity() {
 }
 
 function appendDeed(d: Deed) {
+  const { main, sub } = deedLines(d);
   const row = document.createElement("div");
   row.className = deedClass(d.kind, d.outcome);
-  row.innerHTML = `${bbIconForKind(d.kind)}<span class="bb-deed-text">${escapeHtml(lineForDeed(d))}</span>`;
+  const subHtml = sub
+    ? `<span class="bb-deed-sub">${escapeHtml(sub)}</span>`
+    : "";
+  row.innerHTML = `${bbIconForKind(d.kind)}<div class="bb-deed-body"><span class="bb-deed-text">${escapeHtml(main)}</span>${subHtml}</div>`;
   feedEl.prepend(row);
   while (feedEl.children.length > FEED_MAX) feedEl.removeChild(feedEl.lastChild!);
   bumpTally(d);
@@ -500,6 +515,12 @@ function setFlash(line: string, from?: string) {
   redrawMap();
 }
 
+function flashForDeed(d: Deed): string {
+  const { main } = deedLines(d);
+  const who = d.from ? `${d.from}: ` : "";
+  return `${who}${main}`;
+}
+
 function onPatrons(p: { patrons: { name: string }[] }) {
   if (p.patrons.length === 0) {
     showDemoHall("Live hall — preview tokens until an angler stands at the Moonwell.");
@@ -538,6 +559,8 @@ async function main() {
   playLink.href = import.meta.env.BASE_URL || "/";
 
   const night = tonightUtc();
+  const feedHeading = document.querySelector(".bb-feed-heading");
+  if (feedHeading) feedHeading.textContent = pickLine(chronicleHeadings);
   refreshDock();
   refreshStats();
   setInterval(refreshDock, FACT_ROTATE_MS);
@@ -583,7 +606,7 @@ async function main() {
     socket.on("hall:deed", (d: Deed) => {
       appendDeed(d);
       if (d.kind === "catch") addCatchToTable(d);
-      const line = lineForDeed(d);
+      const line = flashForDeed(d);
       setFlash(line, d.from);
       if (d.kind === "gamble" && d.outcome === "win") {
         chanceFlashUntil = performance.now() + 1200;

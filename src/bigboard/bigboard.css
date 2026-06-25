@@ -261,6 +261,22 @@
   flex: 1;
   min-width: 0;
   word-break: break-word;
+  color: var(--ink);
+}
+
+.bb-deed-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bb-deed-sub {
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.35;
+  font-style: italic;
 }
 
 .bb-callout {

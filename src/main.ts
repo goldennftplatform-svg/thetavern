@@ -27,6 +27,7 @@ import {
   resolveFlourish,
   seasonArcane,
 } from "./content/arcaneLore";
+import { composeCatchDeed, composeFeastDeed, composeGambleDeed } from "./content/deedLore";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
@@ -280,17 +281,27 @@ function broadcastChance() {
 }
 
 function announceCatch(c: CatchResult) {
+  const blurb = fishBlurb(c.fishId);
+  const { chronicle, subtext } = composeCatchDeed(
+    state.nickname,
+    c.name,
+    c.rarity,
+    c.renown,
+    blurb,
+    c.omen,
+  );
   socket?.emit("hall:announce_deed", {
     kind: "catch",
+    chronicle,
+    text: subtext,
     fish: c.name,
     rarity: c.rarity,
     renown: c.renown,
-    text: c.omen ? `Omen: ${c.omen}` : undefined,
   });
 }
 
-function announceHall(kind: string, text: string, renown?: number) {
-  socket?.emit("hall:announce_deed", { kind, text, renown });
+function announceHall(kind: string, text: string, renown?: number, extra?: Record<string, unknown>) {
+  socket?.emit("hall:announce_deed", { kind, text, renown, ...extra });
 }
 
 function ensureDeck(min = 8) {
@@ -508,7 +519,8 @@ function buyFeast(id: FoodId) {
     tokenBonus: f.tokenBonus,
     castFloor: f.castFloor,
   };
-  announceHall("feast", `Supped on ${f.name} — ${f.buffLabel}`);
+  const { chronicle, subtext } = composeFeastDeed(state.nickname, f.name, f.blurb, f.buffLabel);
+  announceHall("feast", subtext, undefined, { chronicle });
   hud();
   setPhase("well");
 }
@@ -543,9 +555,18 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
     state.titles.push("Moonwell Sharp");
   }
   state.chanceLastResult = result;
+  const { chronicle, subtext } = composeGambleDeed(
+    state.nickname,
+    result.game,
+    result.outcome,
+    result.cards,
+    guess,
+    result.target,
+  );
   socket?.emit("hall:announce_deed", {
     kind: "gamble",
-    text: result.detail,
+    chronicle,
+    text: subtext,
     renown: result.renownDelta,
     game: result.game,
     outcome: result.outcome,
