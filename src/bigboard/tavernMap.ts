@@ -357,6 +357,7 @@ export function drawTavernMap(
   flashLine: string,
   tick = 0,
   fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0, chanceFlashUntil: 0 },
+  whisperLine = "",
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -435,6 +436,16 @@ export function drawTavernMap(
     ctx.font = '8px "Press Start 2P", monospace';
     ctx.textAlign = "center";
     ctx.fillText("Pull up a chair — open the game & bind thy name", w / 2, h - 18);
+    ctx.textAlign = "left";
+  }
+
+  if (whisperLine && !flashLine) {
+    const drift = Math.sin(tick * 0.03) * 0.08 + 0.42;
+    ctx.fillStyle = `rgba(248, 240, 255, ${drift})`;
+    ctx.font = `${Math.max(6, w * 0.008)}px "Press Start 2P", monospace`;
+    const t = whisperLine.length > 72 ? `${whisperLine.slice(0, 70)}…` : whisperLine;
+    ctx.textAlign = "center";
+    ctx.fillText(t, w / 2, h - 22);
     ctx.textAlign = "left";
   }
 

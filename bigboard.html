@@ -41,6 +41,12 @@
               aria-label="Top-down view of the Great Table and Moonwell"
             ></canvas>
             <div class="bb-vignette" aria-hidden="true"></div>
+            <div id="bb-mood" class="bb-mood" aria-live="polite"></div>
+            <div id="bb-spotlight" class="bb-spotlight" hidden>
+              <p class="bb-spotlight-kicker">The Herald inscribes…</p>
+              <p id="bb-spotlight-main" class="bb-spotlight-main"></p>
+              <p id="bb-spotlight-sub" class="bb-spotlight-sub"></p>
+            </div>
             <div id="bb-callout" class="bb-callout" hidden></div>
           </div>
           <p id="patrons" class="bb-patrons-line"></p>
@@ -48,6 +54,7 @@
 
         <aside class="bb-feed-col">
           <h2 class="bb-feed-heading">Chronicle of the Hall</h2>
+          <p id="bb-feed-hint" class="bb-feed-hint">Pull up a chair — tales arrive one at a time.</p>
           <div id="feed" class="bb-feed"></div>
         </aside>
       </main>

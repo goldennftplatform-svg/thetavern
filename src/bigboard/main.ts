@@ -6,10 +6,12 @@ import { resolveTrailServerUrl } from "../net/trailResolve";
 import { connectTrail } from "../net/trailClient";
 import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
-import { pickLine } from "../content/arcaneLore";
+import { enterPrologues, pickLine } from "../content/arcaneLore";
 import { chronicleHeadings } from "../content/deedLore";
 import { tonightUtc } from "../content/tavernNights";
 import { bbIconForKind } from "./bbIcons";
+import { createChronicleDirector, type HallMood } from "./chronicleDirector";
+import type { Deed } from "./chronicleDirector.types";
 import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
@@ -27,35 +29,32 @@ const dockFact = document.getElementById("bb-dock-fact")!;
 const dockTally = document.getElementById("bb-dock-tally")!;
 const statsEl = document.getElementById("bb-stats")!;
 const playLink = document.getElementById("bb-play-link") as HTMLAnchorElement;
+const feedHint = document.getElementById("bb-feed-hint")!;
+const mapFrame = document.querySelector(".bb-map-frame") as HTMLElement;
+const moodEl = document.getElementById("bb-mood")!;
+const spotlightEl = document.getElementById("bb-spotlight") as HTMLDivElement;
+const spotlightMain = document.getElementById("bb-spotlight-main")!;
+const spotlightSub = document.getElementById("bb-spotlight-sub")!;
 const mapCanvas = document.getElementById("tavern-map") as HTMLCanvasElement;
 
-const FEED_MAX = 24;
-const CALLOUT_MS = 5200;
-const PATRON_PULSE_MS = 4000;
-const FACT_ROTATE_MS = 38_000;
+const FEED_MAX = 16;
+const CALLOUT_MS = 7_500;
+const PATRON_PULSE_MS = 6_000;
+const FACT_ROTATE_MS = 48_000;
+const WHISPER_MS = 14_000;
+
+const MOOD_LABEL: Record<HallMood, string> = {
+  quiet: "The hall breathes…",
+  gathering: "Pull up a chair · candles steady",
+  live: "Someone is playing the well",
+  chronicle: "The Herald tolls once",
+  celebration: "Tonight will remember this",
+};
 
 /** Preview anglers when the hall server is offline — keeps the table alive. */
 const DEMO_PATRONS: MapPatron[] = [{ name: "Example" }, { name: "Angler" }, { name: "Guest" }];
 
-type Deed = {
-  ts?: number;
-  kind?: string;
-  chronicle?: string;
-  text?: string;
-  renown?: number;
-  fish?: string;
-  rarity?: string;
-  from?: string;
-  game?: string;
-  outcome?: string;
-  cards?: Array<{ label: string; rank: number; suit: string }>;
-  target?: number;
-  combo?: boolean;
-  demplar?: boolean;
-  correct?: boolean;
-  milestone?: number;
-  bold?: boolean;
-};
+const director = createChronicleDirector(deedLines, flashForDeed);
 
 type HallTally = {
   catches: number;
@@ -217,20 +216,88 @@ function countLiveActivity() {
   liveFishers = patronList.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
   liveGamblers = patronList.filter((p) => p.chance && p.chance.phase !== "idle").length;
   liveAnglers = patronList.length;
+  director.setLiveActivity(liveFishers, liveGamblers, liveAnglers);
   refreshStats();
 }
 
 function appendDeed(d: Deed) {
   const { main, sub } = deedLines(d);
   const row = document.createElement("div");
-  row.className = deedClass(d);
+  row.className = `${deedClass(d)} bb-deed--fresh`;
   const subHtml = sub
     ? `<span class="bb-deed-sub">${escapeHtml(sub)}</span>`
     : "";
   row.innerHTML = `${bbIconForKind(d.kind)}<div class="bb-deed-body"><span class="bb-deed-text">${escapeHtml(main)}</span>${subHtml}</div>`;
   feedEl.prepend(row);
+  feedEl.classList.remove("bb-feed--waiting");
+  window.setTimeout(() => row.classList.remove("bb-deed--fresh"), 4000);
   while (feedEl.children.length > FEED_MAX) feedEl.removeChild(feedEl.lastChild!);
   bumpTally(d);
+  feedHint.textContent = "Inscribed in the chronicle.";
+}
+
+function handleDeedEffects(d: Deed) {
+  if (d.kind === "catch") addCatchToTable(d);
+  if (d.kind === "gamble" && d.outcome === "win") {
+    chanceFlashUntil = performance.now() + 1_800;
+  }
+  if (d.kind === "catch" && d.rarity === "mythic") {
+    showCallout(`MYTHIC — ${flashForDeed(d)}`);
+  }
+  if (d.kind === "catch" && d.demplar) {
+    showCallout(`CHARTER — ${flashForDeed(d)}`);
+  }
+  if (d.kind === "renown" && d.milestone) {
+    showCallout(`★${d.milestone} — ${flashForDeed(d)}`);
+    chanceFlashUntil = performance.now() + 2_000;
+  }
+}
+
+function setMood(mood: HallMood) {
+  moodEl.textContent = MOOD_LABEL[mood];
+  moodEl.className = `bb-mood bb-mood--${mood}`;
+  if (mapFrame) {
+    mapFrame.classList.remove(
+      "bb-mood--quiet",
+      "bb-mood--gathering",
+      "bb-mood--live",
+      "bb-mood--chronicle",
+      "bb-mood--celebration",
+    );
+    mapFrame.classList.add(`bb-mood--${mood}`);
+  }
+  feedHint.textContent =
+    mood === "chronicle" || mood === "celebration"
+      ? "Hold — the hall is telling this one…"
+      : mood === "live"
+        ? "Watch the table — a tale is unfolding…"
+        : "Pull up a chair — tales arrive one at a time.";
+  feedEl.classList.toggle("bb-feed--waiting", mood === "chronicle" || mood === "celebration");
+}
+
+function showSpotlight(deed: Deed | null, lines: { main: string; sub?: string }) {
+  if (!deed) {
+    spotlightEl.hidden = true;
+    return;
+  }
+  spotlightMain.textContent = lines.main;
+  spotlightSub.textContent = lines.sub ?? "";
+  spotlightSub.hidden = !lines.sub;
+  spotlightEl.hidden = false;
+}
+
+let whisperLine = "";
+let whisperTimer = 0;
+const lastBiteSplash = new Map<string, number>();
+let demoRunning = false;
+
+function setWhisper(line: string) {
+  window.clearTimeout(whisperTimer);
+  whisperLine = line;
+  if (!line) return;
+  whisperTimer = window.setTimeout(() => {
+    whisperLine = "";
+  }, WHISPER_MS);
 }
 
 let patronList: MapPatron[] = [];
@@ -313,12 +380,14 @@ function onFishingUpdate(d: {
   });
 
   if (phase === "fish_wait" && d.biteOpen) {
-    const seat = patronList.find((p) => p.name === d.from);
-    if (seat) {
+    const now = performance.now();
+    const last = lastBiteSplash.get(d.from) ?? 0;
+    if (now - last > 5_500) {
+      lastBiteSplash.set(d.from, now);
       splashes.push({
         x: mapCanvas.clientWidth / 2,
         y: mapCanvas.clientHeight / 2 + 4,
-        startedAt: performance.now(),
+        startedAt: now,
         rarity: "uncommon",
       });
     }
@@ -358,10 +427,7 @@ function onChanceUpdate(d: {
   });
 
   if (phase === "chance_result" && d.outcome === "win") {
-    chanceFlashUntil = performance.now() + 1400;
-  }
-  if (phase === "chance_play" && d.game === "high_low" && d.cards?.length) {
-    chanceFlashUntil = performance.now() + 400;
+    chanceFlashUntil = performance.now() + 1_400;
   }
   countLiveActivity();
 }
@@ -404,16 +470,24 @@ function pickDockFact(): string {
   return typeof item === "function" ? item() : item;
 }
 
-function refreshDock() {
+function refreshDockPatrons() {
   const night = tonightUtc();
   dockNight.textContent = `${night.title} — ${night.tagline}`;
   dockPatrons.textContent = patronList.length
     ? `${patronList.length} seated: ${patronList.map((x) => x.name).join(" · ")}`
-    : "Empty chairs — cast soon.";
+    : "Empty chairs — the well waits.";
+}
+
+function rotateDockFact() {
   dockFact.textContent = pickDockFact();
   dockFact.classList.remove("bb-dock-fact");
   void dockFact.offsetWidth;
   dockFact.classList.add("bb-dock-fact");
+}
+
+function refreshDock() {
+  refreshDockPatrons();
+  rotateDockFact();
 }
 
 function showDemoHall(caption: string) {
@@ -459,63 +533,75 @@ function redrawMap() {
     frame.style.transform = "";
   }
   expirePatronFishing();
-  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx());
+  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx(), whisperLine);
 }
 
-function startDemoChanceLoop() {
-  const demoCards = [
-    { label: "8♡", rank: 8, suit: "cups" },
-    { label: "Q†", rank: 12, suit: "swords" },
-    { label: "K◎", rank: 13, suit: "coins" },
-    { label: "6⚚", rank: 6, suit: "wands" },
-  ];
-  const phases: ChancePhase[] = ["chance_pick", "chance_play", "chance_result", "idle"];
-  let phaseIdx = 0;
-  window.setInterval(() => {
-    if (patronList.length === 0) return;
-    const p = patronList[(phaseIdx + 1) % patronList.length]!;
-    const phase = phases[phaseIdx % phases.length]!;
-    phaseIdx += 1;
-    const card = demoCards[phaseIdx % demoCards.length]!;
-    if (phase === "idle") {
-      onChanceUpdate({ from: p.name, phase: "idle" });
-      return;
-    }
-    if (phase === "chance_pick") {
-      onChanceUpdate({ from: p.name, phase, game: "high_low" });
-      return;
-    }
-    if (phase === "chance_play") {
-      onChanceUpdate({ from: p.name, phase, game: "high_low", cards: [card] });
-      return;
-    }
-    const second = demoCards[(phaseIdx + 1) % demoCards.length]!;
-    onChanceUpdate({
-      from: p.name,
-      phase,
+async function demoBeat(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function startDemoEvening() {
+  if (demoRunning) return;
+  demoRunning = true;
+
+  const scripted: Deed[] = [
+    {
+      kind: "catch",
+      from: "Angler",
+      chronicle: "Angler lands Glimmer Minnow — chalk on the rim, stew in the kitchen.",
+      text: "A honest bite—good for stew, small boasts, and passing the night without prophecy.",
+      fish: "Glimmer Minnow",
+      rarity: "common",
+      renown: 2,
+    },
+    {
+      kind: "gamble",
+      from: "Guest",
+      chronicle: "Guest calls high — 8♡ → Q†. The hall cheers; the mist pays.",
+      text: "Ascendant / Descendant — the hall inscribes a win.",
       game: "high_low",
-      cards: [card, second],
-      outcome: second.rank > card.rank ? "win" : "lose",
-    });
-  }, 3600);
-}
+      outcome: "win",
+      renown: 1,
+    },
+    {
+      kind: "trivia",
+      from: "Example",
+      chronicle: "Example answers true at the well — the Codex grudgingly agrees.",
+      text: "What does renown purchase at the Moonwell?",
+      correct: true,
+      renown: 4,
+    },
+  ];
+  let deedIdx = 0;
 
-function startDemoFishingLoop() {
-  const phases: FishingPhase[] = ["fish_cast", "fish_wait", "fish_reel", "idle"];
-  let phaseIdx = 0;
-  window.setInterval(() => {
-    if (patronList.length === 0) return;
-    const p = patronList[phaseIdx % patronList.length]!;
-    const phase = phases[phaseIdx % phases.length]!;
-    phaseIdx += 1;
-    onFishingUpdate({
-      from: p.name,
-      phase,
-      castPower: phase === "fish_cast" ? 0.4 + Math.random() * 0.5 : undefined,
-      biteOpen: phase === "fish_wait" && Math.random() > 0.5,
-      reelProgress: phase === "fish_reel" ? Math.random() : undefined,
-    });
-  }, 2800);
+  while (demoRunning && patronList.length > 0) {
+    director.whisper(pickLine(tavernTeasers));
+    await demoBeat(22_000);
+
+    const p = patronList[deedIdx % patronList.length]!;
+    const fishingScript: Array<{ phase: FishingPhase; ms: number; bite?: boolean }> = [
+      { phase: "fish_cast", ms: 8_000 },
+      { phase: "fish_wait", ms: 11_000, bite: true },
+      { phase: "fish_reel", ms: 10_000 },
+      { phase: "idle", ms: 5_000 },
+    ];
+    for (const step of fishingScript) {
+      if (!demoRunning) return;
+      onFishingUpdate({
+        from: p.name,
+        phase: step.phase,
+        castPower: step.phase === "fish_cast" ? 0.5 : undefined,
+        biteOpen: step.bite,
+        reelProgress: step.phase === "fish_reel" ? 0.55 : undefined,
+      });
+      await demoBeat(step.ms);
+    }
+
+    director.enqueue(scripted[deedIdx % scripted.length]!);
+    deedIdx += 1;
+    while (director.isPlaying() || director.queueLength() > 0) await demoBeat(1_500);
+    await demoBeat(18_000);
+  }
 }
 
 function startAnimLoop() {
@@ -534,7 +620,6 @@ function setFlash(line: string, from?: string) {
     flashLine = "";
     redrawMap();
   }, CALLOUT_MS);
-  showCallout(line);
   if (from) pulsePatron(from);
   redrawMap();
 }
@@ -562,10 +647,11 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   });
   const joined = patronList.filter((x) => !prev.has(x.name));
   if (joined.length === 1) {
-    setFlash(`${joined[0]!.name} pulled up a chair`, joined[0]!.name);
+    setWhisper(`${joined[0]!.name} pulls up a chair at the Great Table.`);
+    pulsePatron(joined[0]!.name);
   }
   patronsEl.textContent = `${patronList.length} at the Great Table: ${patronList.map((x) => x.name).join(" · ")}`;
-  refreshDock();
+  refreshDockPatrons();
   countLiveActivity();
   redrawMap();
 }
@@ -582,12 +668,28 @@ async function main() {
 
   playLink.href = import.meta.env.BASE_URL || "/";
 
+  director.bind({
+    onMood: setMood,
+    onSpotlight: showSpotlight,
+    onFlash: (_line, from) => {
+      if (from) pulsePatron(from);
+    },
+    onAppendFeed: appendDeed,
+    onEffects: handleDeedEffects,
+    onQuietWhisper: (line) => {
+      setWhisper(line || pickLine(heraldLines));
+    },
+  });
+
   const night = tonightUtc();
   const feedHeading = document.querySelector(".bb-feed-heading");
   if (feedHeading) feedHeading.textContent = pickLine(chronicleHeadings);
-  refreshDock();
+  setMood("gathering");
+  setWhisper(pickLine(enterPrologues));
+  refreshDockPatrons();
+  rotateDockFact();
   refreshStats();
-  setInterval(refreshDock, FACT_ROTATE_MS);
+  setInterval(rotateDockFact, FACT_ROTATE_MS);
 
   const resize = () => {
     applyWallClass();
@@ -605,8 +707,7 @@ async function main() {
     showDemoHall(
       "Preview: Example, Angler & Guest at the table — open the game (same Wi‑Fi / localhost) for live seats.",
     );
-    startDemoFishingLoop();
-    startDemoChanceLoop();
+    void startDemoEvening();
     return;
   }
 
@@ -620,31 +721,14 @@ async function main() {
     showDemoHall(
       "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
     );
-    startDemoFishingLoop();
-    startDemoChanceLoop();
+    void startDemoEvening();
     return;
   }
 
   const socket = client?.socket;
   if (socket) {
     socket.on("hall:deed", (d: Deed) => {
-      appendDeed(d);
-      if (d.kind === "catch") addCatchToTable(d);
-      const line = flashForDeed(d);
-      setFlash(line, d.from);
-      if (d.kind === "gamble" && d.outcome === "win") {
-        chanceFlashUntil = performance.now() + 1200;
-      }
-      if (d.kind === "catch" && d.rarity === "mythic") {
-        showCallout(`MYTHIC — ${line}`);
-      }
-      if (d.kind === "catch" && d.demplar) {
-        showCallout(`CHARTER — ${line}`);
-      }
-      if (d.kind === "renown" && d.milestone) {
-        showCallout(`★${d.milestone} — ${line}`);
-        chanceFlashUntil = performance.now() + 1600;
-      }
+      director.enqueue(d);
     });
     socket.on("moonwell:patrons", onPatrons);
     socket.on("moonwell:fishing", onFishingUpdate);
@@ -655,8 +739,7 @@ async function main() {
     }
   } else {
     showDemoHall("Preview seats at the Great Table.");
-    startDemoFishingLoop();
-    startDemoChanceLoop();
+    void startDemoEvening();
   }
 }
 
