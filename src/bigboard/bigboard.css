@@ -25,6 +25,51 @@
   align-items: center;
 }
 
+.bb-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.bb-stat {
+  font-family: var(--font-label, "Silkscreen", "Press Start 2P", monospace);
+  font-size: 0.68rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 16, 24, 0.65);
+  color: var(--muted);
+  animation: bb-stat-pop 0.35s ease-out;
+}
+
+.bb-stat--catch {
+  color: var(--gold);
+  border-color: rgba(232, 176, 80, 0.35);
+}
+
+.bb-stat--gamble {
+  color: var(--jade);
+  border-color: rgba(104, 184, 168, 0.35);
+}
+
+.bb-stat--hot {
+  color: #f8f0ff;
+  border-color: rgba(248, 240, 255, 0.2);
+  box-shadow: 0 0 12px rgba(232, 176, 80, 0.15);
+}
+
+@keyframes bb-stat-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .bb-live-chip {
   display: inline-flex;
   align-items: center;
@@ -186,6 +231,16 @@
   border-color: var(--jade-dk);
 }
 
+.bb-deed--gamble.bb-deed--win {
+  border-color: #68e8a8;
+  background: rgba(104, 232, 168, 0.08);
+}
+
+.bb-deed--gamble.bb-deed--lose {
+  border-color: #c87878;
+  background: rgba(200, 120, 120, 0.06);
+}
+
 .bb-deed--feast {
   border-color: #c9a010;
 }
@@ -268,6 +323,12 @@
 
 .bb-dock-fact {
   animation: bb-fact-roll 0.5s ease-out;
+}
+
+.bb-dock-tally {
+  font-size: 0.92rem;
+  color: var(--gold);
+  line-height: 1.5;
 }
 
 @keyframes bb-fact-roll {

@@ -1,6 +1,8 @@
 import { drawCatchBurst, drawSplashFx, drawTableFish, type SplashFx, type TableFish } from "./tableFish";
+import { drawChanceCorner, type ChanceCardSnap } from "./chanceTable";
 
 export type FishingPhase = "idle" | "fish_cast" | "fish_wait" | "fish_reel";
+export type ChancePhase = "idle" | "chance_pick" | "chance_play" | "chance_result";
 
 export type MapPatron = {
   name: string;
@@ -12,6 +14,14 @@ export type MapPatron = {
     reelProgress?: number;
     updatedAt: number;
   };
+  chance?: {
+    phase: ChancePhase;
+    game?: "high_low" | "over_under";
+    cards?: ChanceCardSnap[];
+    target?: number;
+    outcome?: "win" | "lose" | "push";
+    updatedAt: number;
+  };
 };
 
 export type SeatSlot = { x: number; y: number; angle: number; index: number };
@@ -20,6 +30,7 @@ export type MapFx = {
   tableFish: TableFish[];
   splashes: SplashFx[];
   catchBurstUntil: number;
+  chanceFlashUntil: number;
 };
 
 function hashName(s: string): number {
@@ -141,6 +152,32 @@ function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tic
   return { cx, cy, mrx, mry };
 }
 
+function patronAtChance(p: MapPatron): boolean {
+  return !!p.chance && p.chance.phase !== "idle";
+}
+
+function chanceSeat(index: number): { x: number; y: number; angle: number } {
+  const baseX = 148;
+  const baseY = 72;
+  return {
+    x: baseX + (index % 3) * 36,
+    y: baseY + Math.floor(index / 3) * 30,
+    angle: -Math.PI / 4,
+  };
+}
+
+function seatForPatron(
+  p: MapPatron,
+  seats: SeatSlot[],
+  chanceIndex: number,
+): SeatSlot {
+  if (patronAtChance(p)) {
+    const c = chanceSeat(chanceIndex);
+    return { ...c, index: -1 };
+  }
+  return seats[hashName(p.name) % seats.length]!;
+}
+
 function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number) {
   ctx.save();
   ctx.translate(x, y);
@@ -155,18 +192,22 @@ function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
   ctx.restore();
 }
 
-function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const zones: Array<{ x: number; y: number; label: string; color: string }> = [
-    { x: 24, y: 24, label: "CHANCE", color: "#e8b050" },
+function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number, chanceActive: boolean) {
+  const zones: Array<{ x: number; y: number; label: string; color: string; hot?: boolean }> = [
+    { x: 24, y: 24, label: "CHANCE", color: "#e8b050", hot: chanceActive },
     { x: w - 108, y: 24, label: "KITCHEN", color: "#68b8a8" },
     { x: 24, y: h - 52, label: "BAR", color: "#c89898" },
     { x: w - 100, y: h - 52, label: "HERALD", color: "#8cb8d8" },
   ];
   for (const z of zones) {
+    if (z.hot) {
+      ctx.fillStyle = "rgba(232, 176, 80, 0.12)";
+      ctx.fillRect(z.x - 3, z.y - 3, 58, 38);
+    }
     ctx.fillStyle = "#4a3020";
     ctx.fillRect(z.x, z.y, 52, 32);
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = z.hot ? "#e8b050" : "#000";
+    ctx.lineWidth = z.hot ? 3 : 2;
     ctx.strokeRect(z.x, z.y, 52, 32);
     ctx.fillStyle = z.color;
     ctx.font = '6px "Press Start 2P", monospace';
@@ -236,8 +277,11 @@ function drawPatronToken(
   tick: number,
   pulse: boolean,
   fishing?: MapPatron["fishing"],
+  chance?: MapPatron["chance"],
 ) {
-  const active = fishing && fishing.phase !== "idle";
+  const fishingActive = fishing && fishing.phase !== "idle";
+  const chanceActive = chance && chance.phase !== "idle";
+  const active = fishingActive || chanceActive;
   const bob = Math.sin(tick * 0.05 + hashName(name) * 0.01) * (active ? 5 : 3);
   const px = x - 14;
   const py = y - 14 + bob;
@@ -257,13 +301,32 @@ function drawPatronToken(
     ctx.fill();
   }
 
+  if (chanceActive && chance!.phase === "chance_play") {
+    ctx.fillStyle = "rgba(232, 176, 80, 0.28)";
+    ctx.beginPath();
+    ctx.arc(x, y + bob, 20, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.fillStyle = `hsl(${hue} 42% 48%)`;
   ctx.fillRect(px, py, 28, 28);
-  ctx.strokeStyle = active ? "#e8b050" : "#000";
-  ctx.lineWidth = active ? 3 : 3;
+  ctx.strokeStyle = chanceActive ? "#e8b050" : active ? "#e8b050" : "#000";
+  ctx.lineWidth = 3;
   ctx.strokeRect(px, py, 28, 28);
 
-  if (active) {
+  if (chanceActive) {
+    const badge =
+      chance!.phase === "chance_pick"
+        ? "PICK"
+        : chance!.game === "over_under"
+          ? "O/U"
+          : "HI-LO";
+    ctx.fillStyle = chance!.outcome === "win" ? "#68e8a8" : "#e8b050";
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = "center";
+    ctx.fillText(badge, x, py - 4);
+    ctx.textAlign = "left";
+  } else if (fishingActive) {
     const badge =
       fishing!.phase === "fish_cast" ? "CAST" : fishing!.phase === "fish_wait" ? "WAIT" : "REEL";
     ctx.fillStyle = "#e8b050";
@@ -293,7 +356,7 @@ export function drawTavernMap(
   patrons: MapPatron[],
   flashLine: string,
   tick = 0,
-  fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0 },
+  fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0, chanceFlashUntil: 0 },
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -302,10 +365,25 @@ export function drawTavernMap(
   const now = performance.now();
   ctx.imageSmoothingEnabled = false;
 
+  const sorted = [...patrons].sort((a, b) => hashName(a.name) - hashName(b.name));
+  const chancePatrons = sorted.filter(patronAtChance);
+  const chanceSessions = chancePatrons
+    .filter((p) => p.chance && p.chance.phase !== "idle")
+    .map((p) => ({
+      from: p.name,
+      game: p.chance!.game,
+      phase: p.chance!.phase as "chance_pick" | "chance_play" | "chance_result",
+      cards: p.chance!.cards,
+      target: p.chance!.target,
+      outcome: p.chance!.outcome,
+      updatedAt: p.chance!.updatedAt,
+    }));
+
   drawPlankFloor(ctx, w, h);
-  drawSideTables(ctx, w, h);
+  drawSideTables(ctx, w, h, chancePatrons.length > 0);
   const well = drawGiantTable(ctx, w, h, tick);
 
+  drawChanceCorner(ctx, w, h, chanceSessions, tick, fx.chanceFlashUntil, now);
   drawCatchBurst(ctx, well.cx, well.cy, tick, fx.catchBurstUntil, now);
   drawSplashFx(ctx, fx.splashes, now);
   drawTableFish(ctx, well.cx, well.cy, fx.tableFish, tick, now);
@@ -316,25 +394,39 @@ export function drawTavernMap(
     drawChair(ctx, seat.x, seat.y, seat.angle);
   }
 
-  const sorted = [...patrons].sort((a, b) => hashName(a.name) - hashName(b.name));
-
+  let chanceIdx = 0;
   for (const p of sorted) {
-    const seat = seats[hashName(p.name) % seats.length]!;
+    if (patronAtChance(p)) continue;
+    const seat = seatForPatron(p, seats, 0);
     drawFishingLine(ctx, seat.x, seat.y, well.cx, well.cy, p, tick);
   }
 
+  chanceIdx = 0;
   sorted.forEach((p) => {
-    const seat = seats[hashName(p.name) % seats.length]!;
+    const atChance = patronAtChance(p);
+    const seat = seatForPatron(p, seats, atChance ? chanceIdx++ : 0);
     const pulse = (p.pulseUntil ?? 0) > now;
-    drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse, p.fishing);
+    drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse, p.fishing, p.chance);
   });
 
   const activeFishers = sorted.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
-  if (activeFishers > 0) {
-    ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
+  const activeGamblers = chancePatrons.length;
+  const headerY = 18;
+  if (activeFishers > 0 || activeGamblers > 0) {
     ctx.font = '6px "Press Start 2P", monospace';
     ctx.textAlign = "center";
-    ctx.fillText(`${activeFishers} ANGLING`, w / 2, 18);
+    if (activeFishers > 0 && activeGamblers > 0) {
+      ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
+      ctx.fillText(`${activeFishers} ANGLING`, w / 2 - 52, headerY);
+      ctx.fillStyle = "rgba(232, 176, 80, 0.95)";
+      ctx.fillText(`${activeGamblers} AT CHANCE`, w / 2 + 58, headerY);
+    } else if (activeFishers > 0) {
+      ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
+      ctx.fillText(`${activeFishers} ANGLING`, w / 2, headerY);
+    } else {
+      ctx.fillStyle = "rgba(232, 176, 80, 0.95)";
+      ctx.fillText(`${activeGamblers} AT CHANCE`, w / 2, headerY);
+    }
     ctx.textAlign = "left";
   }
 

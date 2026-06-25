@@ -8,7 +8,7 @@ import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
 import { tonightUtc } from "../content/tavernNights";
 import { bbIconForKind } from "./bbIcons";
-import { drawTavernMap, resizeMapCanvas, type FishingPhase, type MapPatron, type MapFx } from "./tavernMap";
+import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
 
@@ -22,6 +22,8 @@ const calloutEl = document.getElementById("bb-callout") as HTMLDivElement;
 const dockNight = document.getElementById("bb-dock-night")!;
 const dockPatrons = document.getElementById("bb-dock-patrons")!;
 const dockFact = document.getElementById("bb-dock-fact")!;
+const dockTally = document.getElementById("bb-dock-tally")!;
+const statsEl = document.getElementById("bb-stats")!;
 const playLink = document.getElementById("bb-play-link") as HTMLAnchorElement;
 const mapCanvas = document.getElementById("tavern-map") as HTMLCanvasElement;
 
@@ -41,7 +43,33 @@ type Deed = {
   fish?: string;
   rarity?: string;
   from?: string;
+  game?: string;
+  outcome?: string;
+  cards?: Array<{ label: string; rank: number; suit: string }>;
+  target?: number;
 };
+
+type HallTally = {
+  catches: number;
+  gambles: number;
+  wins: number;
+  feasts: number;
+  mythics: number;
+  renown: number;
+};
+
+let hallTally: HallTally = {
+  catches: 0,
+  gambles: 0,
+  wins: 0,
+  feasts: 0,
+  mythics: 0,
+  renown: 0,
+};
+
+let liveAnglers = 0;
+let liveFishers = 0;
+let liveGamblers = 0;
 
 function isWallMode(): boolean {
   try {
@@ -67,13 +95,29 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function cardArrow(cards?: Deed["cards"]): string {
+  if (!cards?.length) return "";
+  if (cards.length === 1) return cards[0]!.label;
+  return `${cards[0]!.label} → ${cards[1]!.label}`;
+}
+
 function lineForDeed(d: Deed): string {
   const who = d.from ? d.from : "A patron";
   if (d.kind === "catch" && d.fish) {
     return `${who} landed ${d.fish}${d.rarity ? ` (${d.rarity})` : ""} — ${d.renown ?? 0} renown`;
   }
-  if (d.kind === "gamble" && d.text) {
-    return `${who} at the chance table — ${d.text}${d.renown ? ` (+${d.renown} renown)` : ""}`;
+  if (d.kind === "gamble") {
+    const game = d.game === "over_under" ? "O/U" : "Hi-Lo";
+    const cards = cardArrow(d.cards);
+    const mark = d.game === "over_under" && d.target != null ? ` mark ${d.target}` : "";
+    const verdict =
+      d.outcome === "win" ? "WIN" : d.outcome === "push" ? "PUSH" : d.outcome === "lose" ? "LOSE" : "";
+    const tail = d.renown ? ` (+${d.renown} renown)` : "";
+    if (cards) {
+      return `${who} ${game}${mark}: ${cards}${verdict ? ` — ${verdict}` : ""}${tail}`;
+    }
+    if (d.text) return `${who} at the chance table — ${d.text}${tail}`;
+    return `${who} wagered at the chance table${tail}`;
   }
   if (d.kind === "feast" && d.text) {
     return `${who} ${d.text}`;
@@ -82,19 +126,72 @@ function lineForDeed(d: Deed): string {
   return `${who} did a deed worth telling.`;
 }
 
-function deedClass(kind?: string): string {
-  if (kind === "catch") return "bb-deed bb-deed--catch";
-  if (kind === "gamble") return "bb-deed bb-deed--gamble";
-  if (kind === "feast") return "bb-deed bb-deed--feast";
-  return "bb-deed";
+function deedClass(kind?: string, outcome?: string): string {
+  let cls = "bb-deed";
+  if (kind === "catch") cls += " bb-deed--catch";
+  if (kind === "gamble") {
+    cls += " bb-deed--gamble";
+    if (outcome === "win") cls += " bb-deed--win";
+    if (outcome === "lose") cls += " bb-deed--lose";
+  }
+  if (kind === "feast") cls += " bb-deed--feast";
+  return cls;
+}
+
+function bumpTally(d: Deed) {
+  if (d.kind === "catch") {
+    hallTally.catches += 1;
+    if (d.rarity === "mythic") hallTally.mythics += 1;
+  }
+  if (d.kind === "gamble") {
+    hallTally.gambles += 1;
+    if (d.outcome === "win") hallTally.wins += 1;
+  }
+  if (d.kind === "feast") hallTally.feasts += 1;
+  if (d.renown) hallTally.renown += d.renown;
+  refreshStats();
+}
+
+function refreshStats() {
+  const bits: string[] = [];
+  if (liveAnglers > 0) bits.push(`${liveAnglers} seated`);
+  if (liveFishers > 0) bits.push(`${liveFishers} angling`);
+  if (liveGamblers > 0) bits.push(`${liveGamblers} at chance`);
+  if (hallTally.catches > 0) bits.push(`${hallTally.catches} catches`);
+  if (hallTally.gambles > 0) bits.push(`${hallTally.gambles} wagers`);
+  if (hallTally.wins > 0) bits.push(`${hallTally.wins} wins`);
+  if (hallTally.mythics > 0) bits.push(`${hallTally.mythics} mythic`);
+
+  statsEl.innerHTML = bits
+    .map((b) => {
+      let cls = "bb-stat";
+      if (b.includes("catch") || b.includes("mythic")) cls += " bb-stat--catch";
+      else if (b.includes("wager") || b.includes("win") || b.includes("chance")) cls += " bb-stat--gamble";
+      else if (b.includes("angling")) cls += " bb-stat--hot";
+      return `<span class="${cls}">${escapeHtml(b)}</span>`;
+    })
+    .join("");
+
+  dockTally.textContent =
+    hallTally.catches + hallTally.gambles + hallTally.feasts > 0
+      ? `${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ${hallTally.feasts} feasts · ★${hallTally.renown}`
+      : "Quiet hall — first cast or wager sets the tone.";
+}
+
+function countLiveActivity() {
+  liveFishers = patronList.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
+  liveGamblers = patronList.filter((p) => p.chance && p.chance.phase !== "idle").length;
+  liveAnglers = patronList.length;
+  refreshStats();
 }
 
 function appendDeed(d: Deed) {
   const row = document.createElement("div");
-  row.className = deedClass(d.kind);
+  row.className = deedClass(d.kind, d.outcome);
   row.innerHTML = `${bbIconForKind(d.kind)}<span class="bb-deed-text">${escapeHtml(lineForDeed(d))}</span>`;
   feedEl.prepend(row);
   while (feedEl.children.length > FEED_MAX) feedEl.removeChild(feedEl.lastChild!);
+  bumpTally(d);
 }
 
 let patronList: MapPatron[] = [];
@@ -107,12 +204,29 @@ let tableFish: TableFish[] = [];
 let splashes: SplashFx[] = [];
 let catchBurstUntil = 0;
 let mapShakeUntil = 0;
+let chanceFlashUntil = 0;
 
 const mapFx = (): MapFx => ({
   tableFish,
   splashes,
   catchBurstUntil,
+  chanceFlashUntil,
 });
+
+function expirePatronChance() {
+  const now = performance.now();
+  patronList = patronList.map((p) => {
+    if (!p.chance) return p;
+    const age = now - p.chance.updatedAt;
+    const max =
+      p.chance.phase === "chance_result" ? 6000 : p.chance.phase === "chance_pick" ? 25_000 : 45_000;
+    if (age > max) {
+      const { chance: _, ...rest } = p;
+      return rest;
+    }
+    return p;
+  });
+}
 
 function expirePatronFishing() {
   const now = performance.now();
@@ -124,8 +238,10 @@ function expirePatronFishing() {
     }
     return p;
   });
+  expirePatronChance();
   splashes = splashes.filter((s) => now - s.startedAt < 1500);
   tableFish = tableFish.filter((f) => now - f.landedAt < 60_000);
+  countLiveActivity();
 }
 
 function onFishingUpdate(d: {
@@ -168,6 +284,47 @@ function onFishingUpdate(d: {
       });
     }
   }
+  countLiveActivity();
+}
+
+function onChanceUpdate(d: {
+  from?: string;
+  phase?: string;
+  game?: string;
+  cards?: Array<{ label: string; rank: number; suit: string }>;
+  target?: number;
+  outcome?: string;
+}) {
+  if (!d.from) return;
+  const phase = (d.phase ?? "idle") as ChancePhase;
+  const updatedAt = performance.now();
+
+  patronList = patronList.map((p) => {
+    if (p.name !== d.from) return p;
+    if (phase === "idle") {
+      const { chance: _, ...rest } = p;
+      return rest;
+    }
+    return {
+      ...p,
+      chance: {
+        phase,
+        game: d.game as "high_low" | "over_under" | undefined,
+        cards: d.cards,
+        target: d.target,
+        outcome: d.outcome as "win" | "lose" | "push" | undefined,
+        updatedAt,
+      },
+    };
+  });
+
+  if (phase === "chance_result" && d.outcome === "win") {
+    chanceFlashUntil = performance.now() + 1400;
+  }
+  if (phase === "chance_play" && d.game === "high_low" && d.cards?.length) {
+    chanceFlashUntil = performance.now() + 400;
+  }
+  countLiveActivity();
 }
 
 function addCatchToTable(d: Deed) {
@@ -225,6 +382,7 @@ function showDemoHall(caption: string) {
   setLive(false, `Preview · ${tonightUtc().title}`);
   patronsEl.textContent = caption;
   refreshDock();
+  countLiveActivity();
   redrawMap();
 }
 
@@ -263,6 +421,44 @@ function redrawMap() {
   }
   expirePatronFishing();
   drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx());
+}
+
+function startDemoChanceLoop() {
+  const demoCards = [
+    { label: "8♡", rank: 8, suit: "cups" },
+    { label: "Q†", rank: 12, suit: "swords" },
+    { label: "K◎", rank: 13, suit: "coins" },
+    { label: "6⚚", rank: 6, suit: "wands" },
+  ];
+  const phases: ChancePhase[] = ["chance_pick", "chance_play", "chance_result", "idle"];
+  let phaseIdx = 0;
+  window.setInterval(() => {
+    if (patronList.length === 0) return;
+    const p = patronList[(phaseIdx + 1) % patronList.length]!;
+    const phase = phases[phaseIdx % phases.length]!;
+    phaseIdx += 1;
+    const card = demoCards[phaseIdx % demoCards.length]!;
+    if (phase === "idle") {
+      onChanceUpdate({ from: p.name, phase: "idle" });
+      return;
+    }
+    if (phase === "chance_pick") {
+      onChanceUpdate({ from: p.name, phase, game: "high_low" });
+      return;
+    }
+    if (phase === "chance_play") {
+      onChanceUpdate({ from: p.name, phase, game: "high_low", cards: [card] });
+      return;
+    }
+    const second = demoCards[(phaseIdx + 1) % demoCards.length]!;
+    onChanceUpdate({
+      from: p.name,
+      phase,
+      game: "high_low",
+      cards: [card, second],
+      outcome: second.rank > card.rank ? "win" : "lose",
+    });
+  }, 3600);
 }
 
 function startDemoFishingLoop() {
@@ -312,7 +508,12 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   const prev = new Set(patronList.map((x) => x.name));
   patronList = p.patrons.map((x) => {
     const existing = patronList.find((e) => e.name === x.name);
-    return { name: x.name, pulseUntil: existing?.pulseUntil, fishing: existing?.fishing };
+    return {
+      name: x.name,
+      pulseUntil: existing?.pulseUntil,
+      fishing: existing?.fishing,
+      chance: existing?.chance,
+    };
   });
   const joined = patronList.filter((x) => !prev.has(x.name));
   if (joined.length === 1) {
@@ -320,6 +521,7 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   }
   patronsEl.textContent = `${patronList.length} at the Great Table: ${patronList.map((x) => x.name).join(" · ")}`;
   refreshDock();
+  countLiveActivity();
   redrawMap();
 }
 
@@ -337,6 +539,7 @@ async function main() {
 
   const night = tonightUtc();
   refreshDock();
+  refreshStats();
   setInterval(refreshDock, FACT_ROTATE_MS);
 
   const resize = () => {
@@ -356,6 +559,7 @@ async function main() {
       "Preview: Example, Angler & Guest at the table — open the game (same Wi‑Fi / localhost) for live seats.",
     );
     startDemoFishingLoop();
+    startDemoChanceLoop();
     return;
   }
 
@@ -370,6 +574,7 @@ async function main() {
       "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
     );
     startDemoFishingLoop();
+    startDemoChanceLoop();
     return;
   }
 
@@ -380,12 +585,16 @@ async function main() {
       if (d.kind === "catch") addCatchToTable(d);
       const line = lineForDeed(d);
       setFlash(line, d.from);
+      if (d.kind === "gamble" && d.outcome === "win") {
+        chanceFlashUntil = performance.now() + 1200;
+      }
       if (d.kind === "catch" && d.rarity === "mythic") {
         showCallout(`MYTHIC — ${line}`);
       }
     });
     socket.on("moonwell:patrons", onPatrons);
     socket.on("moonwell:fishing", onFishingUpdate);
+    socket.on("moonwell:chance", onChanceUpdate);
     // Until real patrons arrive, keep the preview tokens bobbing at the table
     if (patronList.length === 0) {
       showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
@@ -393,6 +602,7 @@ async function main() {
   } else {
     showDemoHall("Preview seats at the Great Table.");
     startDemoFishingLoop();
+    startDemoChanceLoop();
   }
 }
 

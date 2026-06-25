@@ -81,6 +81,29 @@ io.on("connection", (socket) => {
     },
   );
 
+  socket.on(
+    "moonwell:chance",
+    (payload: {
+      phase?: string;
+      game?: string;
+      cards?: Array<{ label: string; rank: number; suit: string }>;
+      target?: number;
+      outcome?: string;
+    }) => {
+      const p = patrons.get(socket.id);
+      if (!p) return;
+      io.to(defaultRoom).emit("moonwell:chance", {
+        ts: Date.now(),
+        from: p.name,
+        phase: payload?.phase ?? "idle",
+        game: payload?.game,
+        cards: payload?.cards,
+        target: payload?.target,
+        outcome: payload?.outcome,
+      });
+    },
+  );
+
   socket.on("disconnect", () => {
     patrons.delete(socket.id);
     broadcastPatrons(defaultRoom);

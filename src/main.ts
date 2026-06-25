@@ -253,6 +253,32 @@ function broadcastFishing(force = false) {
   });
 }
 
+function broadcastChance() {
+  if (!socket) return;
+  const chancePhases = ["chance_pick", "chance_play", "chance_result"] as const;
+  const isChance = chancePhases.includes(state.phase as (typeof chancePhases)[number]);
+
+  if (!isChance) {
+    socket.emit("moonwell:chance", { phase: "idle" });
+    return;
+  }
+
+  const payload: Record<string, unknown> = { phase: state.phase };
+  if (state.chanceGame) payload.game = state.chanceGame;
+  if (state.overUnderTarget != null) payload.target = state.overUnderTarget;
+  if (state.chanceCards.length > 0) {
+    payload.cards = state.chanceCards.map((c) => ({
+      label: c.label,
+      rank: c.rank,
+      suit: c.suit,
+    }));
+  }
+  if (state.phase === "chance_result" && state.chanceLastResult) {
+    payload.outcome = state.chanceLastResult.outcome;
+  }
+  socket.emit("moonwell:chance", payload);
+}
+
 function announceCatch(c: CatchResult) {
   socket?.emit("hall:announce_deed", {
     kind: "catch",
@@ -517,7 +543,15 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
     state.titles.push("Moonwell Sharp");
   }
   state.chanceLastResult = result;
-  announceHall("gamble", result.detail, result.renownDelta);
+  socket?.emit("hall:announce_deed", {
+    kind: "gamble",
+    text: result.detail,
+    renown: result.renownDelta,
+    game: result.game,
+    outcome: result.outcome,
+    cards: result.cards.map((c) => ({ label: c.label, rank: c.rank, suit: c.suit })),
+    target: result.target,
+  });
   hud();
   setPhase("chance_result");
 }
@@ -699,6 +733,7 @@ function setPhase(next: GamePhase) {
   hud();
   drawWell();
   broadcastFishing(true);
+  broadcastChance();
 }
 
 function startCastLoop() {
