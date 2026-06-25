@@ -21,6 +21,7 @@ import { tonightUtc } from "../content/tavernNights";
 import { loadDailyMediaTheme } from "../media/loadTheme";
 import type { LoadedMediaTheme } from "../media/types";
 import { bbIconForKind } from "./bbIcons";
+import { bbTickerShell, mountBbTicker } from "./bbTicker";
 import { createChronicleDirector, type HallMood } from "./chronicleDirector";
 import type { Deed } from "./chronicleDirector.types";
 import {
@@ -708,6 +709,21 @@ function refreshCharterChrome() {
   mapTheme = { ...mapTheme, charterNight: nightLabel, crest: loadedTheme?.images.crest ?? null };
 }
 
+async function initHeraldTickers(feed: Awaited<ReturnType<typeof loadXLoreFeed>>) {
+  const top = document.getElementById("bb-ticker-top");
+  const bottom = document.getElementById("bb-ticker-bottom");
+  if (top) {
+    top.innerHTML = bbTickerShell("DEMPLAR LIVE");
+    top.removeAttribute("aria-hidden");
+    mountBbTicker(top, feed);
+  }
+  if (bottom) {
+    bottom.innerHTML = bbTickerShell("HERALD");
+    bottom.removeAttribute("aria-hidden");
+    mountBbTicker(bottom, feed);
+  }
+}
+
 async function initCharterChrome() {
   elTagline.textContent = pickLine(demplarEpigraphs);
   loadedTheme = await loadDailyMediaTheme();
@@ -734,7 +750,8 @@ async function main() {
   playLink.href = import.meta.env.BASE_URL || "/";
 
   await initCharterChrome();
-  await loadXLoreFeed();
+  const xFeed = await loadXLoreFeed();
+  await initHeraldTickers(xFeed);
 
   director.bind({
     onMood: setMood,

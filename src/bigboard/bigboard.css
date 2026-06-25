@@ -5,6 +5,133 @@
   --bb-charter-purple-lit: #6a4888;
   --bb-charter-gold: #e8b050;
   --bb-charter-veil: #9890c8;
+  --bb-ticker-red: #b81c1c;
+  --bb-ticker-duration: 120s;
+}
+
+/* ——— CNN-style Herald ticker (X posts) ——— */
+.bb-ticker-mount {
+  flex-shrink: 0;
+}
+
+.bb-ticker-mount--bottom {
+  display: none;
+}
+
+.bb-ticker {
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  background: linear-gradient(90deg, #120808 0%, #1a1018 40%, #120818 100%);
+  border-bottom: 3px solid var(--bb-ticker-red);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.bb-ticker-mount--bottom .bb-ticker {
+  border-bottom: none;
+  border-top: 3px solid var(--bb-ticker-red);
+}
+
+.bb-ticker-label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--bb-ticker-red);
+  color: #fff;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.3rem, 0.95vw, 0.4rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 4px 0 16px rgba(184, 28, 28, 0.35);
+  z-index: 2;
+}
+
+.bb-ticker-viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 2%, #000 98%, transparent 100%);
+}
+
+.bb-ticker-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: bb-ticker-scroll var(--bb-ticker-duration, 120s) linear infinite;
+}
+
+.bb-ticker-content {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  white-space: nowrap;
+  padding: 8px 0;
+}
+
+.bb-ticker-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  padding: 0 2.2em 0 0.6em;
+  font-family: "VT323", "Segoe UI", sans-serif;
+  font-size: clamp(1.15rem, 2.2vw, 1.75rem);
+  line-height: 1.2;
+  color: #f8f4ff;
+}
+
+.bb-ticker-item::after {
+  content: "◆";
+  margin-left: 1.6em;
+  color: var(--bb-charter-gold);
+  opacity: 0.55;
+  font-size: 0.75em;
+}
+
+.bb-ticker-handle {
+  color: var(--bb-charter-gold);
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.55em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.bb-ticker-age {
+  color: rgba(152, 144, 200, 0.75);
+  font-size: 0.85em;
+}
+
+.bb-ticker-text {
+  color: #f8f4ff;
+}
+
+@keyframes bb-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-ticker-track {
+    animation: none;
+    flex-wrap: wrap;
+    white-space: normal;
+    width: 100%;
+  }
+
+  .bb-ticker-content[aria-hidden="true"] {
+    display: none;
+  }
+
+  .bb-ticker-viewport {
+    overflow-x: auto;
+    mask-image: none;
+  }
 }
 
 .bb-root {
@@ -495,12 +622,10 @@
   from {
     opacity: 0;
     transform: translateY(10px);
-    max-height: 0;
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    max-height: 200px;
   }
 }
 
@@ -654,7 +779,9 @@
   flex: 1;
   min-width: 0;
   word-break: break-word;
+  overflow-wrap: anywhere;
   color: var(--ink);
+  line-height: 1.45;
 }
 
 .bb-deed-body {
@@ -761,11 +888,19 @@ html.bb-wall .bb-header--charter {
   display: none;
 }
 
+html.bb-wall .bb-ticker-mount--top {
+  display: none;
+}
+
+html.bb-wall .bb-ticker-mount--bottom {
+  display: block;
+}
+
 html.bb-wall .bb-main {
   grid-template-columns: minmax(0, 2.2fr) minmax(260px, 0.75fr);
   padding: 12px;
   gap: 12px;
-  height: calc(100dvh - 72px);
+  height: calc(100dvh - 72px - 48px);
 }
 
 html.bb-wall .bb-dock {
