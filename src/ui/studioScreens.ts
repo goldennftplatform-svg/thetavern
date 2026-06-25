@@ -1,6 +1,7 @@
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { ChanceResult } from "../minigames/chance";
+import type { DemplarRunResult } from "../minigames/demplarWarrior";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 import type { FoodId } from "../content/tavernNights";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
@@ -62,6 +63,7 @@ export function hubWellHtml(
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(s.seasonNote)}</p>
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("🎣", "Cast", "fish", "gold")}
+      ${hubTileHtml("⚔", "Warrior", "demplar_warrior", "gold")}
       ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
       ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
     </div>
@@ -142,10 +144,33 @@ export function chanceResultStudioHtml(r: ChanceResult): string {
     r.outcome === "win" ? "win" : r.outcome === "push" ? "push" : "lose";
   return studioStageHtml(
     r.title,
-    `${cards}
-    <p class="chance-outcome-badge chance-outcome-badge--${cls}">${r.outcome.toUpperCase()}</p>
-    <p class="studio-flourish">${escapeHtml(r.detail)}</p>
-    <p class="studio-score-delta">${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎ · +${r.renownDelta} Legend</p>
+    `<p class="studio-flourish studio-flourish--${cls}">${escapeHtml(r.detail)}</p>
+    ${cards}
+    <p class="studio-reward">${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎ · +${r.renownDelta} ★</p>
+    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+  );
+}
+
+export function demplarResultStudioHtml(
+  r: DemplarRunResult,
+  renown: number,
+  tokens: number,
+  best?: number,
+): string {
+  const bestLine =
+    best != null
+      ? `<p class="studio-lore-line studio-lore-line--hint">Charter best: ${best}</p>`
+      : "";
+  return studioStageHtml(
+    "Demplar Warrior",
+    `<p class="studio-flourish">Three trials complete — the hall marks thy speed.</p>
+    <div class="studio-scoreboard studio-scoreboard--demplar">
+      <span class="studio-stat"><em>I</em> ${r.platform} <small>Run</small></span>
+      <span class="studio-stat"><em>II</em> ${r.race} <small>Circuit</small></span>
+      <span class="studio-stat"><em>III</em> ${r.asteroids} <small>Shards</small></span>
+    </div>
+    <p class="studio-reward">Total ${r.total} · +${renown} ★ · +${tokens} ◎</p>
+    ${bestLine}
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }

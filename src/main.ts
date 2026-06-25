@@ -50,7 +50,12 @@ import {
 import { buildMoonwellDeck, shuffleDeck } from "./minigames/moonwellDeck";
 import { loadDailyMediaTheme } from "./media/loadTheme";
 import type { LoadedMediaTheme } from "./media/types";
-import { rollCatch } from "./minigames/fishing";
+import {
+  DemplarWarrior,
+  renownFromDemplarScore,
+  tokensFromDemplarScore,
+  type DemplarRunResult,
+} from "./minigames/demplarWarrior";
 import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
@@ -65,6 +70,7 @@ import {
   catchResolveHtml,
   chancePickStudioHtml,
   chanceResultStudioHtml,
+  demplarResultStudioHtml,
   feastStudioHtml,
   hubWellHtml,
   ledgerStudioHtml,
@@ -236,6 +242,11 @@ let reelRaf = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
 let saveTimer = 0;
+let demplarGame: DemplarWarrior | null = null;
+let demplarRaf = 0;
+let lastDemplarT = 0;
+let demplarLastRewards = { renown: 0, tokens: 0 };
+let demplarLastResult: DemplarRunResult | null = null;
 
 function scheduleSave() {
   window.clearTimeout(saveTimer);
@@ -556,6 +567,10 @@ function handleHubAction(action: string) {
     openDemplarModal();
     return;
   }
+  if (action === "demplar_warrior") {
+    startDemplarWarrior();
+    return;
+  }
   if (action.startsWith("chance:")) {
     const id = action.slice(7) as ChanceGameId;
     startChanceGame(id);
@@ -693,6 +708,74 @@ function syncCanvasBuffer(): { w: number; h: number } {
   return { w, h };
 }
 
+function drawDemplar() {
+  const { w, h } = syncCanvasBuffer();
+  demplarGame?.draw(ctx, w, h, performance.now());
+}
+
+function stopDemplarLoop() {
+  window.cancelAnimationFrame(demplarRaf);
+  demplarRaf = 0;
+}
+
+function finishDemplarRun() {
+  if (!demplarGame) return;
+  stopDemplarLoop();
+  const result = demplarGame.result;
+  demplarLastResult = result;
+  demplarLastRewards = {
+    renown: renownFromDemplarScore(result.total),
+    tokens: tokensFromDemplarScore(result.total),
+  };
+  addRenown(demplarLastRewards.renown);
+  state.tokens += demplarLastRewards.tokens;
+  if (!state.demplarBest || result.total > state.demplarBest) {
+    state.demplarBest = result.total;
+  }
+  if (result.total >= 2500 && !state.titles.includes("Demplar Warrior")) {
+    state.titles.push("Demplar Warrior");
+  }
+  announceDeed(
+    "demplar",
+    `${state.nickname} cleared the charter trials — ${result.total} speed`,
+    `Run ${result.platform} · Circuit ${result.race} · Shards ${result.asteroids}`,
+    demplarLastRewards.renown,
+    { score: result.total },
+  );
+  hud();
+  setPhase("demplar_result");
+}
+
+function startDemplarLoop() {
+  lastDemplarT = performance.now();
+  const tick = (now: number) => {
+    if (state.phase !== "demplar_warrior" || !demplarGame) return;
+    const dt = Math.min(48, now - lastDemplarT);
+    lastDemplarT = now;
+    demplarGame.update(dt, now);
+    stageBanner = demplarGame.banner;
+    showToast(demplarGame.hint(), 0);
+    drawDemplar();
+    if (demplarGame.done) {
+      finishDemplarRun();
+      return;
+    }
+    demplarRaf = requestAnimationFrame(tick);
+  };
+  demplarRaf = requestAnimationFrame(tick);
+}
+
+function startDemplarWarrior() {
+  demplarGame = new DemplarWarrior();
+  setPhase("demplar_warrior");
+}
+
+function demplarPointer(e: PointerEvent) {
+  if (state.phase !== "demplar_warrior" || !demplarGame) return;
+  const rect = canvas.getBoundingClientRect();
+  demplarGame.pointerDown(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
+}
+
 function drawWell(phaseOverride?: GamePhase) {
   const { w, h } = syncCanvasBuffer();
   const phase = phaseOverride ?? state.phase;
@@ -726,6 +809,7 @@ function setPhase(next: GamePhase) {
   window.clearTimeout(biteTimer);
   window.clearTimeout(biteOpenTimer);
   window.cancelAnimationFrame(reelRaf);
+  stopDemplarLoop();
 
   setPresence(next !== "enter" && next !== "herald");
 
@@ -825,6 +909,36 @@ function setPhase(next: GamePhase) {
       const night = tonightUtc();
       openMenu(feastStudioHtml(feastIntro, night.title, night.specials, state.feastsEaten));
       showToast("");
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
+    case "demplar_warrior":
+      closeMenu();
+      showToast("Demplar Warrior — three trials of speed");
+      elPrimary.hidden = true;
+      void startHallMusic();
+      requestAnimationFrame(() => {
+        resizeCanvas();
+        drawDemplar();
+        startDemplarLoop();
+      });
+      break;
+    case "demplar_result": {
+      const r = demplarLastResult ?? demplarGame?.result ?? {
+        total: 0,
+        platform: 0,
+        race: 0,
+        asteroids: 0,
+      };
+      openMenu(
+        demplarResultStudioHtml(
+          r,
+          demplarLastRewards.renown,
+          demplarLastRewards.tokens,
+          state.demplarBest,
+        ),
+      );
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
@@ -959,6 +1073,21 @@ elSlack.addEventListener("click", () => nudgeReel(-0.055));
 elHeave.addEventListener("click", () => nudgeReel(0.055));
 
 window.addEventListener("keydown", (e) => {
+  if (state.phase === "demplar_warrior") {
+    if (e.code === "Space" || e.code === "ArrowUp") {
+      e.preventDefault();
+      demplarGame?.jump();
+    }
+    if (e.code === "ArrowLeft") {
+      e.preventDefault();
+      demplarGame?.steer(-1);
+    }
+    if (e.code === "ArrowRight") {
+      e.preventDefault();
+      demplarGame?.steer(1);
+    }
+    return;
+  }
   if (state.phase === "fish_cast" && e.code === "Space") {
     e.preventDefault();
     chargeActive = true;
@@ -1031,6 +1160,10 @@ async function bootTrail() {
     elTrail.textContent = "Live hall is resting — solo play works fine.";
   }
 }
+
+canvas.addEventListener("pointerdown", (e) => {
+  demplarPointer(e);
+});
 
 async function startGameFromGate() {
   const raw = elNick.value.trim() || "Anonymous Angler";

@@ -17,7 +17,9 @@ export type GamePhase =
   | "chance_pick"
   | "chance_play"
   | "chance_result"
-  | "feast";
+  | "feast"
+  | "demplar_warrior"
+  | "demplar_result";
 
 export type FoodBuff = {
   foodId: FoodId;
@@ -63,4 +65,5 @@ export type GameState = {
   chanceLastResult?: ChanceResult;
   foodBuff?: FoodBuff;
   feastsEaten: FoodId[];
+  demplarBest?: number;
 };

@@ -188,11 +188,28 @@ html.play-active canvas#well {
   display: none !important;
 }
 
+.play-shell[data-phase="demplar_warrior"] .play-toast {
+  display: block !important;
+  opacity: 0.92;
+}
+
 .play-shell[data-phase="fish_cast"] .play-menu,
 .play-shell[data-phase="fish_wait"] .play-menu,
 .play-shell[data-phase="fish_reel"] .play-menu,
+.play-shell[data-phase="demplar_warrior"] .play-menu,
 .play-shell[data-phase="enter"] .play-menu,
 .play-shell[data-phase="herald"] .play-menu {
+  display: none !important;
+}
+
+.play-shell[data-phase="demplar_warrior"] .canvas-wrap,
+.play-shell[data-phase="demplar_warrior"] #well {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.play-shell[data-phase="demplar_warrior"] #btn-primary,
+.play-shell[data-phase="demplar_warrior"] #reel-controls {
   display: none !important;
 }
 
@@ -212,7 +229,7 @@ html.play-active canvas#well {
 
 .hub-grid--tiles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin: 0;
 }
@@ -319,6 +336,7 @@ html.play-active .play-dock .actions {
 .play-shell[data-phase="chance_pick"] .play-dock,
 .play-shell[data-phase="chance_play"] .play-dock,
 .play-shell[data-phase="feast"] .play-dock,
+.play-shell[data-phase="demplar_result"] .play-dock,
 .play-shell[data-phase="fish_wait"] .play-dock,
 .play-shell[data-phase="resolve"] .play-dock,
 .play-shell[data-phase="renown"] .play-dock,

@@ -26,6 +26,7 @@ type AnglerSaveV1 = {
   triviaIndex: number;
   feastsEaten: FoodId[];
   deckIds: string[];
+  demplarBest?: number;
   updatedAt: number;
 };
 
@@ -121,6 +122,7 @@ export function loadAnglerState(name: string): GameState | null {
     feastsEaten: [...save.feastsEaten],
     deck: restoreDeck(save.deckIds),
     nickname: save.nickname,
+    demplarBest: save.demplarBest,
   };
 }
 
@@ -142,6 +144,7 @@ export function saveAnglerState(state: GameState): void {
     triviaIndex: state.triviaIndex,
     feastsEaten: [...state.feastsEaten],
     deckIds: state.deck.map((c) => c.id),
+    demplarBest: state.demplarBest,
     updatedAt: Date.now(),
   };
   writeVault(vault);
