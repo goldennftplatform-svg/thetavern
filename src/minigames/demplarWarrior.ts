@@ -67,8 +67,36 @@ const STAGE_MS = {
 } as const;
 
 const BRIEF_CHUNK_CHARS = 8;
-const BRIEF_CHUNK_STAGGER_MS = 240;
-const BRIEF_CHUNK_FLY_MS = 200;
+const BRIEF_LINE_STAGGER_MS = 680;
+const BRIEF_LINE_FLY_MS = 420;
+
+type BriefLine = { text: string; color: string; fontScale: number };
+
+function buildBriefLines(lore: string): BriefLine[] {
+  return [
+    { text: "⚔ DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.35 },
+    { text: lore, color: "#98b8e8", fontScale: 1 },
+    { text: "I · SARGAANO SPRINT   II · CORCUS CIRCUIT   III · VEIL SHARDS", color: "#68b8a8", fontScale: 0.82 },
+    { text: "REACH THE GATE · BEAT THE CLOCK", color: "rgba(232,176,80,0.9)", fontScale: 0.82 },
+  ];
+}
+
+function wrapBriefLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const word of words) {
+    const next = cur ? `${cur} ${word}` : word;
+    if (ctx.measureText(next).width > maxWidth && cur) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [text];
+}
 
 const LAP_COUNT = 2;
 const PLAYER_SCREEN_X = 148;
@@ -171,20 +199,6 @@ function trackAt(t: number, track: Track): { x: number; y: number; angle: number
   return { x: last.x1, y: last.y1, angle: 0 };
 }
 
-function chunkBy8(text: string): string[] {
-  const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += BRIEF_CHUNK_CHARS) {
-    chunks.push(text.slice(i, i + BRIEF_CHUNK_CHARS));
-  }
-  return chunks;
-}
-
-function buildBriefCrawl(): string[] {
-  const lore = pickLine(warriorBriefLines);
-  const raw = `⚔ DEMPLAR WARRIOR · ${lore} · I RUN · II 2-LAP RACE vs 4 · III SHOOT · REACH THE GATE · BEAT THE CLOCK`;
-  return chunkBy8(raw);
-}
-
 function racerRank(racers: Racer[]): Racer[] {
   return [...racers].sort((a, b) => {
     if (a.finished && b.finished) return a.finishMs - b.finishMs;
@@ -248,11 +262,36 @@ export class DemplarWarrior {
 
   result: DemplarRunResult = { total: 0, platform: 0, race: 0, asteroids: 0 };
 
-  private briefChunks = buildBriefCrawl();
+  private briefLines = buildBriefLines(pickLine(warriorBriefLines));
+  private briefDisplayLines: BriefLine[] = [];
+  private briefLayoutW = 0;
   private briefImpacted = new Set<number>();
 
   private briefDurationMs(): number {
-    return Math.max(STAGE_MS.brief, this.briefChunks.length * BRIEF_CHUNK_STAGGER_MS + BRIEF_CHUNK_FLY_MS + 520);
+    const rows = this.briefDisplayLines.length || this.briefLines.length;
+    return Math.max(STAGE_MS.brief, rows * BRIEF_LINE_STAGGER_MS + BRIEF_LINE_FLY_MS + 900);
+  }
+
+  private layoutBriefLines(ctx: CanvasRenderingContext2D, w: number): BriefLine[] {
+    const basePx = Math.max(6, w * 0.009);
+    const maxW = w * 0.84;
+    const out: BriefLine[] = [];
+    for (const line of this.briefLines) {
+      ctx.font = `${basePx * line.fontScale}px "Press Start 2P", monospace`;
+      for (const row of wrapBriefLine(ctx, line.text, maxW)) {
+        out.push({ ...line, text: row });
+      }
+    }
+    return out;
+  }
+
+  private syncBriefLayout(ctx: CanvasRenderingContext2D, w: number): BriefLine[] {
+    if (this.briefDisplayLines.length && Math.abs(w - this.briefLayoutW) < 12) {
+      return this.briefDisplayLines;
+    }
+    this.briefLayoutW = w;
+    this.briefDisplayLines = this.layoutBriefLines(ctx, w);
+    return this.briefDisplayLines;
   }
 
   constructor() {
@@ -260,6 +299,14 @@ export class DemplarWarrior {
     this.resetRace();
     this.resetAsteroids();
     this.stageStarted = performance.now();
+    const probe = document.createElement("canvas");
+    const probeCtx = probe.getContext("2d");
+    if (probeCtx) {
+      this.briefDisplayLines = this.layoutBriefLines(probeCtx, 520);
+      this.briefLayoutW = 520;
+    } else {
+      this.briefDisplayLines = [...this.briefLines];
+    }
   }
 
   private resetPlatform() {
@@ -511,7 +558,7 @@ export class DemplarWarrior {
     const elapsed = this.stageElapsed(now);
 
     if (this.stage === "brief") {
-      this.tickBriefImpacts(elapsed);
+      this.tickBriefImpacts(elapsed, this.briefDisplayLines);
       if (elapsed > this.briefDurationMs()) {
         this.advanceStage(now, "platform");
         return;
@@ -524,13 +571,30 @@ export class DemplarWarrior {
     if (this.stage === "asteroids") this.tickAsteroids(dt, elapsed, now);
   }
 
-  private tickBriefImpacts(elapsed: number) {
-    for (let i = 0; i < this.briefChunks.length; i++) {
-      const impactAt = i * BRIEF_CHUNK_STAGGER_MS + BRIEF_CHUNK_FLY_MS;
-      if (elapsed >= impactAt && !this.briefImpacted.has(i)) {
-        this.briefImpacted.add(i);
-        playWarriorImpact(0.85 + (i % 4) * 0.08);
-        if (navigator.vibrate) navigator.vibrate(10 + (i % 3) * 4);
+  private impactSlotsBefore(lineIndex: number, rows: BriefLine[]): number {
+    let n = 0;
+    for (let i = 0; i < lineIndex; i++) {
+      n += Math.ceil(rows[i]!.text.length / BRIEF_CHUNK_CHARS);
+    }
+    return n;
+  }
+
+  private tickBriefImpacts(elapsed: number, rows: BriefLine[]) {
+    for (let i = 0; i < rows.length; i++) {
+      const line = rows[i]!;
+      const lineStart = i * BRIEF_LINE_STAGGER_MS;
+      const t = elapsed - lineStart;
+      if (t <= 0) continue;
+      const flyT = Math.min(1, t / BRIEF_LINE_FLY_MS);
+      const revealed = Math.max(0, Math.floor(line.text.length * flyT));
+      const impacts = Math.floor(revealed / BRIEF_CHUNK_CHARS);
+      const base = this.impactSlotsBefore(i, rows);
+      for (let k = 0; k < impacts; k++) {
+        const idx = base + k;
+        if (this.briefImpacted.has(idx)) continue;
+        this.briefImpacted.add(idx);
+        playWarriorImpact(0.85 + (k % 4) * 0.08);
+        if (navigator.vibrate) navigator.vibrate(10 + (k % 3) * 4);
       }
     }
   }
@@ -870,52 +934,55 @@ export class DemplarWarrior {
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
     const elapsed = this.stageElapsed(now);
     const tick = elapsed * 0.06;
-    const fontMain = `${Math.max(7, w * 0.011)}px "Press Start 2P", monospace`;
-    const lineH = Math.max(16, h * 0.048);
-    const panelTop = h * 0.14;
-    const panelH = Math.min(h * 0.52, this.briefChunks.length * lineH + 36);
+    const basePx = Math.max(6, w * 0.009);
+    const rows = this.syncBriefLayout(ctx, w);
+    const lineH = Math.max(15, h * 0.042);
+    const panelTop = h * 0.2;
+    const panelH = Math.min(h * 0.42, rows.length * lineH + 28);
+    const panelLeft = w * 0.06;
 
     ctx.fillStyle = "rgba(72, 48, 88, 0.35)";
-    ctx.fillRect(w * 0.06, panelTop, w * 0.88, panelH);
+    ctx.fillRect(panelLeft, panelTop, w * 0.88, panelH);
     ctx.strokeStyle = "#e8b050";
     ctx.lineWidth = 2;
-    ctx.strokeRect(w * 0.06, panelTop, w * 0.88, panelH);
+    ctx.strokeRect(panelLeft, panelTop, w * 0.88, panelH);
 
-    ctx.font = fontMain;
-    ctx.textAlign = "left";
+    ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    for (let i = 0; i < this.briefChunks.length; i++) {
-      const chunk = this.briefChunks[i]!;
-      const chunkStart = i * BRIEF_CHUNK_STAGGER_MS;
-      const t = elapsed - chunkStart;
+    for (let i = 0; i < rows.length; i++) {
+      const line = rows[i]!;
+      const lineStart = i * BRIEF_LINE_STAGGER_MS;
+      const t = elapsed - lineStart;
       if (t < 0) continue;
 
-      const flyT = Math.min(1, t / BRIEF_CHUNK_FLY_MS);
+      const flyT = Math.min(1, t / BRIEF_LINE_FLY_MS);
       const eased = 1 - Math.pow(1 - flyT, 3);
-      const targetX = w * 0.1;
-      const targetY = panelTop + 22 + i * lineH;
-      const startX = w + ctx.measureText(chunk).width + 48;
+      const font = `${basePx * line.fontScale}px "Press Start 2P", monospace`;
+      ctx.font = font;
+      const lineW = ctx.measureText(line.text).width;
+      const targetX = w * 0.5;
+      const targetY = panelTop + 18 + i * lineH;
+      const startX = w + lineW * 0.5 + 32;
       const x = startX + (targetX - startX) * eased;
-      const y = targetY - (1 - eased) * 18;
+      const y = targetY - (1 - eased) * 12;
 
       ctx.save();
-      ctx.globalAlpha = Math.min(1, flyT * 1.35);
-      ctx.fillStyle = i === 0 ? "#e8b050" : i < 3 ? "#98b8e8" : "#68b8a8";
-      ctx.fillText(chunk, x, y);
+      ctx.globalAlpha = Math.min(1, 0.25 + flyT * 0.85);
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, x, y);
 
-      if (flyT >= 1 && t < BRIEF_CHUNK_FLY_MS + 90) {
-        const flash = 1 - (t - BRIEF_CHUNK_FLY_MS) / 90;
-        ctx.fillStyle = `rgba(232, 176, 80, ${0.35 * flash})`;
-        const tw = ctx.measureText(chunk).width;
-        ctx.fillRect(x - 6, y - lineH * 0.45, tw + 12, lineH * 0.9);
-        ctx.fillStyle = i === 0 ? "#e8b050" : i < 3 ? "#98b8e8" : "#68b8a8";
-        ctx.fillText(chunk, x, y);
+      if (flyT >= 1 && t < BRIEF_LINE_FLY_MS + 80) {
+        const flash = 1 - (t - BRIEF_LINE_FLY_MS) / 80;
+        ctx.fillStyle = `rgba(232, 176, 80, ${0.28 * flash})`;
+        ctx.fillRect(x - lineW * 0.5 - 8, y - lineH * 0.42, lineW + 16, lineH * 0.84);
+        ctx.fillStyle = line.color;
+        ctx.fillText(line.text, x, y);
       }
       ctx.restore();
     }
 
-    drawKnightPortrait(ctx, w / 2, h * 0.82, tick);
+    drawKnightPortrait(ctx, w / 2, Math.min(h * 0.72, panelTop + panelH + lineH * 1.6), tick);
     ctx.textAlign = "left";
   }
 
@@ -1178,6 +1245,7 @@ export class DemplarWarrior {
   }
 
   hint(): string {
+    if (this.stage === "brief") return "";
     if (this.stage === "platform") return "Jump gaps — reach the GATE before time runs out";
     if (this.stage === "race") {
       const p = this.race.playerPlace;
