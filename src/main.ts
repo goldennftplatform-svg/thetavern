@@ -27,7 +27,8 @@ import {
   resolveFlourish,
   seasonArcane,
 } from "./content/arcaneLore";
-import { composeCatchDeed, composeFeastDeed, composeGambleDeed } from "./content/deedLore";
+import { composeCatchDeed, composeFeastDeed, composeGambleDeed, composePerilDeed, composeRenownDeed, composeTriviaDeed, crossedRenownMilestones } from "./content/deedLore";
+import type { FoodBuff } from "./game/types";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
@@ -280,28 +281,29 @@ function broadcastChance() {
   socket.emit("moonwell:chance", payload);
 }
 
-function announceCatch(c: CatchResult) {
+function announceCatch(c: CatchResult, feastBeforeCatch?: FoodBuff) {
   const blurb = fishBlurb(c.fishId);
+  const foodName = feastBeforeCatch ? foodItem(feastBeforeCatch.foodId).name : undefined;
   const { chronicle, subtext } = composeCatchDeed(
     state.nickname,
     c.name,
     c.rarity,
     c.renown,
     blurb,
-    c.omen,
+    state.season,
+    {
+      omen: c.omen,
+      foodName,
+      demplarHook: fishDemplarHook(c.fishId),
+      demplarTease: c.demplarTease,
+    },
   );
-  socket?.emit("hall:announce_deed", {
-    kind: "catch",
-    chronicle,
-    text: subtext,
+  announceDeed("catch", chronicle, subtext, c.renown, {
     fish: c.name,
     rarity: c.rarity,
-    renown: c.renown,
+    combo: !!foodName,
+    demplar: fishDemplarHook(c.fishId) || c.demplarTease,
   });
-}
-
-function announceHall(kind: string, text: string, renown?: number, extra?: Record<string, unknown>) {
-  socket?.emit("hall:announce_deed", { kind, text, renown, ...extra });
 }
 
 function ensureDeck(min = 8) {
@@ -362,6 +364,30 @@ function fishBlurb(fishId: string): string {
   return fishCatalog.find((f) => f.id === fishId)?.blurb ?? "";
 }
 
+function fishDemplarHook(fishId: string): boolean {
+  return !!fishCatalog.find((f) => f.id === fishId)?.demplarHook;
+}
+
+function announceDeed(
+  kind: string,
+  chronicle: string,
+  subtext: string,
+  renown?: number,
+  extra?: Record<string, unknown>,
+) {
+  socket?.emit("hall:announce_deed", { kind, chronicle, text: subtext, renown, ...extra });
+}
+
+function addRenown(delta: number) {
+  if (delta <= 0) return;
+  const before = state.renown;
+  state.renown += delta;
+  for (const milestone of crossedRenownMilestones(before, state.renown)) {
+    const { chronicle, subtext } = composeRenownDeed(state.nickname, milestone, state.season);
+    announceDeed("renown", chronicle, subtext, milestone, { milestone });
+  }
+}
+
 function buildWellHubHtml(): string {
   const night = tonightUtc();
   return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse, pickLine(hubLoreLines));
@@ -370,12 +396,21 @@ function buildWellHubHtml(): string {
 function handleTriviaChoice(index: number) {
   const t = triviaWell[state.triviaIndex % triviaWell.length]!;
   const correct = index === t.ok;
-  state.renown += correct ? 4 : 1;
+  const renownGain = correct ? 4 : 1;
+  const teach = correct && "teach" in t ? t.teach : undefined;
+  const { chronicle, subtext } = composeTriviaDeed(
+    state.nickname,
+    t.q,
+    correct,
+    teach,
+  );
+  announceDeed("trivia", chronicle, subtext, renownGain, { correct });
+  addRenown(renownGain);
   state.triviaIndex++;
   state.runCount++;
   hud();
-  if (correct && "teach" in t && t.teach) {
-    openMenu(triviaTeachHtml(t.teach));
+  if (correct && teach) {
+    openMenu(triviaTeachHtml(teach));
     elPrimary.hidden = true;
   } else {
     setPhase("well");
@@ -410,8 +445,18 @@ function ensureMenuClickDelegation() {
     const peril = btn.getAttribute("data-peril-choice");
     if (peril !== null) {
       const choiceIndex = Number(peril);
+      const beat = perilBeats[state.perilIndex % perilBeats.length]!;
+      const choice = beat.a[choiceIndex] ?? beat.a[0]!;
+      const renownGain = 2 + choiceIndex;
+      const { chronicle, subtext } = composePerilDeed(
+        state.nickname,
+        beat.q,
+        choice,
+        choiceIndex === 0,
+      );
+      announceDeed("peril", chronicle, subtext, renownGain, { bold: choiceIndex === 0 });
+      addRenown(renownGain);
       state.perilIndex++;
-      state.renown += 2 + choiceIndex;
       state.runCount++;
       hud();
       setPhase("well");
@@ -520,7 +565,7 @@ function buyFeast(id: FoodId) {
     castFloor: f.castFloor,
   };
   const { chronicle, subtext } = composeFeastDeed(state.nickname, f.name, f.blurb, f.buffLabel);
-  announceHall("feast", subtext, undefined, { chronicle });
+  announceDeed("feast", chronicle, subtext);
   hud();
   setPhase("well");
 }
@@ -550,7 +595,7 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
   }
 
   state.tokens = Math.max(0, state.tokens + result.tokenDelta);
-  state.renown += result.renownDelta;
+  if (result.renownDelta > 0) addRenown(result.renownDelta);
   if (result.outcome === "win" && !state.titles.includes("Moonwell Sharp")) {
     state.titles.push("Moonwell Sharp");
   }
@@ -563,11 +608,7 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
     guess,
     result.target,
   );
-  socket?.emit("hall:announce_deed", {
-    kind: "gamble",
-    chronicle,
-    text: subtext,
-    renown: result.renownDelta,
+  announceDeed("gamble", chronicle, subtext, result.renownDelta, {
     game: result.game,
     outcome: result.outcome,
     cards: result.cards.map((c) => ({ label: c.label, rank: c.rank, suit: c.suit })),
@@ -821,13 +862,14 @@ function startReelLoop() {
         reelQuality,
         season: state.season,
       });
+      const feastBuff = state.foodBuff;
       state.lastCatch = applyFoodOnCatch(result);
-      state.renown += state.lastCatch.renown;
+      addRenown(state.lastCatch.renown);
       state.tokens += state.lastCatch.tokens;
       state.catalog.add(result.fishId);
       if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) state.titles.push("Charter Angler");
       if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) state.titles.push("Omen Reader");
-      announceCatch(state.lastCatch);
+      announceCatch(state.lastCatch, feastBuff);
       hud();
       setPhase("resolve");
     }

@@ -245,6 +245,41 @@
   border-color: #c9a010;
 }
 
+.bb-deed--peril {
+  border-color: #c89898;
+}
+
+.bb-deed--peril.bb-deed--bold {
+  border-color: #e87878;
+  background: rgba(232, 120, 120, 0.07);
+}
+
+.bb-deed--trivia {
+  border-color: #8cb8d8;
+}
+
+.bb-deed--renown {
+  border-color: var(--gold);
+  background: rgba(248, 216, 32, 0.1);
+  box-shadow: 0 0 16px rgba(248, 216, 32, 0.12);
+}
+
+.bb-deed--catch.bb-deed--combo {
+  border-color: #c9a010;
+  background: linear-gradient(135deg, rgba(201, 160, 16, 0.1), rgba(104, 184, 168, 0.06));
+}
+
+.bb-deed--catch.bb-deed--demplar {
+  border-color: #98b8e8;
+  background: linear-gradient(135deg, rgba(152, 184, 232, 0.12), rgba(248, 216, 32, 0.08));
+  box-shadow: 0 0 14px rgba(152, 184, 232, 0.15);
+}
+
+.bb-deed--renown .bb-feed-icon,
+.bb-deed--demplar .bb-feed-icon {
+  color: var(--gold);
+}
+
 .bb-feed-icon {
   flex-shrink: 0;
   width: 18px;

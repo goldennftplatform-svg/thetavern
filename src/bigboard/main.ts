@@ -50,6 +50,11 @@ type Deed = {
   outcome?: string;
   cards?: Array<{ label: string; rank: number; suit: string }>;
   target?: number;
+  combo?: boolean;
+  demplar?: boolean;
+  correct?: boolean;
+  milestone?: number;
+  bold?: boolean;
 };
 
 type HallTally = {
@@ -59,6 +64,8 @@ type HallTally = {
   feasts: number;
   mythics: number;
   renown: number;
+  wisdom: number;
+  milestones: number;
 };
 
 let hallTally: HallTally = {
@@ -68,6 +75,8 @@ let hallTally: HallTally = {
   feasts: 0,
   mythics: 0,
   renown: 0,
+  wisdom: 0,
+  milestones: 0,
 };
 
 let liveAnglers = 0;
@@ -137,15 +146,26 @@ function lineForDeed(d: Deed): string {
   return `${who} did a deed worth telling.`;
 }
 
-function deedClass(kind?: string, outcome?: string): string {
+function deedClass(d: Deed): string {
   let cls = "bb-deed";
-  if (kind === "catch") cls += " bb-deed--catch";
+  const kind = d.kind;
+  if (kind === "catch") {
+    cls += " bb-deed--catch";
+    if (d.demplar) cls += " bb-deed--demplar";
+    if (d.combo) cls += " bb-deed--combo";
+  }
   if (kind === "gamble") {
     cls += " bb-deed--gamble";
-    if (outcome === "win") cls += " bb-deed--win";
-    if (outcome === "lose") cls += " bb-deed--lose";
+    if (d.outcome === "win") cls += " bb-deed--win";
+    if (d.outcome === "lose") cls += " bb-deed--lose";
   }
   if (kind === "feast") cls += " bb-deed--feast";
+  if (kind === "peril") cls += d.bold ? " bb-deed--peril bb-deed--bold" : " bb-deed--peril";
+  if (kind === "trivia") {
+    cls += " bb-deed--trivia";
+    if (d.correct) cls += " bb-deed--win";
+  }
+  if (kind === "renown") cls += " bb-deed--renown";
   return cls;
 }
 
@@ -159,6 +179,8 @@ function bumpTally(d: Deed) {
     if (d.outcome === "win") hallTally.wins += 1;
   }
   if (d.kind === "feast") hallTally.feasts += 1;
+  if (d.kind === "peril" || d.kind === "trivia") hallTally.wisdom += 1;
+  if (d.kind === "renown") hallTally.milestones += 1;
   if (d.renown) hallTally.renown += d.renown;
   refreshStats();
 }
@@ -172,20 +194,22 @@ function refreshStats() {
   if (hallTally.gambles > 0) bits.push(`${hallTally.gambles} wagers`);
   if (hallTally.wins > 0) bits.push(`${hallTally.wins} wins`);
   if (hallTally.mythics > 0) bits.push(`${hallTally.mythics} mythic`);
+  if (hallTally.wisdom > 0) bits.push(`${hallTally.wisdom} beats`);
+  if (hallTally.milestones > 0) bits.push(`${hallTally.milestones} milestones`);
 
   statsEl.innerHTML = bits
     .map((b) => {
       let cls = "bb-stat";
-      if (b.includes("catch") || b.includes("mythic")) cls += " bb-stat--catch";
+      if (b.includes("catch") || b.includes("mythic") || b.includes("milestone")) cls += " bb-stat--catch";
       else if (b.includes("wager") || b.includes("win") || b.includes("chance")) cls += " bb-stat--gamble";
-      else if (b.includes("angling")) cls += " bb-stat--hot";
+      else if (b.includes("beat") || b.includes("angling")) cls += " bb-stat--hot";
       return `<span class="${cls}">${escapeHtml(b)}</span>`;
     })
     .join("");
 
   dockTally.textContent =
-    hallTally.catches + hallTally.gambles + hallTally.feasts > 0
-      ? `${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ${hallTally.feasts} feasts · ★${hallTally.renown}`
+    hallTally.catches + hallTally.gambles + hallTally.feasts + hallTally.wisdom > 0
+      ? `${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ${hallTally.wisdom} beats · ${hallTally.milestones} milestones · ★${hallTally.renown}`
       : "Quiet hall — first cast or wager sets the tone.";
 }
 
@@ -199,7 +223,7 @@ function countLiveActivity() {
 function appendDeed(d: Deed) {
   const { main, sub } = deedLines(d);
   const row = document.createElement("div");
-  row.className = deedClass(d.kind, d.outcome);
+  row.className = deedClass(d);
   const subHtml = sub
     ? `<span class="bb-deed-sub">${escapeHtml(sub)}</span>`
     : "";
@@ -613,6 +637,13 @@ async function main() {
       }
       if (d.kind === "catch" && d.rarity === "mythic") {
         showCallout(`MYTHIC — ${line}`);
+      }
+      if (d.kind === "catch" && d.demplar) {
+        showCallout(`CHARTER — ${line}`);
+      }
+      if (d.kind === "renown" && d.milestone) {
+        showCallout(`★${d.milestone} — ${line}`);
+        chanceFlashUntil = performance.now() + 1600;
       }
     });
     socket.on("moonwell:patrons", onPatrons);
