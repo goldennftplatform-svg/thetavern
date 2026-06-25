@@ -547,6 +547,10 @@ html.play-active canvas#well {
 .bigboard-body {
   margin: 0;
   background: var(--bg0);
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .bigboard {

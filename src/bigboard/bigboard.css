@@ -135,10 +135,12 @@
 }
 
 .bb-root {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background:
     radial-gradient(ellipse 120% 80% at 50% -20%, rgba(106, 72, 136, 0.22), transparent 55%),
     radial-gradient(ellipse 80% 50% at 100% 100%, rgba(232, 176, 80, 0.08), transparent 50%),
@@ -264,7 +266,8 @@
 }
 
 .bb-feed-col-head {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .bb-feed-ally {
@@ -340,7 +343,7 @@
   container-type: inline-size;
   will-change: transform;
   transition: box-shadow 1.2s ease, border-color 1.2s ease;
-  min-height: 280px;
+  min-height: 0;
 }
 
 .bb-header {
@@ -447,15 +450,19 @@
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
-  padding: 0 16px 16px;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 0 12px 10px;
   min-height: 0;
+  overflow: hidden;
 }
 
 @media (min-width: 900px) {
   .bb-main {
+    grid-template-rows: none;
     grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
-    padding: 0 20px 20px;
+    gap: 16px;
+    padding: 0 20px 12px;
   }
 }
 
@@ -468,7 +475,7 @@
 
 .bb-map-canvas-stack {
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   padding-top: 34px;
   display: flex;
   position: relative;
@@ -478,7 +485,8 @@
   flex: 1;
   width: 100%;
   min-height: 0;
-  height: auto !important;
+  height: 100% !important;
+  max-height: 100%;
 }
 
 .bb-map-whisper {
@@ -602,7 +610,8 @@
 }
 
 .bb-feed-hint {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
+  flex-shrink: 0;
   font-size: 0.95rem;
   color: var(--muted);
   font-style: italic;
@@ -640,17 +649,14 @@
 #tavern-map {
   display: block;
   width: 100%;
-  height: auto;
-  min-height: 280px;
+  height: 100%;
+  min-height: 0;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
 .bb-patrons-line {
-  margin: 10px 0 0;
-  font-size: 1.1rem;
-  color: var(--muted);
-  line-height: 1.45;
+  display: none;
 }
 
 .bb-feed-col {
@@ -834,9 +840,25 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
-  padding: 12px 20px 20px;
+  padding: 10px 16px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(10, 14, 20, 0.96);
+}
+
+@media (max-width: 720px) {
+  .bb-dock {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .bb-dock-panel {
+    flex: 0 0 min(74vw, 210px);
+  }
 }
 
 .bb-dock-panel {
@@ -898,13 +920,13 @@ html.bb-wall .bb-ticker-mount--bottom {
 
 html.bb-wall .bb-main {
   grid-template-columns: minmax(0, 2.2fr) minmax(260px, 0.75fr);
-  padding: 12px;
-  gap: 12px;
-  height: calc(100dvh - 72px - 48px);
+  grid-template-rows: none;
+  padding: 8px 12px;
+  gap: 10px;
 }
 
 html.bb-wall .bb-dock {
-  padding: 8px 12px 12px;
+  padding: 6px 10px 8px;
 }
 
 html.bb-wall #tavern-map {
@@ -943,4 +965,41 @@ html.bb-wall .bb-deed {
 
 html.bb-wall body.crt-skin::before {
   opacity: 0.32;
+}
+
+@media (max-height: 720px), (max-width: 640px) {
+  .bb-header--charter {
+    padding: 8px 12px 6px;
+  }
+
+  .bb-charter-brand {
+    margin-bottom: 6px;
+    gap: 10px;
+  }
+
+  .bb-charter-crest-wrap {
+    width: 44px;
+    height: 44px;
+  }
+
+  .bb-charter-kicker {
+    margin-bottom: 4px;
+  }
+
+  .bb-header--charter h1 {
+    margin-bottom: 4px;
+  }
+
+  .bb-feed-ally,
+  .bb-feed-hint {
+    display: none;
+  }
+
+  .bb-ticker {
+    min-height: 36px;
+  }
+
+  .bb-ticker-item {
+    font-size: clamp(1rem, 3.5vw, 1.35rem);
+  }
 }
