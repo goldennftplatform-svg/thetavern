@@ -544,21 +544,9 @@ html.play-active canvas#well {
   image-rendering: crisp-edges;
 }
 
-.bigboard-body #tavern-map {
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-}
-
 .bigboard-body {
   margin: 0;
   background: var(--bg0);
-  height: 100dvh;
-  height: 100svh;
-  max-height: 100dvh;
-  max-height: 100svh;
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 .bigboard {

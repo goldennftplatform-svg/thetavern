@@ -48,6 +48,7 @@ const dockFact = document.getElementById("bb-dock-fact")!;
 const dockTally = document.getElementById("bb-dock-tally")!;
 const statsEl = document.getElementById("bb-stats")!;
 const playLink = document.getElementById("bb-play-link") as HTMLAnchorElement;
+const playHero = document.getElementById("bb-play-hero") as HTMLAnchorElement | null;
 const feedHint = document.getElementById("bb-feed-hint")!;
 const mapFrame = document.querySelector(".bb-map-frame") as HTMLElement;
 const elMapWhisper = document.getElementById("bb-map-whisper")!;
@@ -536,6 +537,14 @@ function showDemoHall(caption: string) {
   redrawMap();
 }
 
+function bootPreviewHall(caption?: string) {
+  showDemoHall(
+    caption ??
+      "Preview knights at the Great Table — fishing, chance, and chronicles. Click Play to join.",
+  );
+  void startDemoEvening();
+}
+
 function setLive(on: boolean, label: string) {
   statusEl.textContent = label;
   liveDot.classList.toggle("bb-live-dot--off", !on);
@@ -747,10 +756,10 @@ async function main() {
   }
 
   playLink.href = import.meta.env.BASE_URL || "/";
+  if (playHero) playHero.href = playLink.href;
 
   await initCharterChrome();
-  const xFeed = await loadXLoreFeed();
-  await initHeraldTickers(xFeed);
+  void loadXLoreFeed().then((feed) => initHeraldTickers(feed));
 
   director.bind({
     onMood: setMood,
@@ -781,21 +790,14 @@ async function main() {
   };
   resize();
   window.addEventListener("resize", resize);
-  const mapStack = mapCanvas.parentElement;
-  if (mapStack && typeof ResizeObserver !== "undefined") {
-    const ro = new ResizeObserver(() => resize());
-    ro.observe(mapStack);
-  }
   startAnimLoop();
+  bootPreviewHall();
+  requestAnimationFrame(() => resize());
 
   setLive(false, "Demplar charter hall");
   const { url } = await resolveTrailServerUrl();
 
   if (!url) {
-    showDemoHall(
-      "Preview: Example, Angler & Guest at the table — open the game (same Wi‑Fi / localhost) for live seats.",
-    );
-    void startDemoEvening();
     return;
   }
 
@@ -806,10 +808,9 @@ async function main() {
     client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true });
     setLive(true, `Live charter · ${night.title}`);
   } catch {
-    showDemoHall(
+    bootPreviewHall(
       "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
     );
-    void startDemoEvening();
     return;
   }
 
@@ -824,10 +825,10 @@ async function main() {
     // Until real patrons arrive, keep the preview tokens bobbing at the table
     if (patronList.length === 0) {
       showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
+      void startDemoEvening();
     }
   } else {
-    showDemoHall("Preview seats at the Great Table.");
-    void startDemoEvening();
+    bootPreviewHall("Preview seats at the Great Table.");
   }
 }
 

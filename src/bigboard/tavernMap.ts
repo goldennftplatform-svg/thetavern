@@ -487,8 +487,13 @@ export function drawTavernMap(
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const w = canvas.clientWidth || 960;
-  const h = canvas.clientHeight || 520;
+  const rect = canvas.getBoundingClientRect();
+  const dpr =
+    canvas.width > 0 && rect.width > 0
+      ? canvas.width / rect.width
+      : Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(320, rect.width || canvas.width / dpr || 960);
+  const h = Math.max(200, rect.height || canvas.height / dpr || 520);
   const ph = h;
   const now = performance.now();
   ctx.imageSmoothingEnabled = false;
@@ -564,8 +569,8 @@ export function resizeMapCanvas(canvas: HTMLCanvasElement): void {
   const box = stack ?? canvas;
   const rect = box.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const lw = Math.max(1, rect.width || 960);
-  const lh = Math.max(120, rect.height || 320);
+  const lw = Math.max(320, rect.width || 960);
+  const lh = Math.max(200, rect.height || 320);
   canvas.width = Math.floor(lw * dpr);
   canvas.height = Math.floor(lh * dpr);
   const ctx = canvas.getContext("2d");
