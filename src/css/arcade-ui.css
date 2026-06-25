@@ -128,7 +128,7 @@ html.play-active canvas#well {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  max-height: none;
 }
 
 /* Floating toast — one line, no scroll box */
@@ -351,9 +351,72 @@ html.play-active .play-dock .actions {
   }
 }
 
+html.play-active .play-stage {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+html.play-active .stage-viewport {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+html.play-active .canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Kill play-shell.css desktop 2-column split during arcade play */
+html.play-active .play-shell {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "hud"
+    "stage"
+    "dock" !important;
+  max-width: min(520px, 100%) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100%;
+}
+
+html.play-active .play-hud,
+html.play-active .play-stage,
+html.play-active .play-dock,
+html.play-active .play-board-wrap,
+html.play-active .play-credits,
+html.play-active .play-menu {
+  grid-column: 1 / -1 !important;
+  grid-row: auto !important;
+}
+
+html.play-active .play-hud {
+  grid-area: hud !important;
+}
+
+html.play-active .play-stage {
+  grid-area: stage !important;
+}
+
+html.play-active .play-dock {
+  grid-area: dock !important;
+  position: static !important;
+  background: rgba(8, 12, 18, 0.92) !important;
+}
+
+html.play-active #app {
+  max-width: min(520px, 100%) !important;
+  margin: 0 auto !important;
+}
+
 @media (min-width: 720px) {
   html.play-active #app {
-    max-width: 480px !important;
+    max-width: min(520px, 100%) !important;
     margin: 0 auto;
   }
 }

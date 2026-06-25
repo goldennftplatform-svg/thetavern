@@ -101,7 +101,8 @@ html.play-active .canvas-wrap {
 html.play-active canvas#well {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  display: block;
+  max-height: none;
 }
 
 html.play-active .stage-panel {

@@ -408,10 +408,13 @@ input#nickname::placeholder {
 canvas#well {
   display: block;
   width: 100%;
-  height: auto;
   touch-action: none;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+html.play-active canvas#well {
+  height: 100%;
 }
 
 .reel-pair {

@@ -5,6 +5,7 @@ const VOLUME = 0.16;
 
 let audio: HTMLAudioElement | null = null;
 let playing = false;
+let gestureHooked = false;
 
 function prefersSilent(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -16,18 +17,53 @@ export function primeHallMusic(): void {
   audio.loop = true;
   audio.volume = VOLUME;
   audio.preload = "auto";
+  audio.addEventListener("error", () => {
+    playing = false;
+    console.warn("[hallMusic] failed to load", AUDIO_SRC);
+  });
 }
 
-export async function startHallMusic(): Promise<void> {
-  if (prefersSilent()) return;
+export async function startHallMusic(): Promise<boolean> {
+  if (prefersSilent()) return false;
   if (!audio) primeHallMusic();
-  if (!audio || playing) return;
+  if (!audio) return false;
+  if (playing && !audio.paused) return true;
   try {
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+      await new Promise<void>((resolve, reject) => {
+        const done = () => {
+          audio?.removeEventListener("canplaythrough", done);
+          audio?.removeEventListener("error", fail);
+          resolve();
+        };
+        const fail = () => {
+          audio?.removeEventListener("canplaythrough", done);
+          audio?.removeEventListener("error", fail);
+          reject(new Error("audio load failed"));
+        };
+        audio!.addEventListener("canplaythrough", done, { once: true });
+        audio!.addEventListener("error", fail, { once: true });
+        audio!.load();
+      });
+    }
     await audio.play();
     playing = true;
+    return true;
   } catch {
-    /* Browser blocked autoplay — will retry on next gesture */
+    playing = false;
+    return false;
   }
+}
+
+/** Keep trying on user gestures until the browser allows playback. */
+export function bindHallMusicGestures(): void {
+  if (gestureHooked) return;
+  gestureHooked = true;
+  const tryPlay = () => {
+    if (!playing) void startHallMusic();
+  };
+  document.addEventListener("pointerdown", tryPlay, { capture: true, passive: true });
+  document.addEventListener("keydown", tryPlay, { capture: true, passive: true });
 }
 
 export function duckHallMusic(): void {

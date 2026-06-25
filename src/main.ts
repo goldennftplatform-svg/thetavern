@@ -46,7 +46,7 @@ import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
-import { primeHallMusic, startHallMusic } from "./audio/hallMusic";
+import { bindHallMusicGestures, primeHallMusic, startHallMusic } from "./audio/hallMusic";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
@@ -67,6 +67,8 @@ import {
 } from "./ui/studioScreens";
 
 initMobileShellClass();
+bindHallMusicGestures();
+primeHallMusic();
 
 const boardMq = window.matchMedia("(min-width: 800px)");
 function syncBoardDetails() {
@@ -513,15 +515,20 @@ function hud() {
 function syncCanvasBuffer(): { w: number; h: number } {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = Math.max(1, Math.floor(rect.width) || 520);
-  const h = Math.max(48, Math.floor(rect.height) || Math.floor(w * (420 / 520)));
-  const bufW = Math.floor(w * dpr);
-  const bufH = Math.floor(h * dpr);
+  let w = Math.max(1, Math.round(rect.width));
+  let h = Math.max(1, Math.round(rect.height));
+  if (h <= 1 && w > 0) h = Math.round(w * (420 / 520));
+
+  const bufW = Math.max(1, Math.floor(w * dpr));
+  const bufH = Math.max(1, Math.floor(h * dpr));
   if (canvas.width !== bufW || canvas.height !== bufH) {
     canvas.width = bufW;
     canvas.height = bufH;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, bufW, bufH);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { w, h };
 }
 
@@ -573,7 +580,11 @@ function setPhase(next: GamePhase) {
       state.castPower = 0;
       showToast("");
       elPrimary.textContent = "HOLD TO CAST";
-      startCastLoop();
+      void startHallMusic();
+      requestAnimationFrame(() => {
+        resizeCanvas();
+        startCastLoop();
+      });
       break;
     case "fish_wait":
       closeMenu();

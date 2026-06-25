@@ -35,7 +35,9 @@ jobs:
         run: |
           test -f dist/index.html
           test -f dist/bigboard.html
+          test -f dist/audio/hall-ambience.mp3
           ls -la dist/
+          ls -la dist/audio/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
