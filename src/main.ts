@@ -102,7 +102,7 @@ document.documentElement.classList.add("gate-open");
 const PLAY_HINT = {
   cast: "Hold ↓ release to cast",
   wait: "STRIKE when it bites",
-  reel: "Keep bob in green",
+  reel: "Hold SLACK / HEAVE — fill the bar",
 } as const;
 
 const SEASON_TAG: Record<string, string> = {
@@ -244,6 +244,7 @@ let chargeActive = false;
 let waitPulse = 0;
 let rafCast = 0;
 let reelRaf = 0;
+let reelHoldDir = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
 let saveTimer = 0;
@@ -845,6 +846,7 @@ function setPhase(next: GamePhase) {
   window.clearTimeout(biteTimer);
   window.clearTimeout(biteOpenTimer);
   window.cancelAnimationFrame(reelRaf);
+  reelHoldDir = 0;
   stopDemplarLoop();
 
   setPresence(next !== "enter" && next !== "herald");
@@ -1021,9 +1023,30 @@ function scheduleBiteWindow() {
   }, delay);
 }
 
+function finishReel(good: number, total: number) {
+  reelHoldDir = 0;
+  reelQuality = Math.min(1, good / (total * 0.55));
+  const result = rollCatch({
+    castQuality,
+    struckBite,
+    reelQuality,
+    season: state.season,
+  });
+  const feastBuff = state.foodBuff;
+  state.lastCatch = applyFoodOnCatch(result);
+  addRenown(state.lastCatch.renown);
+  state.tokens += state.lastCatch.tokens;
+  state.catalog.add(result.fishId);
+  if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) state.titles.push("Charter Angler");
+  if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) state.titles.push("Omen Reader");
+  announceCatch(state.lastCatch, feastBuff);
+  hud();
+  setPhase("resolve");
+}
+
 function startReelLoop() {
   const t0 = performance.now();
-  const total = 4800;
+  const total = 6500;
   let good = 0;
   let last = t0;
 
@@ -1032,39 +1055,27 @@ function startReelLoop() {
     const dt = Math.min(48, Math.max(0, now - last));
     last = now;
 
-    state.reelTension += Math.sin(now / 420) * 0.0012;
+    state.reelTension += 0.0001 * dt;
+    state.reelTension += Math.sin(now * 0.0045) * 0.00028 * dt;
+    if (reelHoldDir) {
+      state.reelTension += reelHoldDir * 0.00042 * dt;
+    }
     state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension));
 
     const inZone = state.reelTension >= 0.38 && state.reelTension <= 0.62;
     if (inZone) good += dt;
 
-    state.reelProgress = Math.min(1, good / (total * 0.55));
+    state.reelProgress = Math.min(1, good / (total * 0.5));
 
     waitPulse = now / 1000;
     drawWell();
     broadcastFishing();
 
-    if (now - t0 < total) {
-      reelRaf = requestAnimationFrame(tick);
-    } else {
-      reelQuality = Math.min(1, good / total);
-      const result = rollCatch({
-        castQuality,
-        struckBite,
-        reelQuality,
-        season: state.season,
-      });
-      const feastBuff = state.foodBuff;
-      state.lastCatch = applyFoodOnCatch(result);
-      addRenown(state.lastCatch.renown);
-      state.tokens += state.lastCatch.tokens;
-      state.catalog.add(result.fishId);
-      if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) state.titles.push("Charter Angler");
-      if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) state.titles.push("Omen Reader");
-      announceCatch(state.lastCatch, feastBuff);
-      hud();
-      setPhase("resolve");
+    if (state.reelProgress >= 1 || now - t0 >= total) {
+      finishReel(good, total);
+      return;
     }
+    reelRaf = requestAnimationFrame(tick);
   };
   reelRaf = requestAnimationFrame(tick);
 }
@@ -1104,8 +1115,34 @@ function nudgeReel(delta: number) {
   state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension + delta));
 }
 
-elSlack.addEventListener("click", () => nudgeReel(-0.055));
-elHeave.addEventListener("click", () => nudgeReel(0.055));
+function bindReelButton(btn: HTMLElement, dir: -1 | 1) {
+  const down = (e: PointerEvent) => {
+    if (state.phase !== "fish_reel") return;
+    e.preventDefault();
+    reelHoldDir = dir;
+    nudgeReel(dir * 0.07);
+    try {
+      btn.setPointerCapture(e.pointerId);
+    } catch {
+      /* optional */
+    }
+  };
+  const up = (e: PointerEvent) => {
+    if (reelHoldDir === dir) reelHoldDir = 0;
+    try {
+      btn.releasePointerCapture(e.pointerId);
+    } catch {
+      /* optional */
+    }
+  };
+  btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointerup", up);
+  btn.addEventListener("pointercancel", up);
+  btn.addEventListener("pointerleave", up);
+}
+
+bindReelButton(elSlack, -1);
+bindReelButton(elHeave, 1);
 
 window.addEventListener("keydown", (e) => {
   if (state.phase === "demplar_warrior") {
@@ -1140,8 +1177,14 @@ window.addEventListener("keydown", (e) => {
     struckBite = true;
   }
   if (state.phase === "fish_reel") {
-    if (e.code === "KeyA" || e.code === "ArrowLeft") nudgeReel(-0.06);
-    if (e.code === "KeyD" || e.code === "ArrowRight") nudgeReel(0.06);
+    if (e.code === "KeyA" || e.code === "ArrowLeft") {
+      reelHoldDir = -1;
+      nudgeReel(-0.06);
+    }
+    if (e.code === "KeyD" || e.code === "ArrowRight") {
+      reelHoldDir = 1;
+      nudgeReel(0.06);
+    }
   }
 });
 window.addEventListener("keyup", (e) => {
@@ -1159,6 +1202,11 @@ window.addEventListener("keyup", (e) => {
   }
   if (state.phase === "fish_cast" && e.code === "Space") {
     finishCast();
+  }
+  if (state.phase === "fish_reel") {
+    if (e.code === "KeyA" || e.code === "ArrowLeft" || e.code === "KeyD" || e.code === "ArrowRight") {
+      reelHoldDir = 0;
+    }
   }
 });
 
