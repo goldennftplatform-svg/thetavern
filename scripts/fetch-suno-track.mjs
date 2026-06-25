@@ -2,9 +2,13 @@
  * Resolve a Suno share link → song UUID → download MP3 into public/audio/.
  * Run: node scripts/fetch-suno-track.mjs [shareUrl]
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const shareUrl = process.argv[2] ?? "https://suno.com/s/tZDcD7SyppeQ7VFd";
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "audio");
@@ -54,5 +58,28 @@ if (!res.ok) {
 
 const buf = Buffer.from(await res.arrayBuffer());
 await mkdir(outDir, { recursive: true });
-await writeFile(outFile, buf);
-console.log(`Saved ${(buf.length / 1024 / 1024).toFixed(2)} MB → ${outFile}`);
+const fullFile = join(outDir, "hall-ambience-full.mp3");
+await writeFile(fullFile, buf);
+console.log(`Downloaded ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
+
+try {
+  await execFileAsync("ffmpeg", [
+    "-y",
+    "-i",
+    fullFile,
+    "-ss",
+    "45",
+    "-t",
+    "48",
+    "-af",
+    "afade=t=in:st=0:d=2,afade=t=out:st=46:d=2",
+    "-b:a",
+    "96k",
+    outFile,
+  ]);
+  await unlink(fullFile);
+  console.log(`Trimmed 48s loop → ${outFile}`);
+} catch {
+  await writeFile(outFile, buf);
+  console.warn("ffmpeg not found — kept full-length track");
+}

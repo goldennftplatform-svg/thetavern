@@ -4,5 +4,6 @@
   "sunoShare": "https://suno.com/s/tZDcD7SyppeQ7VFd",
   "sunoSongId": "bcb9d6ae-6510-45b7-ac3f-8697ee3d8a14",
   "file": "hall-ambience.mp3",
-  "note": "Fetched via scripts/fetch-suno-track.mjs for charter-hall background loop."
+  "loopSeconds": 48,
+  "note": "48s fade loop trimmed from full Suno track (~563 KB). Re-fetch: npm run music:fetch"
 }
