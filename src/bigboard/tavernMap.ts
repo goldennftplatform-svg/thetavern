@@ -97,13 +97,13 @@ function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tic
   ctx.ellipse(cx, cy, mrx - 6, mry - 4, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "#f8d820";
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#e8b050";
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.ellipse(cx, cy, mrx, mry, 0, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.fillStyle = "#186a90";
+  ctx.fillStyle = "#3a6878";
   const wave = Math.sin(tick * 0.06) * 4;
   ctx.fillRect(cx - mrx + 8, cy - 6 + wave, (mrx - 8) * 2, 10);
 
@@ -138,10 +138,10 @@ function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
 
 function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const zones: Array<{ x: number; y: number; label: string; color: string }> = [
-    { x: 24, y: 24, label: "CHANCE", color: "#f8d820" },
-    { x: w - 108, y: 24, label: "KITCHEN", color: "#38f0a8" },
-    { x: 24, y: h - 52, label: "BAR", color: "#f878c8" },
-    { x: w - 100, y: h - 52, label: "HERALD", color: "#78c8f8" },
+    { x: 24, y: 24, label: "CHANCE", color: "#e8b050" },
+    { x: w - 108, y: 24, label: "KITCHEN", color: "#68b8a8" },
+    { x: 24, y: h - 52, label: "BAR", color: "#c89898" },
+    { x: w - 100, y: h - 52, label: "HERALD", color: "#8cb8d8" },
   ];
   for (const z of zones) {
     ctx.fillStyle = "#4a3020";
@@ -175,13 +175,13 @@ function drawPatronToken(
     ctx.fill();
   }
 
-  ctx.fillStyle = `hsl(${hue} 68% 52%)`;
+  ctx.fillStyle = `hsl(${hue} 42% 48%)`;
   ctx.fillRect(px, py, 28, 28);
   ctx.strokeStyle = "#000";
   ctx.lineWidth = 3;
   ctx.strokeRect(px, py, 28, 28);
 
-  ctx.fillStyle = "#12081a";
+  ctx.fillStyle = "#0c1018";
   ctx.font = '10px "Press Start 2P", monospace';
   const ini = (name.trim()[0] ?? "?").toUpperCase();
   ctx.textAlign = "center";
@@ -239,10 +239,10 @@ export function drawTavernMap(
     const pulse = 0.85 + Math.sin(tick * 0.12) * 0.15;
     ctx.fillStyle = `rgba(0,0,0,${0.82 * pulse})`;
     ctx.fillRect(12, h - 64, w - 24, 52);
-    ctx.strokeStyle = "#f8d820";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#e8b050";
+    ctx.lineWidth = 2;
     ctx.strokeRect(12, h - 64, w - 24, 52);
-    ctx.fillStyle = "#f8d820";
+    ctx.fillStyle = "#e8b050";
     ctx.font = `${Math.max(7, w * 0.009)}px "Press Start 2P", monospace`;
     const t = flashLine.length > 88 ? `${flashLine.slice(0, 86)}…` : flashLine;
     ctx.textAlign = "center";

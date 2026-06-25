@@ -1,0 +1,247 @@
+/* Play shell — mobile-first stage layout, sticky dock, desktop split */
+
+[hidden] {
+  display: none !important;
+}
+
+.play-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: min(100dvh, 100%);
+}
+
+.play-hud {
+  margin-top: 0;
+  flex-shrink: 0;
+  order: 1;
+}
+
+.play-stage {
+  flex-shrink: 0;
+  order: 2;
+}
+
+.play-narrative {
+  order: 3;
+  min-height: 0;
+}
+
+.play-narrative #phase-text {
+  margin-top: 0;
+}
+
+.play-dock {
+  order: 4;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, var(--bg0) 18%, var(--bg0) 100%);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+}
+
+.play-dock .actions {
+  margin-top: 0;
+}
+
+.play-board-wrap {
+  order: 5;
+}
+
+.play-board-wrap .board {
+  margin-top: 0;
+}
+
+.play-credits {
+  order: 6;
+  margin-top: 8px;
+}
+
+/* Phase: reel controls only during fish_reel */
+.play-shell:not([data-phase="fish_reel"]) #reel-controls {
+  display: none !important;
+}
+
+.play-shell[data-phase="fish_reel"] #btn-primary {
+  display: none !important;
+}
+
+/* Hub / choice phases: shrink canvas so lore + actions stay on screen */
+.play-shell[data-phase="well"] .play-stage,
+.play-shell[data-phase="chance_pick"] .play-stage,
+.play-shell[data-phase="chance_play"] .play-stage,
+.play-shell[data-phase="chance_result"] .play-stage,
+.play-shell[data-phase="feast"] .play-stage,
+.play-shell[data-phase="peril"] .play-stage,
+.play-shell[data-phase="trivia"] .play-stage,
+.play-shell[data-phase="renown"] .play-stage,
+.play-shell[data-phase="resolve"] .play-stage {
+  max-height: none;
+  opacity: 1;
+}
+
+.play-shell[data-phase="enter"] .play-stage,
+.play-shell[data-phase="herald"] .play-stage {
+  max-height: 36dvh;
+}
+
+.play-board-summary {
+  cursor: pointer;
+  font-family: var(--font-label, "Silkscreen", monospace);
+  font-size: 0.78rem;
+  color: var(--jade);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+.play-board-summary::-webkit-details-marker {
+  display: none;
+}
+
+.play-board-summary::before {
+  content: "▸ ";
+  color: var(--gold);
+}
+
+details[open] .play-board-summary::before {
+  content: "▾ ";
+}
+
+html.tavern-mobile .play-hud {
+  padding: 8px 10px;
+  gap: 6px 10px;
+  font-size: 0.36rem;
+}
+
+html.tavern-mobile .play-hud .hud-deck,
+html.tavern-mobile .play-hud .hud-buff {
+  display: none;
+}
+
+html.tavern-mobile .canvas-wrap {
+  max-height: 40dvh;
+}
+
+html.tavern-mobile .play-narrative {
+  max-height: 34dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.tavern-mobile #phase-text.lore {
+  padding: 12px 14px;
+  font-size: 1.12rem;
+  line-height: 1.38;
+  box-shadow: 4px 4px 0 var(--line);
+}
+
+html.tavern-mobile #phase-text.lore::before,
+html.tavern-mobile #phase-text.lore::after {
+  display: none;
+}
+
+html.tavern-mobile .card::before {
+  display: none;
+}
+
+html.tavern-mobile .world-epigraph {
+  font-size: 1.08rem;
+  margin-bottom: 10px;
+}
+
+html.tavern-mobile .night-banner {
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+html.tavern-mobile .top h1 {
+  font-size: clamp(0.5rem, 4.5vw, 0.68rem);
+}
+
+html.tavern-mobile #tagline {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+html.tavern-mobile .top .pill {
+  font-size: 0.72rem;
+}
+
+@media (min-width: 800px) {
+  .play-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+    grid-template-rows: auto auto auto auto auto;
+    align-items: start;
+    gap: 16px;
+  }
+
+  .play-hud {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .play-stage {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    max-height: none !important;
+    opacity: 1 !important;
+  }
+
+  .play-dock {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    position: static;
+    background: transparent;
+    padding-bottom: 0;
+  }
+
+  .play-board-wrap {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .play-credits {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+
+  html.tavern-mobile .play-hud .hud-deck {
+    display: block;
+  }
+
+  .canvas-wrap {
+    max-height: 520px;
+  }
+
+  details.play-board-wrap[open] .play-board-summary,
+  details.play-board-wrap .play-board-summary {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  #app {
+    max-width: 920px !important;
+  }
+
+  .play-shell {
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-shell[data-phase="well"] .play-stage {
+    opacity: 1;
+  }
+}

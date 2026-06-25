@@ -3,11 +3,6 @@ import type { FoodId } from "../content/tavernNights";
 import { foodItem } from "../content/tavernNights";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 
-export type HubAction =
-  | { type: "fish" }
-  | { type: "chance_menu" }
-  | { type: "feast_menu" };
-
 export function hubChoiceHtml(
   letter: string,
   title: string,
@@ -23,6 +18,23 @@ export function hubChoiceHtml(
       <span class="muted">${blurb}</span>
     </span>
   </button>`;
+}
+
+export function hubTileHtml(
+  icon: string,
+  label: string,
+  action: string,
+  accent?: "gold" | "jade",
+): string {
+  const cls = accent ? ` hub-tile--${accent}` : "";
+  return `<button type="button" class="hub-tile${cls}" data-hub-action="${action}">
+    <span class="hub-tile-icon" aria-hidden="true">${icon}</span>
+    <span class="hub-tile-label">${label}</span>
+  </button>`;
+}
+
+export function hubBackHtml(): string {
+  return `<div class="hub-back-row"><button type="button" class="btn ghost big" data-hub-action="back:well">← Back</button></div>`;
 }
 
 export function renderNightBanner(title: string, tagline: string, herald: string): string {

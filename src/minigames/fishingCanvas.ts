@@ -1,5 +1,4 @@
 import type { GamePhase } from "../game/types";
-import type { LoadedMediaTheme } from "../media/types";
 
 type DrawCtx = {
   phase: GamePhase;
@@ -9,217 +8,218 @@ type DrawCtx = {
   reelTension: number;
   reelProgress: number;
   seasonTint: string;
+  banner?: string;
 };
 
 function floorRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h));
 }
 
-function drawCover(
+function drawEllipseFill(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  dx: number,
-  dy: number,
-  dw: number,
-  dh: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
 ) {
-  const iw = img.naturalWidth;
-  const ih = img.naturalHeight;
-  if (!iw || !ih) return;
-  const ir = iw / ih;
-  const rr = dw / dh;
-  let sx: number;
-  let sy: number;
-  let sw: number;
-  let sh: number;
-  if (ir > rr) {
-    sh = ih;
-    sw = sh * rr;
-    sx = (iw - sw) / 2;
-    sy = 0;
-  } else {
-    sw = iw;
-    sh = sw / rr;
-    sx = 0;
-    sy = (ih - sh) / 2;
-  }
-  ctx.drawImage(img, sx, sy, sw, sh, Math.floor(dx), Math.floor(dy), Math.ceil(dw), Math.ceil(dh));
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function drawProceduralSky(ctx2d: CanvasRenderingContext2D, w: number, h: number) {
-  const bands = ["#1a0a2e", "#241038", "#2e1848", "#382060", "#301850"];
-  const bh = h / bands.length;
-  for (let i = 0; i < bands.length; i++) {
-    ctx2d.fillStyle = bands[i]!;
-    floorRect(ctx2d, 0, i * bh, w, bh + 1);
-  }
-}
-
-function drawStars(ctx2d: CanvasRenderingContext2D, w: number, h: number) {
-  ctx2d.fillStyle = "#e8e8ff";
-  for (let i = 0; i < 48; i++) {
-    const sx = (Math.sin(i * 12.9898) * 43758.5453) % 1;
-    const sy = (Math.cos(i * 78.233) * 23421.424) % 1;
-    const x = Math.floor(((sx + 1) / 2) * w);
-    const y = Math.floor((((sy + 1) / 2) * h) * 0.4);
-    floorRect(ctx2d, x, y, 2, 2);
-  }
-}
-
-/** Flat bands + chunky pixels; optional daily media layers from MEdiaFiles scan. */
-export function drawMoonwell(
-  ctx2d: CanvasRenderingContext2D,
-  d: DrawCtx,
-  w: number,
-  h: number,
-  theme: LoadedMediaTheme | null = null,
-) {
+/** Cohesive moonlit well — no scraped banner/crest layers on the play canvas. */
+export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: number, h: number) {
   ctx2d.imageSmoothingEnabled = false;
   ctx2d.clearRect(0, 0, w, h);
 
-  const sky = theme?.images.sky;
-  if (sky) {
-    drawCover(ctx2d, sky, 0, 0, w, h * 0.62);
-    ctx2d.save();
-    ctx2d.globalAlpha = 0.4;
-    ctx2d.fillStyle = "#1a0a2e";
-    floorRect(ctx2d, 0, 0, w, h * 0.62);
-    ctx2d.restore();
-  } else {
-    drawProceduralSky(ctx2d, w, h);
+  const pulse = d.waitPulse;
+  const skyH = h * 0.64;
+
+  const sky = ctx2d.createLinearGradient(0, 0, 0, skyH);
+  sky.addColorStop(0, "#050810");
+  sky.addColorStop(0.55, "#0c1420");
+  sky.addColorStop(1, "#162030");
+  ctx2d.fillStyle = sky;
+  floorRect(ctx2d, 0, 0, w, skyH + 2);
+
+  ctx2d.fillStyle = "rgba(220, 228, 240, 0.55)";
+  for (let i = 0; i < 28; i++) {
+    const x = Math.floor(((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) * 0.5 * w);
+    const y = Math.floor(((Math.cos(i * 78.233) * 23421.424) % 1 + 1) * 0.5 * skyH * 0.85);
+    const sz = i % 7 === 0 ? 2 : 1;
+    floorRect(ctx2d, x, y, sz, sz);
   }
 
-  drawStars(ctx2d, w, h);
+  const mx = Math.floor(w * 0.74);
+  const my = Math.floor(h * 0.11);
+  const mr = Math.max(8, Math.min(w, h) * 0.045);
+  ctx2d.fillStyle = "rgba(200, 210, 230, 0.07)";
+  ctx2d.beginPath();
+  ctx2d.arc(mx, my, mr * 2.4, 0, Math.PI * 2);
+  ctx2d.fill();
+  ctx2d.fillStyle = "#c8d0dc";
+  ctx2d.beginPath();
+  ctx2d.arc(mx, my, mr, 0, Math.PI * 2);
+  ctx2d.fill();
+  ctx2d.fillStyle = "#9aa8b8";
+  floorRect(ctx2d, mx - mr * 0.35, my - mr * 0.1, mr * 0.55, mr * 0.45);
+
+  ctx2d.fillStyle = "#0a0e14";
+  ctx2d.beginPath();
+  ctx2d.moveTo(0, skyH);
+  ctx2d.lineTo(0, h * 0.56);
+  ctx2d.lineTo(w * 0.22, h * 0.5);
+  ctx2d.lineTo(w * 0.38, h * 0.54);
+  ctx2d.lineTo(w * 0.55, h * 0.48);
+  ctx2d.lineTo(w * 0.72, h * 0.52);
+  ctx2d.lineTo(w, h * 0.47);
+  ctx2d.lineTo(w, skyH);
+  ctx2d.closePath();
+  ctx2d.fill();
+
+  const groundY = Math.floor(h * 0.56);
+  ctx2d.fillStyle = "#121820";
+  floorRect(ctx2d, 0, groundY, w, h - groundY);
+
+  for (let i = 0; i < 6; i++) {
+    const px = Math.floor((w / 6) * i);
+    ctx2d.fillStyle = i % 2 === 0 ? "#1a222c" : "#151c26";
+    floorRect(ctx2d, px, groundY, Math.ceil(w / 6) + 1, h - groundY);
+  }
+
+  ctx2d.fillStyle = "#1e1610";
+  floorRect(ctx2d, w * 0.08, groundY - 4, w * 0.84, 8);
+  ctx2d.fillStyle = "#2a2018";
+  for (let i = 0; i < 8; i++) {
+    const px = Math.floor(w * 0.1 + (w * 0.8 / 8) * i);
+    floorRect(ctx2d, px, groundY - 3, 3, 6);
+  }
+
+  ctx2d.fillStyle = "rgba(232, 168, 74, 0.35)";
+  floorRect(ctx2d, w * 0.06, groundY - 28, 6, 10);
+  floorRect(ctx2d, w * 0.9, groundY - 24, 5, 8);
 
   const cy = Math.floor(h * 0.58);
+  const rx = w * 0.36;
+  const ry = h * 0.1;
 
-  ctx2d.fillStyle = "#104868";
-  ctx2d.beginPath();
-  ctx2d.ellipse(w / 2, cy, w * 0.38, h * 0.11, 0, 0, Math.PI * 2);
-  ctx2d.fill();
-  ctx2d.fillStyle = "#186a90";
-  floorRect(ctx2d, w * 0.2, cy - h * 0.04, w * 0.6, Math.max(3, h * 0.025));
+  ctx2d.fillStyle = "rgba(70, 130, 120, 0.12)";
+  drawEllipseFill(ctx2d, w / 2, cy, rx * 1.08, ry * 1.15);
 
+  const water = ctx2d.createRadialGradient(w / 2, cy, 0, w / 2, cy, rx);
+  water.addColorStop(0, "#1a4858");
+  water.addColorStop(0.55, "#123040");
+  water.addColorStop(1, "#0a1824");
+  ctx2d.fillStyle = water;
+  drawEllipseFill(ctx2d, w / 2, cy, rx, ry);
+
+  const shimmer = 0.04 + 0.03 * Math.sin(pulse * 4);
   ctx2d.save();
-  ctx2d.strokeStyle = d.seasonTint;
-  ctx2d.lineWidth = 6;
-  ctx2d.lineJoin = "miter";
-  ctx2d.beginPath();
-  ctx2d.ellipse(w / 2, cy, w * 0.38, h * 0.12, 0, 0, Math.PI * 2);
-  ctx2d.stroke();
-  ctx2d.strokeStyle = "#000";
-  ctx2d.lineWidth = 2;
-  ctx2d.stroke();
+  ctx2d.globalAlpha = shimmer;
+  ctx2d.fillStyle = "#88c8b8";
+  drawEllipseFill(ctx2d, w / 2 - rx * 0.15, cy - ry * 0.2, rx * 0.35, ry * 0.25);
   ctx2d.restore();
 
-  const deck = theme?.images.deck;
-  if (deck) {
-    ctx2d.save();
-    drawCover(ctx2d, deck, 0, h * 0.66, w, h * 0.36);
-    ctx2d.restore();
-    ctx2d.save();
-    ctx2d.globalAlpha = 0.25;
-    ctx2d.fillStyle = "#000";
-    floorRect(ctx2d, 0, h * 0.66, w, h * 0.36);
-    ctx2d.restore();
-  }
+  ctx2d.fillStyle = "rgba(200, 210, 220, 0.08)";
+  drawEllipseFill(ctx2d, mx - w * 0.12, cy + ry * 0.15, rx * 0.12, ry * 0.08);
 
-  const banner = theme?.images.banner;
-  if (banner) {
-    const bh = h * 0.22;
-    floorRect(ctx2d, 4, 4, w - 8, bh);
-    ctx2d.fillStyle = "#000";
-    floorRect(ctx2d, 8, 8, w - 16, bh - 8);
-    drawCover(ctx2d, banner, 10, 10, w - 20, bh - 12);
-    ctx2d.strokeStyle = "#f8d820";
-    ctx2d.lineWidth = 3;
-    ctx2d.strokeRect(6, 6, w - 12, bh - 2);
-    ctx2d.strokeStyle = "#000";
-    ctx2d.lineWidth = 2;
-    ctx2d.strokeRect(4, 4, w - 8, bh + 2);
-  }
+  ctx2d.strokeStyle = d.seasonTint;
+  ctx2d.lineWidth = 3;
+  ctx2d.beginPath();
+  ctx2d.ellipse(w / 2, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx2d.stroke();
+  ctx2d.strokeStyle = "rgba(0,0,0,0.65)";
+  ctx2d.lineWidth = 1;
+  ctx2d.stroke();
 
-  const crest = theme?.images.crest;
-  if (crest) {
-    const cs = Math.min(w * 0.2, h * 0.18, 72);
-    const topPad = banner ? h * 0.22 + 8 : 10;
-    const cx = w - cs - 10;
-    const cyy = topPad;
-    floorRect(ctx2d, cx - 4, cyy - 4, cs + 8, cs + 8);
-    ctx2d.fillStyle = "#000";
-    floorRect(ctx2d, cx - 2, cyy - 2, cs + 4, cs + 4);
-    drawCover(ctx2d, crest, cx, cyy, cs, cs);
-    ctx2d.strokeStyle = "#f8d820";
-    ctx2d.lineWidth = 2;
-    ctx2d.strokeRect(cx - 4, cyy - 4, cs + 8, cs + 8);
-  }
+  ctx2d.fillStyle = "#2a2018";
+  floorRect(ctx2d, w / 2 - 2, cy - ry - 18, 4, 20);
 
-  const font = '10px "Press Start 2P", monospace';
+  const font = '9px "Press Start 2P", monospace';
 
   if (d.phase === "fish_cast") {
-    const barW = Math.floor(w * 0.72);
+    const barW = Math.floor(w * 0.68);
     const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.76);
-    const bh = 20;
+    const by = Math.floor(h * 0.78);
+    const bh = 18;
+    ctx2d.fillStyle = "#0a0e14";
     floorRect(ctx2d, bx, by, barW, bh);
-    ctx2d.fillStyle = "#000";
-    floorRect(ctx2d, bx + 4, by + 4, barW - 8, bh - 8);
-    const fillW = Math.floor((barW - 8) * d.castPower);
-    ctx2d.fillStyle = "#f8d820";
-    floorRect(ctx2d, bx + 4, by + 4, fillW, bh - 8);
-    ctx2d.fillStyle = "#f8f0ff";
+    ctx2d.fillStyle = "#1a222c";
+    floorRect(ctx2d, bx + 2, by + 2, barW - 4, bh - 4);
+    const fillW = Math.floor((barW - 4) * d.castPower);
+    ctx2d.fillStyle = "#e8a84a";
+    floorRect(ctx2d, bx + 2, by + 2, fillW, bh - 4);
+    ctx2d.fillStyle = "#c8d0dc";
     ctx2d.font = font;
-    ctx2d.fillText("HOLD / RELEASE", bx, by - 8);
+    ctx2d.fillText("HOLD / RELEASE", bx, by - 6);
   }
 
   if (d.phase === "fish_wait") {
-    const pulse = 0.5 + 0.5 * Math.sin(d.waitPulse * 6);
-    ctx2d.strokeStyle = d.seasonTint;
-    ctx2d.lineWidth = 3;
-    for (let r = 16; r < Math.min(w, h) * 0.35; r += 24) {
+    const ringPulse = 0.5 + 0.5 * Math.sin(pulse * 6);
+    ctx2d.strokeStyle = d.biteOpen ? "rgba(232, 120, 80, 0.85)" : "rgba(94, 184, 168, 0.45)";
+    ctx2d.lineWidth = 2;
+    for (let r = 12; r < Math.min(w, h) * 0.32; r += 20) {
       ctx2d.beginPath();
-      ctx2d.arc(w / 2, cy, r + pulse * 10, 0, Math.PI * 2);
+      ctx2d.arc(w / 2, cy, r + ringPulse * 8, 0, Math.PI * 2);
       ctx2d.stroke();
     }
-    ctx2d.fillStyle = d.biteOpen ? "#f85838" : "#f8f0ff";
+    ctx2d.fillStyle = d.biteOpen ? "#e87850" : "#c8d0dc";
     ctx2d.font = font;
-    const msg = d.biteOpen ? "STRIKE!!" : "WAIT...";
+    const msg = d.biteOpen ? "STRIKE!" : "WAIT...";
     const tw = ctx2d.measureText(msg).width;
-    ctx2d.fillText(msg, (w - tw) / 2, h * 0.26);
+    ctx2d.fillText(msg, (w - tw) / 2, h * 0.22);
   }
 
   if (d.phase === "fish_reel") {
-    const barW = Math.floor(w * 0.82);
+    const barW = Math.floor(w * 0.8);
     const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.7);
-    const bh = 32;
+    const by = Math.floor(h * 0.72);
+    const bh = 28;
+    ctx2d.fillStyle = "#0a0e14";
     floorRect(ctx2d, bx, by, barW, bh);
-    ctx2d.fillStyle = "#000";
-    floorRect(ctx2d, bx + 4, by + 4, barW - 8, bh - 8);
-    const g0 = bx + 4 + Math.floor((barW - 8) * 0.36);
-    const g1 = bx + 4 + Math.floor((barW - 8) * 0.64);
-    ctx2d.fillStyle = "#109060";
-    floorRect(ctx2d, g0, by + 4, g1 - g0, bh - 8);
-    const tx = bx + 4 + Math.floor((barW - 8) * d.reelTension);
-    ctx2d.fillStyle = "#f8d820";
-    floorRect(ctx2d, tx - 8, by + 2, 16, bh + 4);
-    ctx2d.strokeStyle = "#000";
-    ctx2d.lineWidth = 2;
-    ctx2d.strokeRect(tx - 8, by + 2, 16, bh + 4);
-    ctx2d.fillStyle = "#f8f0ff";
+    ctx2d.fillStyle = "#1a222c";
+    floorRect(ctx2d, bx + 2, by + 2, barW - 4, bh - 4);
+    const g0 = bx + 2 + Math.floor((barW - 4) * 0.36);
+    const g1 = bx + 2 + Math.floor((barW - 4) * 0.64);
+    ctx2d.fillStyle = "#3a7868";
+    floorRect(ctx2d, g0, by + 2, g1 - g0, bh - 4);
+    const tx = bx + 2 + Math.floor((barW - 4) * d.reelTension);
+    ctx2d.fillStyle = "#e8a84a";
+    floorRect(ctx2d, tx - 6, by + 1, 12, bh + 2);
+    ctx2d.strokeStyle = "#0a0e14";
+    ctx2d.lineWidth = 1;
+    ctx2d.strokeRect(tx - 6, by + 1, 12, bh + 2);
+    ctx2d.fillStyle = "#c8d0dc";
     ctx2d.font = font;
-    ctx2d.fillText("JADE ZONE", bx, by - 8);
-    const progH = 10;
-    const py = by + bh + 10;
+    ctx2d.fillText("KEEP IN GREEN", bx, by - 6);
+    const progH = 8;
+    const py = by + bh + 8;
     floorRect(ctx2d, bx, py, barW, progH);
-    ctx2d.fillStyle = "#38f0a8";
-    floorRect(ctx2d, bx + 2, py + 2, Math.floor((barW - 4) * d.reelProgress), progH - 4);
+    ctx2d.fillStyle = "#5eb8a8";
+    floorRect(ctx2d, bx + 1, py + 1, Math.floor((barW - 2) * d.reelProgress), progH - 2);
+  }
+
+  if (d.banner) {
+    const label = d.banner.length > 28 ? `${d.banner.slice(0, 26)}…` : d.banner;
+    ctx2d.font = `${Math.max(8, w * 0.014)}px "Press Start 2P", monospace`;
+    const tw = ctx2d.measureText(label).width;
+    const bx = Math.floor((w - tw) / 2) - 14;
+    const by = Math.floor(h * 0.44);
+    ctx2d.fillStyle = "rgba(0, 0, 0, 0.72)";
+    floorRect(ctx2d, bx, by, tw + 28, 28);
+    ctx2d.strokeStyle = "#e8b050";
+    ctx2d.lineWidth = 2;
+    ctx2d.strokeRect(bx, by, tw + 28, 28);
+    ctx2d.fillStyle = "#e8b050";
+    ctx2d.textAlign = "center";
+    ctx2d.fillText(label, w / 2, by + 18);
+    ctx2d.textAlign = "left";
   }
 }
 
 export const seasonTints: Record<string, string> = {
-  frost: "#78c8f8",
-  bloom: "#f878c8",
-  ember: "#f8a838",
-  void: "#b088f8",
+  frost: "#8cb8d8",
+  bloom: "#c898b8",
+  ember: "#d8a868",
+  void: "#9890c8",
 };

@@ -1,0 +1,360 @@
+/* Arcade shell — canvas owns the screen, zero scroll, menus float */
+
+html.play-active,
+html.play-active body {
+  overflow: hidden;
+  height: 100dvh;
+  overscroll-behavior: none;
+}
+
+html.gate-open .top,
+html.gate-open #tagline,
+html.gate-open #trail-status {
+  display: none;
+}
+
+html.gate-open #app {
+  height: 100dvh;
+  max-width: 100% !important;
+  margin: 0;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gate-screen {
+  width: 100%;
+  max-width: 360px;
+  padding: 24px 20px;
+}
+
+.gate-screen-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+}
+
+.gate-kicker {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  letter-spacing: 0.06em;
+}
+
+.gate-screen input#nickname {
+  font-size: 18px;
+  min-height: 52px;
+  text-align: center;
+}
+
+html.play-active #app {
+  height: 100dvh;
+  max-width: 100% !important;
+  margin: 0;
+  padding: max(4px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px))
+    max(4px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+html.play-active .top,
+html.play-active .play-board-wrap,
+html.play-active .play-credits {
+  display: none !important;
+}
+
+html.play-active #game {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+html.play-active .play-shell {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 4px;
+}
+
+html.play-active .play-hud {
+  margin: 0;
+  padding: 4px 10px;
+  justify-content: center;
+  font-size: 0.68rem;
+  gap: 6px 16px;
+  border-radius: 8px;
+}
+
+html.play-active .play-stage {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.stage-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+html.play-active .canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none !important;
+  border-radius: 12px;
+}
+
+html.play-active canvas#well {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Floating toast — one line, no scroll box */
+.play-toast {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: calc(100% - 24px);
+  padding: 8px 16px;
+  font-family: var(--font-label, "Silkscreen", monospace);
+  font-size: 0.82rem;
+  color: var(--ink);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(8, 12, 18, 0.88);
+  border: 1px solid rgba(232, 176, 80, 0.35);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: toast-in 0.25s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Bottom menu sheet — icons only, no essay */
+.play-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  padding: 10px 10px max(10px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 10, 16, 0.92) 28%, rgba(6, 10, 16, 0.98) 100%);
+  border-radius: 16px 16px 0 0;
+  animation: menu-up 0.22s ease-out;
+}
+
+@keyframes menu-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.play-menu-body {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.play-menu-body .hub-night-chip,
+.play-menu-body p.muted,
+.play-menu-body .arcane-prose {
+  display: none;
+}
+
+.hub-grid--tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.hub-tile {
+  min-height: 76px;
+  border-radius: 12px;
+}
+
+.hub-tile-icon {
+  font-size: 1.85rem;
+}
+
+.hub-tile-label {
+  font-size: 0.38rem;
+}
+
+.hub-grid--feast {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.hub-grid--feast .hub-pick {
+  min-height: 56px;
+  padding: 8px 10px;
+}
+
+.hub-grid--feast .hub-pick-letter {
+  font-size: 1.2rem;
+}
+
+.hub-grid--feast .hub-pick-body strong {
+  font-size: 0.34rem;
+}
+
+.hub-back-row {
+  margin-top: 8px;
+}
+
+.hub-back-row .btn {
+  min-height: 44px;
+  font-size: 0.38rem;
+}
+
+.chance-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 8px 0 0;
+}
+
+.chance-mark {
+  margin: 6px 0;
+  font-size: 0.5rem;
+}
+
+.card-row {
+  margin: 8px 0;
+}
+
+/* Giant strike — center of canvas */
+.strike-float {
+  position: absolute !important;
+  z-index: 12;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(46vw, 168px);
+  height: min(46vw, 168px);
+  border-radius: 50%;
+  font-size: clamp(0.5rem, 3.5vw, 0.62rem) !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  box-shadow:
+    0 0 0 4px rgba(232, 120, 80, 0.35),
+    0 8px 32px rgba(0, 0, 0, 0.55);
+  animation: strike-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes strike-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+html.play-active .play-dock {
+  padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px));
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+html.play-active .play-dock .actions {
+  margin: 0;
+}
+
+/* Hide dock when menu or strike owns the moment */
+.play-shell[data-phase="well"] .play-dock,
+.play-shell[data-phase="chance_pick"] .play-dock,
+.play-shell[data-phase="chance_play"] .play-dock,
+.play-shell[data-phase="feast"] .play-dock,
+.play-shell[data-phase="fish_wait"] .play-dock,
+.play-shell[data-phase="resolve"] .play-dock,
+.play-shell[data-phase="chance_result"] .play-dock {
+  display: none;
+}
+
+.play-shell:not([data-phase="fish_reel"]) #reel-controls {
+  display: none !important;
+}
+
+.play-shell[data-phase="fish_reel"] #btn-primary {
+  display: none !important;
+}
+
+.play-shell.juice-bite .canvas-wrap {
+  animation: juice-shake 0.38s ease;
+}
+
+.play-shell.juice-catch .canvas-wrap {
+  animation: juice-pop 0.45s ease;
+}
+
+@keyframes juice-shake {
+  20% {
+    transform: translate(-4px, 2px);
+  }
+  40% {
+    transform: translate(4px, -2px);
+  }
+  60% {
+    transform: translate(-2px, 1px);
+  }
+}
+
+@keyframes juice-pop {
+  40% {
+    transform: scale(1.02);
+  }
+}
+
+@media (min-width: 720px) {
+  html.play-active #app {
+    max-width: 480px !important;
+    margin: 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-toast,
+  .play-menu,
+  .strike-float {
+    animation: none;
+  }
+}

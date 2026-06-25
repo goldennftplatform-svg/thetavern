@@ -33,9 +33,10 @@
   font-size: 0.78rem;
   color: var(--jade);
   padding: 8px 12px;
-  border: 3px solid var(--jade-dk);
-  background: rgba(16, 144, 96, 0.12);
-  box-shadow: 3px 3px 0 var(--line);
+  border: 1px solid rgba(104, 184, 168, 0.35);
+  background: rgba(58, 120, 104, 0.12);
+  border-radius: 8px;
+  box-shadow: none;
 }
 
 .bb-live-dot {
@@ -89,11 +90,13 @@
 .bb-map-frame {
   position: relative;
   flex: 1;
-  border: 4px solid var(--line);
+  border: 1px solid var(--frame-border, rgba(232, 176, 80, 0.28));
+  border-radius: 10px;
   box-shadow:
-    6px 6px 0 var(--line),
-    0 0 48px rgba(248, 216, 32, 0.08);
-  background: #1a1008;
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 0 48px rgba(0, 0, 0, 0.2);
+  background: #060a10;
   overflow: hidden;
   line-height: 0;
   container-type: inline-size;
@@ -153,8 +156,9 @@
   gap: 10px;
   align-items: flex-start;
   background: var(--panel);
-  border: 4px solid var(--line);
-  box-shadow: 4px 4px 0 var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   padding: 12px 14px;
   font-size: 1.08rem;
   line-height: 1.4;
@@ -239,15 +243,16 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   padding: 12px 20px 20px;
-  border-top: 4px solid var(--line);
-  background: rgba(18, 8, 26, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 20, 0.96);
 }
 
 .bb-dock-panel {
   padding: 10px 12px;
-  border: 3px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
   background: var(--panel);
-  box-shadow: 3px 3px 0 var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   font-size: 0.98rem;
   line-height: 1.4;
 }

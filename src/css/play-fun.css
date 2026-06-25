@@ -1,0 +1,343 @@
+/* Zero-scroll play mode + punchy stage UI */
+
+html.play-active,
+html.play-active body {
+  overflow: hidden;
+  height: 100dvh;
+  overscroll-behavior: none;
+}
+
+html.play-active #app {
+  height: 100dvh;
+  max-width: 100% !important;
+  margin: 0;
+  padding: max(6px, env(safe-area-inset-top, 0px))
+    max(8px, env(safe-area-inset-right, 0px))
+    max(6px, env(safe-area-inset-bottom, 0px))
+    max(8px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+html.play-active .top {
+  display: none;
+}
+
+html.play-active #game {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+html.play-active .play-shell {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "hud"
+    "stage"
+    "dock";
+  gap: 6px;
+}
+
+html.play-active .play-hud {
+  grid-area: hud;
+  margin: 0;
+  padding: 6px 8px;
+  background: rgba(18, 8, 26, 0.92);
+  border: 3px solid var(--line);
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+html.play-active .play-stage {
+  grid-area: stage;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
+  overflow: hidden;
+}
+
+html.play-active .play-dock {
+  grid-area: dock;
+  position: static;
+  background: rgba(18, 8, 26, 0.96);
+  border: 3px solid var(--line);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+}
+
+html.play-active .play-board-wrap,
+html.play-active .play-credits {
+  display: none !important;
+}
+
+html.play-active .well-stack {
+  margin: 0;
+  min-height: 0;
+  height: 100%;
+  gap: 8px;
+}
+
+html.play-active .canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+html.play-active canvas#well {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+html.play-active .stage-panel {
+  flex-shrink: 0;
+  max-height: min(38dvh, 220px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+html.play-active .stage-copy {
+  margin: 0;
+  padding: 10px 12px;
+  box-shadow: 3px 3px 0 var(--line);
+}
+
+/* Fishing + quick beats: one-liner caption, no scroll box */
+.play-shell[data-phase="fish_cast"] .stage-panel,
+.play-shell[data-phase="fish_wait"] .stage-panel,
+.play-shell[data-phase="fish_reel"] .stage-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+.play-shell[data-phase="fish_cast"] .stage-copy,
+.play-shell[data-phase="fish_wait"] .stage-copy,
+.play-shell[data-phase="fish_reel"] .stage-copy,
+.play-shell[data-phase="resolve"] .stage-copy,
+.play-shell[data-phase="renown"] .stage-copy {
+  padding: 8px 10px;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+  text-align: center;
+}
+
+.play-shell[data-phase="fish_cast"] .stage-copy p,
+.play-shell[data-phase="fish_wait"] .stage-copy p,
+.play-shell[data-phase="fish_reel"] .stage-copy p,
+.play-shell[data-phase="resolve"] .stage-copy p,
+.play-shell[data-phase="renown"] .stage-copy p {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.play-shell[data-phase="fish_cast"] .stage-copy::before,
+.play-shell[data-phase="fish_wait"] .stage-copy::before,
+.play-shell[data-phase="fish_reel"] .stage-copy::before,
+.play-shell[data-phase="resolve"] .stage-copy::before,
+.play-shell[data-phase="renown"] .stage-copy::before,
+.play-shell[data-phase="fish_cast"] .stage-copy::after,
+.play-shell[data-phase="fish_wait"] .stage-copy::after,
+.play-shell[data-phase="fish_reel"] .stage-copy::after,
+.play-shell[data-phase="resolve"] .stage-copy::after,
+.play-shell[data-phase="renown"] .stage-copy::after {
+  display: none;
+}
+
+/* Hub night chip — one line, not a banner novel */
+.hub-night-chip {
+  margin: 0 0 8px;
+  font-family: var(--font-label, "Silkscreen", monospace);
+  font-size: 0.82rem;
+  color: var(--gold);
+  text-align: center;
+}
+
+.hub-grid--tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.hub-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 10px 6px;
+  border: 3px solid var(--line);
+  background: var(--bg1);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--line);
+  font-family: inherit;
+  transition: transform 0.06s ease, filter 0.06s ease;
+}
+
+.hub-tile:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--line);
+}
+
+.hub-tile:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hub-tile--gold {
+  border-color: var(--gold-dim);
+  background: rgba(201, 160, 16, 0.15);
+}
+
+.hub-tile--jade {
+  border-color: var(--jade-dk);
+  background: rgba(16, 144, 96, 0.12);
+}
+
+.hub-tile-icon {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.hub-tile-label {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.34rem;
+  color: var(--jade);
+  text-align: center;
+  line-height: 1.45;
+}
+
+.hub-grid--feast {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.hub-grid--feast .hub-pick {
+  min-height: 72px;
+  padding: 10px;
+}
+
+.hub-grid--feast .hub-pick-body strong {
+  font-size: 0.36rem;
+}
+
+.hub-grid--feast .hub-pick-body .muted {
+  display: none;
+}
+
+html.play-active .well-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-back-row {
+  margin-top: 8px;
+}
+
+.hub-back-row .btn {
+  width: 100%;
+}
+
+/* Juice */
+@keyframes juice-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-5px, 2px);
+  }
+  40% {
+    transform: translate(5px, -2px);
+  }
+  60% {
+    transform: translate(-3px, 1px);
+  }
+  80% {
+    transform: translate(3px, -1px);
+  }
+}
+
+@keyframes juice-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes juice-flash {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+
+.play-shell.juice-bite .canvas-wrap {
+  animation: juice-shake 0.38s ease;
+}
+
+.play-shell.juice-catch .canvas-wrap {
+  animation: juice-pop 0.45s ease;
+}
+
+.play-shell.juice-catch .play-dock {
+  animation: juice-flash 0.5s ease;
+}
+
+html.play-active #btn-strike:not([hidden]) {
+  animation: juice-flash 0.9s ease-in-out infinite;
+}
+
+@media (min-width: 800px) {
+  html.play-active #app {
+    max-width: 920px !important;
+    margin: 0 auto;
+  }
+
+  html.play-active .play-shell {
+    grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "hud hud"
+      "stage dock"
+      "stage dock";
+  }
+
+  html.play-active .play-dock {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  html.play-active .stage-panel {
+    max-height: min(42vh, 280px);
+  }
+}

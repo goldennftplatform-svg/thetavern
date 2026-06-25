@@ -10,25 +10,10 @@ import {
   creditsLine,
   demplarModalIntro,
   demplarNotice,
-  fishCatalog,
-  heraldLines,
-  perilBeats,
-  triviaWell,
 } from "./content/lore";
 import {
   SUBTITLE_TAGLINES,
-  WORLD_EPIGRAPH,
-  castWhispers,
-  chanceTableIntro,
-  enterPrologues,
-  feastIntro,
-  hubVerse,
   pickLine,
-  renownTitleHint,
-  resolveFlourish,
-  seasonArcane,
-  waitWhispers,
-  reelWhispers,
   noticeBoardArcane,
 } from "./content/arcaneLore";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
@@ -42,9 +27,8 @@ import {
   rollOverUnderTarget,
   type ChanceGameId,
 } from "./minigames/chance";
-import { buildMoonwellDeck, MOONWELL_DECK_LORE, shuffleDeck } from "./minigames/moonwellDeck";
-import { loadDailyMediaTheme, platformLabel } from "./media/loadTheme";
-import { utcDayKey } from "./media/dailyPick";
+import { buildMoonwellDeck, shuffleDeck } from "./minigames/moonwellDeck";
+import { loadDailyMediaTheme } from "./media/loadTheme";
 import type { LoadedMediaTheme } from "./media/types";
 import { rollCatch } from "./minigames/fishing";
 import { connectTrail } from "./net/trailClient";
@@ -52,15 +36,75 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
 import {
-  chanceGameButtonHtml,
   feastButtonHtml,
-  hubChoiceHtml,
+  hubBackHtml,
+  hubTileHtml,
   renderCardRow,
-  renderNightBanner,
   wireHubClicks,
 } from "./ui/tavernHub";
 
 initMobileShellClass();
+
+const boardMq = window.matchMedia("(min-width: 800px)");
+function syncBoardDetails() {
+  const boardWrap = document.querySelector<HTMLDetailsElement>(".play-board-wrap");
+  if (boardWrap) boardWrap.open = boardMq.matches;
+}
+boardMq.addEventListener("change", syncBoardDetails);
+syncBoardDetails();
+document.documentElement.classList.add("gate-open");
+
+const PLAY_HINT = {
+  cast: "Hold ↓ release to cast",
+  wait: "STRIKE when it bites",
+  reel: "Keep bob in green",
+} as const;
+
+const SEASON_TAG: Record<string, string> = {
+  frost: "❄",
+  bloom: "🌸",
+  ember: "🔥",
+  void: "✦",
+};
+
+let autoPhaseTimer = 0;
+let toastTimer = 0;
+let stageBanner = "";
+
+function clearAutoPhase() {
+  if (autoPhaseTimer) window.clearTimeout(autoPhaseTimer);
+  autoPhaseTimer = 0;
+}
+
+function showToast(msg: string, hideAfterMs = 0) {
+  if (toastTimer) window.clearTimeout(toastTimer);
+  elPlayToast.textContent = msg;
+  elPlayToast.hidden = !msg;
+  if (msg && hideAfterMs > 0) {
+    toastTimer = window.setTimeout(() => {
+      elPlayToast.hidden = true;
+    }, hideAfterMs);
+  }
+}
+
+function openMenu(html: string) {
+  elPhase.innerHTML = html;
+  elPlayMenu.hidden = false;
+}
+
+function closeMenu() {
+  elPlayMenu.hidden = true;
+  elPhase.innerHTML = "";
+}
+
+function juicePlay(kind: "bite" | "catch") {
+  elPlayShell.classList.remove("juice-bite", "juice-catch");
+  void elPlayShell.offsetWidth;
+  elPlayShell.classList.add(kind === "bite" ? "juice-bite" : "juice-catch");
+  window.setTimeout(() => elPlayShell.classList.remove("juice-bite", "juice-catch"), 480);
+  if (kind === "bite" && navigator.vibrate) navigator.vibrate(28);
+  if (kind === "catch" && navigator.vibrate) navigator.vibrate([18, 40, 18]);
+}
 
 const $ = (id: string) => document.getElementById(id)!;
 
@@ -73,6 +117,9 @@ const elTag = $("tagline");
 const elTrail = $("trail-status");
 const elGate = $("nickname-gate");
 const elGame = $("game");
+const elPlayShell = $("play-shell");
+const elPlayToast = $("play-toast");
+const elPlayMenu = $("play-menu");
 const elNick = $("nickname") as HTMLInputElement;
 const elPhase = $("phase-text");
 const elPrimary = $("btn-primary");
@@ -154,10 +201,6 @@ let reelRaf = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
 
-function fishBlurb(id: string): string {
-  return fishCatalog.find((f) => f.id === id)?.blurb ?? "The well gives what it gives.";
-}
-
 function setPresence(atWell: boolean) {
   socket?.emit("moonwell:presence", { atWell });
 }
@@ -206,20 +249,11 @@ function biteWindowBonusMs(): number {
 }
 
 function buildWellHubHtml(): string {
-  const night = tonightUtc();
-  const buffLine = state.foodBuff
-    ? `<p class="muted">Kitchen buff active: ${state.foodBuff.label}</p>`
-    : "";
-  return `${renderNightBanner(night.title, night.tagline, night.herald)}
-    <p class="world-epigraph">${hubVerse}</p>
-    <p class="muted">${seasonArcane[state.season].name} — ${seasonArcane[state.season].verse}</p>
-    ${buffLine}
-    <div class="hub-grid" id="hub-grid">
-      ${hubChoiceHtml("F", "Cast the Moonwell", "The charter rite—skill, luck, and legend.", "fish", "gold")}
-      ${hubChoiceHtml("C", "Divination table", "Ascendant / Descendant & Mark of the Mist.", "chance_menu", "jade")}
-      ${hubChoiceHtml("K", "Enchanted kitchen", "Tonight's board—pretzels, peanuts, pie, and carnival fare.", "feast_menu", "jade")}
-    </div>
-    <p class="deck-lore muted">${MOONWELL_DECK_LORE}</p>`;
+  return `<div class="hub-grid hub-grid--tiles" id="hub-grid">
+      ${hubTileHtml("🎣", "Cast", "fish", "gold")}
+      ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
+      ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
+    </div>`;
 }
 
 function wirePhaseHub() {
@@ -261,8 +295,8 @@ function handleHubAction(action: string) {
 function startChanceGame(id: ChanceGameId) {
   const game = CHANCE_GAMES.find((g) => g.id === id)!;
   if (state.tokens < game.stake) {
-    elPhase.innerHTML = `<p class="muted">You need ${game.stake} token to sit at this table.</p>
-      <div class="hub-grid">${hubChoiceHtml("←", "Back to the well", "", "back:well", "ghost")}</div>`;
+    openMenu(`${hubBackHtml()}`);
+    showToast(`Need ${game.stake} ◎`);
     elPrimary.hidden = true;
     wirePhaseHub();
     return;
@@ -281,8 +315,8 @@ function buyFeast(id: FoodId) {
   if (state.feastsEaten.includes(id)) return;
   const f = foodItem(id);
   if (state.tokens < f.cost) {
-    elPhase.innerHTML = `<p class="muted">The kitchen wants ${f.cost} token${f.cost === 1 ? "" : "s"} for ${f.name}.</p>
-      <div class="hub-grid">${hubChoiceHtml("←", "Back to the well", "", "back:well", "ghost")}</div>`;
+    openMenu(`${hubBackHtml()}`);
+    showToast(`Need ${f.cost} ◎`);
     elPrimary.hidden = true;
     wirePhaseHub();
     return;
@@ -338,21 +372,14 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
 }
 
 function hud() {
-  elHudR.textContent = `Legend: ${state.renown}`;
-  elHudT.textContent = `Charter tokens: ${state.tokens}`;
-  elHudS.textContent = seasonArcane[state.season].name;
-  if (loadedTheme) {
-    elHudDeck.textContent = `DECK: ${platformLabel(loadedTheme.platform, utcDayKey())}`;
-    elHudDeck.hidden = false;
-  } else {
-    elHudDeck.textContent = "";
-    elHudDeck.hidden = true;
-  }
+  elHudR.textContent = `★ ${state.renown}`;
+  elHudT.textContent = `◎ ${state.tokens}`;
+  elHudS.textContent = SEASON_TAG[state.season] ?? "·";
+  elHudDeck.hidden = true;
   if (state.foodBuff) {
-    elHudBuff.textContent = `BUFF: ${state.foodBuff.label}`;
+    elHudBuff.textContent = `+ ${state.foodBuff.label}`;
     elHudBuff.hidden = false;
   } else {
-    elHudBuff.textContent = "";
     elHudBuff.hidden = true;
   }
 }
@@ -370,16 +397,19 @@ function drawWell(phaseOverride?: GamePhase) {
       waitPulse,
       reelTension: state.reelTension,
       reelProgress: state.reelProgress,
-      seasonTint: seasonTints[state.season] ?? "#b8e8ff",
+      seasonTint: seasonTints[state.season] ?? "#8cb8d8",
+      banner: stageBanner,
     },
     w,
     h,
-    loadedTheme,
   );
 }
 
 function setPhase(next: GamePhase) {
   state.phase = next;
+  elPlayShell.dataset.phase = next;
+  clearAutoPhase();
+  stageBanner = "";
   elStrike.hidden = true;
   elReel.hidden = true;
   elPrimary.hidden = false;
@@ -389,196 +419,109 @@ function setPhase(next: GamePhase) {
   window.clearTimeout(biteOpenTimer);
   window.cancelAnimationFrame(reelRaf);
 
-  if (next === "enter" || next === "herald") setPresence(false);
-  else setPresence(true);
+  setPresence(next !== "enter" && next !== "herald");
 
   switch (next) {
-    case "enter": {
-      const night = tonightUtc();
-      const arc = seasonArcane[state.season];
-      elPhase.innerHTML = `${renderNightBanner(night.title, night.tagline, night.herald)}
-        <p class="world-epigraph">${WORLD_EPIGRAPH}</p>
-        <p>${pickLine(enterPrologues)}</p>
-        <p class="muted">${arc.name} — ${arc.verse}</p>`;
-      elPrimary.textContent = "Cross the threshold into the hall";
-      break;
-    }
-    case "herald": {
-      const night = tonightUtc();
-      elPhase.innerHTML = `<div class="herald-block"><strong>The Herald proclaims</strong> ${heraldLines[Math.floor(Math.random() * heraldLines.length)]}</div>
-        <p class="muted arcane-prose">${night.herald}</p>`;
-      elPrimary.textContent = "Approach the Moonwell";
-      break;
-    }
     case "well":
-      elPhase.innerHTML = buildWellHubHtml();
+      openMenu(buildWellHubHtml());
+      showToast(tonightUtc().title, 4000);
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
     case "fish_cast":
+      closeMenu();
       state.castPower = 0;
-      elPhase.innerHTML = `<p>${pickLine(castWhispers)}</p>`;
-      elPrimary.textContent = "Hold to channel — release to cast";
+      showToast(PLAY_HINT.cast);
+      elPrimary.textContent = "HOLD TO CAST";
       startCastLoop();
       break;
     case "fish_wait":
+      closeMenu();
       state.biteWindowOpen = false;
       struckBite = false;
-      elPhase.innerHTML = `<p>${pickLine(waitWhispers)}</p>`;
+      showToast(PLAY_HINT.wait);
       elPrimary.hidden = true;
       scheduleBiteWindow();
       break;
     case "fish_reel":
+      closeMenu();
       state.reelTension = 0.45;
       state.reelProgress = 0;
       reelQuality = 0;
-      elPhase.innerHTML = `<p>${pickLine(reelWhispers)}</p>`;
+      showToast(PLAY_HINT.reel);
       elPrimary.hidden = true;
       elReel.hidden = false;
       startReelLoop();
       break;
     case "resolve": {
       const c = state.lastCatch!;
-      const extra = c.demplarTease
-        ? `<p class="muted arcane-prose">A scrap of charter rumor: the name <strong>Demplar</strong> rides this catch like a watermark in glass.</p>`
-        : "";
-      const om = c.omen ? `<p class="arcane-prose"><em>Omen:</em> ${c.omen}</p>` : "";
-      const flourish = pickLine(resolveFlourish[c.rarity]);
-      const mythicCls = c.rarity === "mythic" ? " rarity-flourish--mythic" : "";
-      elPhase.innerHTML = `<p class="catch-reveal">From the veil you land <strong>${c.name}</strong> <span class="muted">(${c.rarity})</span>.</p>
-        <p class="arcane-prose">${fishBlurb(c.fishId)}</p>
-        <p class="rarity-flourish${mythicCls}">${flourish}</p>${om}${extra}`;
-      elPrimary.textContent = "Inscribe renown in the ledger";
-      break;
-    }
-    case "renown":
-      elPhase.innerHTML = `<p class="arcane-prose">Legend swells: <strong>${state.renown}</strong>. Titles: ${state.titles.length ? state.titles.join(", ") : "none yet—the well is patient."}</p>
-        <p class="muted">${renownTitleHint(state.renown)}</p>`;
-      elPrimary.textContent = state.runCount % 2 === 0 ? "Face a perilous choice" : "Answer the well's riddle";
-      break;
-    case "peril": {
-      const p = perilBeats[state.perilIndex % perilBeats.length]!;
-      elPhase.innerHTML = `<p class="arcane-prose"><strong>Crossroads at the rim:</strong> ${p.q}</p>
-        <div class="peril-pair" id="peril-pair"></div>`;
+      state.runCount++;
+      juicePlay("catch");
+      closeMenu();
+      stageBanner = `${c.name.toUpperCase()}  +${c.renown}`;
+      showToast(`${c.name} · +${c.renown} legend`);
       elPrimary.hidden = true;
-      const pair = elPhase.querySelector("#peril-pair")!;
-      p.a.forEach((label, i) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = `btn big ${i === 0 ? "primary" : "ghost"}`;
-        b.textContent = label;
-        b.addEventListener("click", () => {
-          state.perilIndex++;
-          state.renown += 2 + i;
-          state.runCount++;
-          hud();
-          setPhase("well");
-        });
-        pair.appendChild(b);
-      });
-      break;
-    }
-    case "trivia": {
-      const t = triviaWell[state.triviaIndex % triviaWell.length]!;
-      elPhase.innerHTML = `<p class="arcane-prose"><strong>Well riddle:</strong> ${t.q}</p>
-        <div class="trivia-btns" id="trivia-btns"></div>`;
-      elPrimary.hidden = true;
-      const wrap = elPhase.querySelector("#trivia-btns")!;
-      t.choices.forEach((c, i) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "btn big ghost";
-        b.textContent = c;
-        b.addEventListener("click", () => {
-          const correct = i === t.ok;
-          state.renown += correct ? 4 : 1;
-          state.triviaIndex++;
-          state.runCount++;
-          hud();
-          if ("teach" in t && t.teach && correct) {
-            elPhase.innerHTML = `<p class="arcane-prose muted">${t.teach}</p>`;
-            window.setTimeout(() => setPhase("well"), 2200);
-          } else {
-            setPhase("well");
-          }
-        });
-        wrap.appendChild(b);
-      });
+      autoPhaseTimer = window.setTimeout(() => setPhase("well"), 1500);
       break;
     }
     case "chance_pick":
-      elPhase.innerHTML = `<p class="arcane-prose"><strong>${chanceTableIntro}</strong></p>
-        <div class="hub-grid" id="hub-grid">
-          ${CHANCE_GAMES.map((g) => chanceGameButtonHtml(g.id, g.name, g.blurb, g.stake)).join("")}
-          ${hubChoiceHtml("←", "Back to the well", "Return to the hub.", "back:well", "ghost")}
-        </div>`;
+      openMenu(`<div class="hub-grid hub-grid--tiles" id="hub-grid">
+          ${hubTileHtml("⬆", "Hi-Lo", "chance:high_low", "gold")}
+          ${hubTileHtml("◎", "O/U", "chance:over_under", "jade")}
+        </div>${hubBackHtml()}`);
+      showToast("Pick a game");
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
     case "chance_play": {
       const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
       if (state.chanceGame === "high_low") {
-        if (state.chanceCards.length === 0) {
-          state.chanceCards = drawFromDeck(1);
-        }
+        if (state.chanceCards.length === 0) state.chanceCards = drawFromDeck(1);
         const first = state.chanceCards[0]!;
-        elPhase.innerHTML = `<p><strong>${game.name}</strong> — stake ${game.stake} token. Call the next card.</p>
-          ${renderCardRow([first])}
+        openMenu(`${renderCardRow([first])}
           <div class="chance-actions" id="chance-actions">
             <button type="button" class="btn big primary" data-guess="high">Higher</button>
             <button type="button" class="btn big ghost" data-guess="low">Lower</button>
-          </div>`;
+          </div>`);
       } else {
         const mark = state.overUnderTarget ?? 8;
-        elPhase.innerHTML = `<p><strong>${game.name}</strong> — stake ${game.stake} token.</p>
-          <p class="chance-mark">House mark: ${mark}</p>
-          <p class="muted">One draw from the Moonwell deck — over or under the mark?</p>
+        openMenu(`<p class="chance-mark">Mark ${mark}</p>
           <div class="chance-actions" id="chance-actions">
             <button type="button" class="btn big primary" data-guess="over">Over ${mark}</button>
             <button type="button" class="btn big ghost" data-guess="under">Under ${mark}</button>
-          </div>`;
+          </div>`);
       }
+      showToast(game.name);
       elPrimary.hidden = true;
       elPhase.querySelectorAll<HTMLButtonElement>("[data-guess]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const g = btn.getAttribute("data-guess") as "high" | "low" | "over" | "under";
-          finishChance(g);
+          finishChance(btn.getAttribute("data-guess") as "high" | "low" | "over" | "under");
         });
       });
       break;
     }
     case "chance_result": {
       const r = state.chanceLastResult!;
-      const cards = renderCardRow(r.cards);
-      const outcomeCls =
-        r.outcome === "win"
-          ? "chance-outcome-win"
-          : r.outcome === "push"
-            ? "muted"
-            : "chance-outcome-lose";
-      elPhase.innerHTML = `<p><strong>${r.title}</strong> — <span class="${outcomeCls}">${r.outcome.toUpperCase()}</span></p>
-        ${cards}
-        <p>${r.detail}</p>
-        <p class="muted">Tokens ${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} · Renown +${r.renownDelta}</p>`;
-      elPrimary.hidden = false;
-      elPrimary.textContent = "Back to the well";
+      closeMenu();
+      stageBanner = r.outcome.toUpperCase();
+      showToast(`${r.outcome.toUpperCase()} · ${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎`);
+      elPrimary.hidden = true;
+      autoPhaseTimer = window.setTimeout(() => setPhase("well"), 1300);
       break;
     }
-    case "feast": {
-      const night = tonightUtc();
-      elPhase.innerHTML = `<p class="arcane-prose"><strong>${feastIntro}</strong> — ${night.title}</p>
-        <p class="muted">One serving per delicacy per night. The next cast remembers what you ate.</p>
-        <div class="hub-grid" id="hub-grid">
-          ${night.specials
-            .map((id) => feastButtonHtml(id, state.feastsEaten.includes(id)))
+    case "feast":
+      openMenu(`<div class="hub-grid hub-grid--feast" id="hub-grid">
+          ${tonightUtc()
+            .specials.map((id) => feastButtonHtml(id, state.feastsEaten.includes(id)))
             .join("")}
-          ${hubChoiceHtml("←", "Back to the well", "Return without ordering.", "back:well", "ghost")}
-        </div>`;
+        </div>${hubBackHtml()}`);
+      showToast("Kitchen");
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
-    }
     default:
+      closeMenu();
+      showToast("");
       break;
   }
   hud();
@@ -604,6 +547,7 @@ function scheduleBiteWindow() {
   biteTimer = window.setTimeout(() => {
     state.biteWindowOpen = true;
     elStrike.hidden = false;
+    juicePlay("bite");
     drawWell();
     biteOpenTimer = window.setTimeout(() => {
       state.biteWindowOpen = false;
@@ -660,24 +604,9 @@ function startReelLoop() {
 }
 
 elPrimary.addEventListener("click", () => {
-  switch (state.phase) {
-    case "enter":
-      setPhase("herald");
-      break;
-    case "herald":
-      setPhase("well");
-      break;
-    case "resolve":
-      setPhase("renown");
-      break;
-    case "renown":
-      setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
-      break;
-    case "chance_result":
-      setPhase("well");
-      break;
-    default:
-      break;
+  if (state.phase === "resolve" || state.phase === "chance_result") {
+    clearAutoPhase();
+    setPhase("well");
   }
 });
 
@@ -742,8 +671,10 @@ function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const logicalW = rect.width || 520;
-  const logicalH = logicalW * (420 / 520);
-  canvas.style.height = `${logicalH}px`;
+  const logicalH = rect.height > 48 ? rect.height : logicalW * (420 / 520);
+  canvas.style.height = document.documentElement.classList.contains("play-active")
+    ? "100%"
+    : `${logicalH}px`;
   canvas.width = Math.floor(logicalW * dpr);
   canvas.height = Math.floor(logicalH * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -799,13 +730,17 @@ async function startGameFromGate() {
   state = initialState(name.slice(0, 28));
   elGate.hidden = true;
   elGame.hidden = false;
+  document.documentElement.classList.remove("gate-open");
+  document.documentElement.classList.add("play-active");
   closeDemplarModal();
   fillNotices();
   await ensurePixelFonts();
   loadedTheme = await loadDailyMediaTheme();
   await bootTrail();
-  resizeCanvas();
-  setPhase("enter");
+  requestAnimationFrame(() => {
+    resizeCanvas();
+    setPhase("well");
+  });
 }
 
 $("btn-enter-name").addEventListener("click", () => {
@@ -816,6 +751,15 @@ elBtnSkipGate.addEventListener("click", () => {
   void startGameFromGate();
 });
 
-requestAnimationFrame(() => {
-  waitPulse += 0.016;
+requestAnimationFrame(function tick(now: number) {
+  waitPulse = now / 1000;
+  if (
+    state.phase === "fish_wait" ||
+    state.phase === "fish_cast" ||
+    state.phase === "resolve" ||
+    state.phase === "chance_result"
+  ) {
+    drawWell();
+  }
+  requestAnimationFrame(tick);
 });

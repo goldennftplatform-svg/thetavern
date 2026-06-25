@@ -6,6 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <meta name="theme-color" content="#080c12" />
     <title>The Moonwell Anglers</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +16,7 @@
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body class="crt-skin arcane-skin">
+  <body class="crt-skin">
     <div id="app">
       <header class="top">
         <h1 id="title">The Moonwell Anglers</h1>
@@ -23,83 +24,78 @@
         <div id="trail-status" class="pill muted"></div>
       </header>
 
-      <section id="nickname-gate" class="card gate-card gate-ritual" aria-labelledby="gate-title">
-        <p class="gate-eyebrow">Rite of the rim · convocation</p>
-        <h2 id="gate-title" class="gate-title">Speak thy mystical name</h2>
-        <p class="gate-lead">
-          The Moonwell hears titles, not birth names—what the charter hall will carve in the water when you cast.
-        </p>
-        <label class="gate-label" for="nickname">Thy name at the well</label>
-        <input
-          id="nickname"
-          type="text"
-          maxlength="28"
-          placeholder="Morrow Three-Hooks, Cinder-Vex…"
-          autocomplete="username"
-          inputmode="text"
-          autofocus
-          aria-describedby="gate-hint"
-        />
-        <p id="gate-hint" class="gate-hint muted">28 runes max. Patrons, bards, and shadow-names welcome at the Great Table.</p>
-        <button type="button" id="btn-enter-name" class="btn primary big gate-cta">Bind name &amp; enter the charter hall</button>
-        <button type="button" id="btn-skip-gate" class="btn ghost big">Enter nameless — as a wandering guest</button>
+      <section id="nickname-gate" class="gate-screen">
+        <div class="gate-screen-inner">
+          <p class="gate-kicker">Moonwell Anglers</p>
+          <input
+            id="nickname"
+            type="text"
+            maxlength="28"
+            placeholder="Your name"
+            autocomplete="username"
+            inputmode="text"
+            autofocus
+          />
+          <button type="button" id="btn-enter-name" class="btn primary big">Play</button>
+          <button type="button" id="btn-skip-gate" class="btn ghost">Guest</button>
+        </div>
       </section>
 
       <main id="game" hidden>
-        <div class="hud">
-          <span id="hud-renown"></span>
-          <span id="hud-tokens"></span>
-          <span id="hud-season"></span>
-          <span id="hud-deck" class="hud-deck" title="Rotates daily (UTC) from MEdiaFiles scan"></span>
-          <span id="hud-buff" class="hud-buff" hidden></span>
+        <div id="play-shell" class="play-shell" data-phase="well">
+          <header class="play-hud hud" aria-label="Status">
+            <span id="hud-renown"></span>
+            <span id="hud-tokens"></span>
+            <span id="hud-season"></span>
+            <span id="hud-deck" class="hud-deck" hidden></span>
+            <span id="hud-buff" class="hud-buff" hidden></span>
+          </header>
+
+          <section class="play-stage" aria-label="Play area">
+            <div class="stage-viewport">
+              <div class="canvas-wrap">
+                <canvas id="well" width="520" height="420" aria-label="Moonwell"></canvas>
+              </div>
+              <button type="button" id="btn-strike" class="btn strike strike-float" hidden>
+                STRIKE!
+              </button>
+              <div id="play-toast" class="play-toast" hidden aria-live="polite"></div>
+              <div id="play-menu" class="play-menu" hidden>
+                <div id="phase-text" class="play-menu-body"></div>
+              </div>
+            </div>
+          </section>
+
+          <footer class="play-dock" aria-label="Actions">
+            <div class="actions" id="actions">
+              <button type="button" id="btn-primary" class="btn primary big"></button>
+            </div>
+            <div id="reel-controls" class="reel-pair" hidden>
+              <button type="button" id="btn-slack" class="btn big ghost reel-tap">◀ Slack</button>
+              <button type="button" id="btn-heave" class="btn big reel-tap">Heave ▶</button>
+            </div>
+          </footer>
+
+          <details class="play-board-wrap">
+            <summary class="play-board-summary">Board</summary>
+            <aside class="card board">
+              <ul id="notices"></ul>
+              <button type="button" id="btn-charter" class="btn linkish">Charter</button>
+            </aside>
+          </details>
+          <footer class="play-credits credits">
+            <span id="credits-text"></span>
+            <a href="bigboard.html" target="_blank" rel="noopener">Live table</a>
+          </footer>
         </div>
-
-        <div id="phase-text" class="card lore"></div>
-
-        <div class="well-stack">
-          <button type="button" id="btn-strike" class="btn strike big strike-cta" hidden>
-            Strike!
-          </button>
-          <div class="canvas-wrap">
-            <canvas id="well" width="520" height="420" aria-label="Moonwell fishing"></canvas>
-          </div>
-        </div>
-
-        <div class="actions" id="actions">
-          <button type="button" id="btn-primary" class="btn primary big"></button>
-        </div>
-
-        <div id="reel-controls" class="reel-pair" hidden>
-          <button type="button" id="btn-slack" class="btn big ghost reel-tap">Slack line</button>
-          <button type="button" id="btn-heave" class="btn big reel-tap">Heave</button>
-        </div>
-
-        <aside class="card board">
-          <h3>Notice board of the hall</h3>
-          <ul id="notices"></ul>
-          <button type="button" id="btn-charter" class="btn linkish">Read the charter scroll (optional)</button>
-        </aside>
-
-        <footer class="credits">
-          <span id="credits-text"></span>
-          <a href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
-          ·
-          <a href="https://knightsdemplar.com/" target="_blank" rel="noopener noreferrer">Knights Demplar</a>
-          ·
-          <a href="https://knightsofdegen.netlify.app/" target="_blank" rel="noopener noreferrer">Knights of Degen</a>
-          ·
-          <a href="dashboard.html" target="_blank" rel="noopener">Dashboard (map + feed)</a>
-        </footer>
       </main>
     </div>
 
     <dialog id="modal-demplar" class="charter-dialog" aria-labelledby="modal-title">
       <div class="charter-panel card">
-        <button type="button" id="btn-modal-x" class="btn modal-x" aria-label="Close charter">✕</button>
-        <h2 id="modal-title">The Herald’s charter</h2>
+        <button type="button" id="btn-modal-x" class="btn modal-x" aria-label="Close">✕</button>
+        <h2 id="modal-title">Charter</h2>
         <p id="modal-body"></p>
-        <a class="btn primary big" href="https://knightsdemplar.com/" target="_blank" rel="noopener noreferrer">Knights Demplar</a>
-        <a class="btn ghost big" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Demplar on X</a>
         <button type="button" id="btn-close-modal" class="btn ghost big">Close</button>
       </div>
     </dialog>

@@ -59,7 +59,7 @@ Many apps ship **one** server or **one** Vercel project where the UI and realtim
 | **Trail server** | Separate **Node** process (`npm run server`) for Socket.IO — must be running (or tunneled) for the dashboard feed + map to go live. |
 | **Port `3847`** | If you start the server twice, you get **`EADDRINUSE`** — kill the old process or change `TRAIL_PORT`. |
 
-**Dashboard URLs:** after deploy, open **`/dashboard`** or **`/bigboard.html`** (rewrites in `vercel.json`). Locally: **`http://127.0.0.1:5173/bigboard.html`** while `npm run dashboard` (or `live`) is running.
+**Dashboard URLs:** after deploy, open **`/dashboard`** or **`/bigboard.html`** (rewrites in `vercel.json`). Locally: **`http://127.0.0.1:5174/bigboard.html`** while `npm run dashboard` (or `live`) is running.
 
 ## Deploy (tunnel + env)
 

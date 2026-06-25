@@ -2,6 +2,10 @@
 @import "./css/tavern-hub.css";
 @import "./css/arcane-atmosphere.css";
 @import "./css/bit-chrome.css";
+@import "./css/play-shell.css";
+@import "./css/play-fun.css";
+@import "./css/arcade-ui.css";
+@import "./css/tavern-visual.css";
 
 /* 8-bit / NES-adjacent tavern — chunky chrome, limited palette, pixel fonts (mobile-first base) */
 :root {
