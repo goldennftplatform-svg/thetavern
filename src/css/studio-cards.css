@@ -36,9 +36,15 @@ html.play-active .play-menu {
   position: absolute;
   inset: 0;
   display: flex !important;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 20px max(12px, env(safe-area-inset-bottom, 0px));
+  justify-content: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 20px max(24px, env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(ellipse 100% 80% at 50% 40%, rgba(18, 26, 38, 0.97), rgba(4, 6, 10, 0.99)),
     rgba(4, 6, 10, 0.96);
@@ -63,6 +69,8 @@ html.play-active .play-menu {
   width: 100%;
   max-width: min(420px, 100%);
   margin: 0 auto;
+  flex-shrink: 0;
+  padding-bottom: 8px;
 }
 
 .studio-stage {
