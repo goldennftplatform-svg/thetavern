@@ -183,8 +183,7 @@ html.play-active canvas#well {
 }
 
 .play-shell[data-phase="fish_cast"] .play-toast,
-.play-shell[data-phase="fish_wait"] .play-toast,
-.play-shell[data-phase="fish_reel"] .play-toast {
+.play-shell[data-phase="fish_wait"] .play-toast {
   display: none !important;
 }
 
@@ -351,7 +350,7 @@ html.play-active .play-dock .actions {
 }
 
 .play-shell[data-phase="fish_reel"] #btn-primary {
-  display: none !important;
+  display: inline-flex !important;
 }
 
 .play-shell.juice-bite .canvas-wrap {

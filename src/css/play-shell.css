@@ -62,13 +62,15 @@
   margin-top: 8px;
 }
 
-/* Phase: reel controls only during fish_reel */
+/* Phase: reel controls + land button during fish_reel */
 .play-shell:not([data-phase="fish_reel"]) #reel-controls {
   display: none !important;
 }
 
 .play-shell[data-phase="fish_reel"] #btn-primary {
-  display: none !important;
+  display: inline-flex !important;
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
 /* Hub / choice phases: shrink canvas so lore + actions stay on screen */

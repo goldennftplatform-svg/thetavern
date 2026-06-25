@@ -121,6 +121,22 @@ function clearAutoPhase() {
   autoPhaseTimer = 0;
 }
 
+function clearFishingTimers() {
+  window.cancelAnimationFrame(rafCast);
+  window.cancelAnimationFrame(reelRaf);
+  window.clearTimeout(biteTimer);
+  window.clearTimeout(biteOpenTimer);
+  window.clearTimeout(reelFailsafeTimer);
+  window.clearTimeout(waitFailsafeTimer);
+  reelHoldDir = 0;
+  reelFinishing = false;
+}
+
+function fishingBanner(msg: string) {
+  stageBanner = msg.toUpperCase();
+  showToast(msg, 0);
+}
+
 function showToast(msg: string, hideAfterMs = 0) {
   if (toastTimer) window.clearTimeout(toastTimer);
   elPlayToast.textContent = msg;
@@ -245,6 +261,9 @@ let waitPulse = 0;
 let rafCast = 0;
 let reelRaf = 0;
 let reelHoldDir = 0;
+let reelFinishing = false;
+let reelFailsafeTimer = 0;
+let waitFailsafeTimer = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
 let saveTimer = 0;
@@ -842,11 +861,7 @@ function setPhase(next: GamePhase) {
   elReel.hidden = true;
   elPrimary.hidden = false;
   chargeActive = false;
-  window.cancelAnimationFrame(rafCast);
-  window.clearTimeout(biteTimer);
-  window.clearTimeout(biteOpenTimer);
-  window.cancelAnimationFrame(reelRaf);
-  reelHoldDir = 0;
+  clearFishingTimers();
   stopDemplarLoop();
 
   setPresence(next !== "enter" && next !== "herald");
@@ -861,8 +876,8 @@ function setPhase(next: GamePhase) {
     case "fish_cast":
       closeMenu();
       state.castPower = 0;
-      showToast("");
       elPrimary.textContent = "HOLD TO CAST";
+      fishingBanner(PLAY_HINT.cast);
       requestAnimationFrame(() => {
         resizeCanvas();
         startCastLoop();
@@ -872,17 +887,22 @@ function setPhase(next: GamePhase) {
       closeMenu();
       state.biteWindowOpen = false;
       struckBite = false;
-      showToast(PLAY_HINT.wait);
+      fishingBanner(PLAY_HINT.wait);
       elPrimary.hidden = true;
       scheduleBiteWindow();
+      waitFailsafeTimer = window.setTimeout(() => {
+        if (state.phase === "fish_wait") setPhase("fish_reel");
+      }, 12_000);
       break;
     case "fish_reel":
       closeMenu();
       state.reelTension = 0.45;
       state.reelProgress = 0;
       reelQuality = 0;
-      showToast(PLAY_HINT.reel);
-      elPrimary.hidden = true;
+      reelFinishing = false;
+      fishingBanner(PLAY_HINT.reel);
+      elPrimary.textContent = "LAND CATCH";
+      elPrimary.hidden = false;
       elReel.hidden = false;
       startReelLoop();
       break;
@@ -1018,54 +1038,75 @@ function scheduleBiteWindow() {
     biteOpenTimer = window.setTimeout(() => {
       state.biteWindowOpen = false;
       elStrike.hidden = true;
-      setPhase("fish_reel");
+      if (state.phase === "fish_wait") setPhase("fish_reel");
     }, touchFriendly ? 820 + biteWindowBonusMs() + Math.random() * 320 : 620 + biteWindowBonusMs() + Math.random() * 220);
   }, delay);
 }
 
 function finishReel(good: number, total: number) {
+  if (reelFinishing || state.phase !== "fish_reel") return;
+  reelFinishing = true;
+  clearFishingTimers();
   reelHoldDir = 0;
-  reelQuality = Math.min(1, good / (total * 0.55));
-  const result = rollCatch({
-    castQuality,
-    struckBite,
-    reelQuality,
-    season: state.season,
-  });
-  const feastBuff = state.foodBuff;
-  state.lastCatch = applyFoodOnCatch(result);
-  addRenown(state.lastCatch.renown);
-  state.tokens += state.lastCatch.tokens;
-  state.catalog.add(result.fishId);
-  if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) state.titles.push("Charter Angler");
-  if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) state.titles.push("Omen Reader");
-  announceCatch(state.lastCatch, feastBuff);
-  hud();
-  setPhase("resolve");
+  reelQuality = Math.min(1, good / (total * 0.45));
+  try {
+    const result = rollCatch({
+      castQuality,
+      struckBite,
+      reelQuality,
+      season: state.season,
+    });
+    const feastBuff = state.foodBuff;
+    state.lastCatch = applyFoodOnCatch(result);
+    addRenown(state.lastCatch.renown);
+    state.tokens += state.lastCatch.tokens;
+    state.catalog.add(result.fishId);
+    if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) {
+      state.titles.push("Charter Angler");
+    }
+    if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) {
+      state.titles.push("Omen Reader");
+    }
+    announceCatch(state.lastCatch, feastBuff);
+    hud();
+    setPhase("resolve");
+  } catch (err) {
+    console.error("[fishing] finishReel failed", err);
+    reelFinishing = false;
+    showToast("The line snagged — try another cast.", 4000);
+    setPhase("well");
+  }
 }
 
 function startReelLoop() {
   const t0 = performance.now();
-  const total = 6500;
+  const total = 5500;
   let good = 0;
   let last = t0;
 
+  reelFailsafeTimer = window.setTimeout(() => {
+    if (state.phase === "fish_reel" && !reelFinishing) {
+      finishReel(good, total);
+    }
+  }, total + 400);
+
   const tick = (now: number) => {
-    if (state.phase !== "fish_reel") return;
+    if (state.phase !== "fish_reel" || reelFinishing) return;
     const dt = Math.min(48, Math.max(0, now - last));
     last = now;
 
-    state.reelTension += 0.0001 * dt;
-    state.reelTension += Math.sin(now * 0.0045) * 0.00028 * dt;
+    state.reelTension += 0.00008 * dt;
+    state.reelTension += Math.sin(now * 0.004) * 0.00022 * dt;
     if (reelHoldDir) {
-      state.reelTension += reelHoldDir * 0.00042 * dt;
+      state.reelTension += reelHoldDir * 0.00055 * dt;
     }
     state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension));
 
-    const inZone = state.reelTension >= 0.38 && state.reelTension <= 0.62;
+    const inZone = state.reelTension >= 0.34 && state.reelTension <= 0.66;
     if (inZone) good += dt;
+    good += dt * 0.12;
 
-    state.reelProgress = Math.min(1, good / (total * 0.5));
+    state.reelProgress = Math.min(1, good / (total * 0.42));
 
     waitPulse = now / 1000;
     drawWell();
@@ -1084,6 +1125,11 @@ elPrimary.addEventListener("pointerdown", (e) => {
   if (state.phase === "fish_cast") {
     e.preventDefault();
     chargeActive = true;
+  }
+});
+elPrimary.addEventListener("click", () => {
+  if (state.phase === "fish_reel" && !reelFinishing) {
+    finishReel(2400, 5500);
   }
 });
 function finishCast() {
@@ -1107,6 +1153,10 @@ elPrimary.addEventListener("pointerleave", () => {
 elStrike.addEventListener("click", () => {
   if (state.phase === "fish_wait" && state.biteWindowOpen) {
     struckBite = true;
+    state.biteWindowOpen = false;
+    elStrike.hidden = true;
+    window.clearTimeout(biteOpenTimer);
+    setPhase("fish_reel");
   }
 });
 
@@ -1174,7 +1224,12 @@ window.addEventListener("keydown", (e) => {
     chargeActive = true;
   }
   if (state.phase === "fish_wait" && state.biteWindowOpen && (e.code === "Space" || e.code === "Enter")) {
+    e.preventDefault();
     struckBite = true;
+    state.biteWindowOpen = false;
+    elStrike.hidden = true;
+    window.clearTimeout(biteOpenTimer);
+    setPhase("fish_reel");
   }
   if (state.phase === "fish_reel") {
     if (e.code === "KeyA" || e.code === "ArrowLeft") {
