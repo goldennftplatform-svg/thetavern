@@ -15,14 +15,24 @@ html.play-active .play-menu {
 .play-shell[data-phase="well"] .canvas-wrap,
 .play-shell[data-phase="chance_pick"] .canvas-wrap,
 .play-shell[data-phase="chance_play"] .canvas-wrap,
-.play-shell[data-phase="feast"] .canvas-wrap {
+.play-shell[data-phase="feast"] .canvas-wrap,
+.play-shell[data-phase="resolve"] .canvas-wrap,
+.play-shell[data-phase="renown"] .canvas-wrap,
+.play-shell[data-phase="peril"] .canvas-wrap,
+.play-shell[data-phase="trivia"] .canvas-wrap,
+.play-shell[data-phase="chance_result"] .canvas-wrap {
   filter: brightness(0.28) saturate(0.6);
 }
 
 .play-shell[data-phase="well"] .play-menu,
 .play-shell[data-phase="chance_pick"] .play-menu,
 .play-shell[data-phase="chance_play"] .play-menu,
-.play-shell[data-phase="feast"] .play-menu {
+.play-shell[data-phase="feast"] .play-menu,
+.play-shell[data-phase="resolve"] .play-menu,
+.play-shell[data-phase="renown"] .play-menu,
+.play-shell[data-phase="peril"] .play-menu,
+.play-shell[data-phase="trivia"] .play-menu,
+.play-shell[data-phase="chance_result"] .play-menu {
   position: absolute;
   inset: 0;
   display: flex;
@@ -39,7 +49,13 @@ html.play-active .play-menu {
 
 .play-shell[data-phase="chance_play"] .play-toast,
 .play-shell[data-phase="chance_pick"] .play-toast,
-.play-shell[data-phase="well"] .play-toast {
+.play-shell[data-phase="well"] .play-toast,
+.play-shell[data-phase="resolve"] .play-toast,
+.play-shell[data-phase="renown"] .play-toast,
+.play-shell[data-phase="peril"] .play-toast,
+.play-shell[data-phase="trivia"] .play-toast,
+.play-shell[data-phase="chance_result"] .play-toast,
+.play-shell[data-phase="feast"] .play-toast {
   display: none !important;
 }
 
@@ -311,6 +327,238 @@ html.play-active .play-menu {
   font-size: 0.9rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+/* ——— Scoreboard & lore overlays ——— */
+.studio-scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
+  width: 100%;
+}
+
+.studio-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(232, 176, 80, 0.15);
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.studio-stat em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+.studio-stat small {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.studio-angler {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.studio-titles {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.05rem;
+  color: var(--gold);
+  text-align: center;
+  opacity: 0.9;
+}
+
+.studio-night {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-align: center;
+}
+
+.studio-lore-line {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: center;
+  max-width: 320px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.studio-lore-line--verse {
+  color: var(--ink);
+  opacity: 0.92;
+}
+
+.studio-lore-line--hint {
+  font-size: 1rem;
+  opacity: 0.75;
+}
+
+.studio-hub-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.studio-link-btn {
+  min-height: 44px;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.08em;
+}
+
+.studio-catch-name {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(1.1rem, 4.5vw, 1.45rem);
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--ink);
+}
+
+.studio-score-delta {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.35rem;
+  color: var(--gold);
+  text-align: center;
+}
+
+.studio-flourish {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--ink);
+  text-align: center;
+  max-width: 300px;
+}
+
+.studio-fish-lore {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: center;
+  max-width: 300px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.studio-omen,
+.studio-demplar {
+  margin: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 300px;
+}
+
+.rarity-badge {
+  margin: 0;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rarity-badge--common { background: rgba(140, 150, 160, 0.25); color: #a8b0b8; }
+.rarity-badge--uncommon { background: rgba(80, 160, 120, 0.2); color: #8ec8a0; }
+.rarity-badge--rare { background: rgba(80, 120, 200, 0.25); color: #98b8e8; }
+.rarity-badge--omen { background: rgba(160, 80, 180, 0.25); color: #c898d8; }
+.rarity-badge--mythic { background: rgba(232, 176, 80, 0.25); color: var(--gold); }
+
+.studio-continue {
+  width: 100%;
+  max-width: 280px;
+  min-height: 52px;
+  margin-top: 4px;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.studio-choice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.studio-choice-stack .studio-choice,
+.studio-choice-stack .btn.big {
+  width: 100%;
+  min-height: 52px;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.studio-ledger-list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  width: 100%;
+  max-width: 320px;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-align: left;
+}
+
+.studio-ledger-list li {
+  margin-bottom: 8px;
+}
+
+.chance-outcome-badge {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.chance-outcome-badge--win { color: #8ec8a0; }
+.chance-outcome-badge--lose { color: #c87878; }
+.chance-outcome-badge--push { color: var(--gold); }
+
+.studio-stage-body {
+  gap: 14px;
 }
 
 @media (min-width: 720px) {

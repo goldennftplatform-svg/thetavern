@@ -10,11 +10,21 @@ import {
   creditsLine,
   demplarModalIntro,
   demplarNotice,
+  fishCatalog,
+  heraldLines,
+  perilBeats,
+  triviaWell,
 } from "./content/lore";
 import {
   SUBTITLE_TAGLINES,
   pickLine,
   noticeBoardArcane,
+  chanceTableIntro,
+  feastIntro,
+  hubVerse,
+  renownTitleHint,
+  resolveFlourish,
+  seasonArcane,
 } from "./content/arcaneLore";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
@@ -38,12 +48,23 @@ import { initMobileShellClass } from "./mobile-detect";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
-  chancePickHtml,
-  feastButtonHtml,
-  hubStudioHtml,
   hubBackHtml,
   wireHubClicks,
 } from "./ui/tavernHub";
+import {
+  catchResolveHtml,
+  chancePickStudioHtml,
+  chanceResultStudioHtml,
+  feastStudioHtml,
+  hubWellHtml,
+  ledgerStudioHtml,
+  perilStudioHtml,
+  renownStudioHtml,
+  triviaStudioHtml,
+  triviaTeachHtml,
+  wireStudioActions,
+  type RunSnapshot,
+} from "./ui/studioScreens";
 
 initMobileShellClass();
 
@@ -250,12 +271,70 @@ function biteWindowBonusMs(): number {
   return state.foodBuff?.biteBonusMs ?? 0;
 }
 
+function runSnapshot(): RunSnapshot {
+  const arc = seasonArcane[state.season];
+  return {
+    renown: state.renown,
+    tokens: state.tokens,
+    catalogSize: state.catalog.size,
+    titles: state.titles,
+    nickname: state.nickname,
+    season: state.season,
+    seasonName: arc.name,
+    seasonVerse: arc.verse,
+  };
+}
+
+function noticeLines(): string[] {
+  const night = tonightUtc();
+  return [
+    demplarNotice,
+    pickLine(noticeBoardArcane),
+    `Tonight: ${night.title} — ${night.tagline}`,
+    pickLine(noticeBoardArcane),
+  ];
+}
+
+function fishBlurb(fishId: string): string {
+  return fishCatalog.find((f) => f.id === fishId)?.blurb ?? "";
+}
+
 function buildWellHubHtml(): string {
-  return hubStudioHtml();
+  const night = tonightUtc();
+  return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse);
 }
 
 function wirePhaseHub() {
   wireHubClicks(elPhase, handleHubAction);
+  wireStudioActions(elPhase, {
+    onContinue: (target) => {
+      if (target === "renown") setPhase("renown");
+      else if (target === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
+      else if (target === "well") setPhase("well");
+    },
+    onPeril: (index) => {
+      state.perilIndex++;
+      state.renown += 2 + index;
+      state.runCount++;
+      hud();
+      setPhase("well");
+    },
+    onTrivia: (index) => {
+      const t = triviaWell[state.triviaIndex % triviaWell.length]!;
+      const correct = index === t.ok;
+      state.renown += correct ? 4 : 1;
+      state.triviaIndex++;
+      state.runCount++;
+      hud();
+      if (correct && "teach" in t && t.teach) {
+        openMenu(triviaTeachHtml(t.teach));
+        elPrimary.hidden = true;
+        wirePhaseHub();
+      } else {
+        setPhase("well");
+      }
+    },
+  });
 }
 
 function handleHubAction(action: string) {
@@ -277,6 +356,16 @@ function handleHubAction(action: string) {
   }
   if (action === "back:well") {
     setPhase("well");
+    return;
+  }
+  if (action === "ledger") {
+    openMenu(ledgerStudioHtml(runSnapshot(), noticeLines()));
+    elPrimary.hidden = true;
+    wirePhaseHub();
+    return;
+  }
+  if (action === "charter") {
+    openDemplarModal();
     return;
   }
   if (action.startsWith("chance:")) {
@@ -372,7 +461,7 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
 function hud() {
   elHudR.textContent = `★ ${state.renown}`;
   elHudT.textContent = `◎ ${state.tokens}`;
-  elHudS.textContent = SEASON_TAG[state.season] ?? "·";
+  elHudS.textContent = `${SEASON_TAG[state.season] ?? "·"} ${seasonArcane[state.season].name.split(" ")[0]}`;
   elHudDeck.hidden = true;
   if (state.foodBuff) {
     elHudBuff.textContent = `+ ${state.foodBuff.label}`;
@@ -422,7 +511,7 @@ function setPhase(next: GamePhase) {
   switch (next) {
     case "well":
       openMenu(buildWellHubHtml());
-      showToast(tonightUtc().title, 4000);
+      showToast(pickLine(heraldLines), 5000);
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
@@ -455,15 +544,33 @@ function setPhase(next: GamePhase) {
       const c = state.lastCatch!;
       state.runCount++;
       juicePlay("catch");
-      closeMenu();
       stageBanner = `${c.name.toUpperCase()}  +${c.renown}`;
-      showToast(`${c.name} · +${c.renown} legend`);
+      openMenu(catchResolveHtml(c, pickLine(resolveFlourish[c.rarity]), fishBlurb(c.fishId)));
       elPrimary.hidden = true;
-      autoPhaseTimer = window.setTimeout(() => setPhase("well"), 1500);
+      wirePhaseHub();
+      break;
+    }
+    case "renown":
+      openMenu(renownStudioHtml(runSnapshot(), renownTitleHint(state.renown)));
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    case "peril": {
+      const p = perilBeats[state.perilIndex % perilBeats.length]!;
+      openMenu(perilStudioHtml(p.q, p.a));
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
+    case "trivia": {
+      const t = triviaWell[state.triviaIndex % triviaWell.length]!;
+      openMenu(triviaStudioHtml(t.q, t.choices));
+      elPrimary.hidden = true;
+      wirePhaseHub();
       break;
     }
     case "chance_pick":
-      openMenu(chancePickHtml());
+      openMenu(chancePickStudioHtml(chanceTableIntro));
       showToast("");
       elPrimary.hidden = true;
       wirePhaseHub();
@@ -488,23 +595,20 @@ function setPhase(next: GamePhase) {
     }
     case "chance_result": {
       const r = state.chanceLastResult!;
-      closeMenu();
       stageBanner = r.outcome.toUpperCase();
-      showToast(`${r.outcome.toUpperCase()} · ${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎`);
-      elPrimary.hidden = true;
-      autoPhaseTimer = window.setTimeout(() => setPhase("well"), 1300);
-      break;
-    }
-    case "feast":
-      openMenu(`<div class="hub-grid hub-grid--feast" id="hub-grid">
-          ${tonightUtc()
-            .specials.map((id) => feastButtonHtml(id, state.feastsEaten.includes(id)))
-            .join("")}
-        </div>${hubBackHtml()}`);
-      showToast("Kitchen");
+      openMenu(chanceResultStudioHtml(r));
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
+    }
+    case "feast": {
+      const night = tonightUtc();
+      openMenu(feastStudioHtml(feastIntro, night.title, night.specials, state.feastsEaten));
+      showToast("");
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
     default:
       closeMenu();
       showToast("");
@@ -588,13 +692,6 @@ function startReelLoop() {
   };
   reelRaf = requestAnimationFrame(tick);
 }
-
-elPrimary.addEventListener("click", () => {
-  if (state.phase === "resolve" || state.phase === "chance_result") {
-    clearAutoPhase();
-    setPhase("well");
-  }
-});
 
 elPrimary.addEventListener("pointerdown", (e) => {
   if (state.phase === "fish_cast") {
