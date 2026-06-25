@@ -73,6 +73,11 @@ const JUMP_VEL = -12.8;
 const COYOTE_MS = 110;
 const TRACK_HALF_W = 0.042;
 
+const ASTEROID_WAVE_MS = 9000;
+const ASTEROID_SPAWN_GAP_START = 1700;
+const ASTEROID_SPAWN_GAP_MIN = 1000;
+const ASTEROID_FIRST_SPAWN_MS = 900;
+
 /** Hand-built platform course — gaps are intentional pits. */
 const PLATFORM_PLATS: Plat[] = [
   { x: -60, y: 0, w: 520, h: 40 },
@@ -215,6 +220,8 @@ export class DemplarWarrior {
     comboTimer: 0,
     wave: 1,
     waveTimer: 0,
+    lastSpawnElapsed: 0,
+    spawnGap: ASTEROID_SPAWN_GAP_START,
     bullets: [] as Bullet[],
     rocks: [] as Asteroid[],
     lives: 3,
@@ -303,27 +310,29 @@ export class DemplarWarrior {
       comboTimer: 0,
       wave: 1,
       waveTimer: 0,
+      lastSpawnElapsed: -ASTEROID_FIRST_SPAWN_MS,
+      spawnGap: ASTEROID_SPAWN_GAP_START,
       bullets: [],
       rocks: [],
       lives: 3,
     };
-    this.spawnWave(1);
   }
 
-  private spawnWave(n: number) {
-    const count = Math.min(4 + n * 2, 14);
-    for (let i = 0; i < count; i++) {
-      this.asteroids.rocks.push({
-        x: 0.08 + Math.random() * 0.84,
-        y: -0.05 - Math.random() * 0.12,
-        r: n >= 4 ? 38 : 32,
-        tier: 0,
-        vx: (Math.random() - 0.5) * 0.00012,
-        vy: 0.00014 + Math.random() * 0.0001 + n * 0.00001,
-        hp: n >= 4 ? 4 : 3,
-        rot: Math.random() * Math.PI,
-      });
-    }
+  private maxRocksOnScreen(wave: number): number {
+    return Math.min(2 + wave, 7);
+  }
+
+  private spawnOneRock(wave: number) {
+    this.asteroids.rocks.push({
+      x: 0.1 + Math.random() * 0.8,
+      y: -0.08 - Math.random() * 0.22,
+      r: wave >= 5 ? 36 : wave >= 3 ? 34 : 32,
+      tier: 0,
+      vx: (Math.random() - 0.5) * 0.00009,
+      vy: 0.00009 + Math.random() * 0.000055 + wave * 0.000007,
+      hp: wave >= 5 ? 4 : 3,
+      rot: Math.random() * Math.PI,
+    });
   }
 
   private stageElapsed(now: number): number {
@@ -673,12 +682,27 @@ export class DemplarWarrior {
     else a.combo = 0;
 
     a.waveTimer += dt;
-    if (a.waveTimer > 7500 && elapsed < STAGE_MS.asteroids - 4000) {
+    if (a.waveTimer >= ASTEROID_WAVE_MS && elapsed < STAGE_MS.asteroids - 5000 && a.wave < 6) {
       a.wave += 1;
       a.waveTimer = 0;
       a.score += 40 + a.wave * 15;
-      this.spawnWave(a.wave);
       this.subBanner = `Wave ${a.wave} — break the veil`;
+    }
+
+    const timeLeft = STAGE_MS.asteroids - elapsed;
+    const sinceSpawn = elapsed - a.lastSpawnElapsed;
+    const onScreenCap = this.maxRocksOnScreen(a.wave);
+    if (
+      timeLeft > 2800 &&
+      sinceSpawn >= a.spawnGap &&
+      a.rocks.length < onScreenCap
+    ) {
+      this.spawnOneRock(a.wave);
+      a.lastSpawnElapsed = elapsed;
+      a.spawnGap = Math.max(
+        ASTEROID_SPAWN_GAP_MIN,
+        ASTEROID_SPAWN_GAP_START - a.wave * 110 + (Math.random() - 0.5) * 380,
+      );
     }
 
     a.bullets = a.bullets.filter((b) => {
@@ -722,10 +746,6 @@ export class DemplarWarrior {
           a.lives = 2;
         }
       }
-    }
-
-    if (a.rocks.length === 0 && elapsed < STAGE_MS.asteroids - 3000) {
-      a.waveTimer = 7000;
     }
 
     a.score += Math.floor(dt * 0.03);
