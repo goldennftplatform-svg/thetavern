@@ -120,7 +120,7 @@ const NIGHTS: Record<number, TavernNight> = {
     special: "cheesecake_peanuts",
     specials: ["pretzel_twist", "cheesecake_peanuts", "corndog_carnival"],
     herald:
-      "They say the Demplarverse frays at the rim tonight — knights and degens share one hall, one well.",
+      "They say the Demplarverse frays at the rim tonight — travelers and degens share one tavern, one well.",
   },
 };
 

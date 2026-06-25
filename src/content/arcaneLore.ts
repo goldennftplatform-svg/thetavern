@@ -9,8 +9,8 @@ export const WORLD_EPIGRAPH =
 
 export const SUBTITLE_TAGLINES = [
   "Where spellcraft meets strike timing.",
-  "A charter hall beneath borrowed stars.",
-  "Patrons, knights, and things that should not surface.",
+  "A rim tavern beneath borrowed stars.",
+  "Patrons, travelers, and things that should not surface.",
 ];
 
 export const seasonArcane: Record<Season, { name: string; verse: string; anglerNote: string }> = {
@@ -82,7 +82,7 @@ export const noticeBoardArcane = [
   "Lost: one familiar-shaped shadow. Answers to nothing. Reward: peanuts.",
   "Tonight's special: courage, served hot. Side of pretzel.",
   "The Moonwell deck favors evens. Doubled faces. No odd pips—house superstition.",
-  "Charter ally Demplar keeps the lamps lit and the Herald's ink wet.",
+  "Charter ally Demplar keeps their lamps on X — we keep ours at the Moonwell.",
   "Duels of wit: loser buys bait. Winner buys the story.",
 ];
 
@@ -91,11 +91,11 @@ export const hubVerse =
 
 export const hubLoreLines = [
   ...knightHallWhispers,
-  "The Rim Academy adjourns at dusk; the charter hall does not. Patrons wager in riddles—the true coin is the tale inscribed at dawn.",
+  "The Rim Academy adjourns at dusk; this tavern does not. Patrons wager in riddles—the true coin is the tale chalked at dawn.",
   "Knights, degens, and third-year fools share one table. Only the fish know your house.",
   "Somewhere a bell tower sleeps. The Moonwell keeps convocation by candle and mist.",
   "Even pips only at the divination table. No odd numbers in the deck—house superstition, house law.",
-  "When shadow breathes at the rim, legends ignite. The Herald tolls thrice: a catch, an omen, a name the Codex will misspell anyway.",
+  "When shadow breathes at the rim, legends ignite at the bar — Demplar's Herald tolls elsewhere on X.",
 ];
 
 export const chanceTableIntro =
@@ -107,6 +107,6 @@ export const feastIntro =
 export function renownTitleHint(renown: number): string {
   if (renown >= 40) return "Your name is spoken in the upper gallery.";
   if (renown >= 20) return "Patrons ask if you study at the Rim or merely haunt it.";
-  if (renown >= 8) return "The Herald has begun to spell your name correctly.";
+  if (renown >= 8) return "Patrons swear Demplar's Herald would spell your name wrong anyway — the tavern gets it right.";
   return "The well is patient. Legends start as ripples.";
 }

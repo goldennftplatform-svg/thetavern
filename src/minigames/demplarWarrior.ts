@@ -479,7 +479,7 @@ const AI_RIVALS: Array<{ name: string; color: string; pace: number }> = [
   { name: "Corsus", color: "#c87878", pace: 0.000095 },
   { name: "Sparrow", color: "#98b8e8", pace: 0.000102 },
   { name: "Veil", color: "#b898c8", pace: 0.000088 },
-  { name: "Herald", color: "#e8b050", pace: 0.000108 },
+  { name: "Scribe", color: "#e8b050", pace: 0.000108 },
 ];
 
 function buildTrack(pts: Array<[number, number]>): Track {

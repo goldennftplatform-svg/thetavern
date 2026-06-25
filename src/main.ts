@@ -447,7 +447,7 @@ function hallNoticeItems(): string[] {
     .slice(0, 3)
     .map((p) => {
       const t = p.text.length > 110 ? `${p.text.slice(0, 108)}…` : p.text;
-      return `Herald @${p.handle.replace(/^@/, "")}: ${t}`;
+      return `Overheard @${p.handle.replace(/^@/, "")}: ${t}`;
     });
   return [
     demplarNotice,

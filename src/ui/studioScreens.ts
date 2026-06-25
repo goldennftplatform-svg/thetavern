@@ -77,8 +77,8 @@ export function hubWellHtml(
     <p class="studio-lore-line">${escapeHtml(extraLore)}</p>
     <div class="studio-hub-footer">
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Herald's X ↓</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Charter scroll</button>
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X ↓</button>
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Rim notice</button>
     </div>`,
   );
 }
@@ -86,7 +86,7 @@ export function hubWellHtml(
 export function catchResolveHtml(c: CatchResult, flourish: string, blurb: string): string {
   const omen = c.omen ? `<p class="studio-omen"><em>Omen:</em> ${escapeHtml(c.omen)}</p>` : "";
   const demplar = c.demplarTease
-    ? `<p class="studio-demplar">Charter rumor: the name <strong>Demplar</strong> rides this catch.</p>`
+    ? `<p class="studio-demplar">Overheard rumor: the name <strong>Demplar</strong> rides this catch — neighbor lore, not our crest.</p>`
     : "";
   return studioStageHtml(
     "Catch inscribed",
@@ -212,11 +212,11 @@ export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines
   return studioStageHtml(
     "Ledger &amp; notices",
     `${scoreboardHtml(s)}
-    <p class="studio-stage-lead">Charter archive</p>
+    <p class="studio-stage-lead">Tavern archive</p>
     <ul class="studio-ledger-list studio-ledger-list--archive">${archiveLis}</ul>
     <p class="studio-stage-lead">Hall notices</p>
     <ul class="studio-ledger-list">${noticeLis}</ul>
-    <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Herald's X — doom scroll ↓</button>
+    <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }
@@ -250,10 +250,10 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
     .join("");
 
   return studioStageHtml(
-    "Herald's frequency",
-    `<p class="studio-stage-lead">Doom scroll the charter ally — ${ally}</p>
+    "Overheard from X",
+    `<p class="studio-stage-lead">Doom scroll neighbor lore — we relay @DemplarOfficial; this tavern is on their land, not in their charter. ${ally}</p>
     <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · <strong>${feed.posts.length}</strong> missives — keep scrolling</p>
-    <div class="studio-x-scroll" role="feed" aria-label="Charter posts from X">${cards}</div>
+    <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>
     <div class="studio-hub-footer studio-hub-footer--scroll">
       <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>
       <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>

@@ -19,7 +19,7 @@ function fill(template: string, vars: Record<string, string | number>): string {
 const catchChronicles: Record<FishRarity, string[]> = {
   common: [
     "{angler} lands {fish} — chalk on the rim, stew in the kitchen, no song yet.",
-    "A honest bite: {angler} pulls {fish} from the well. The Herald does not stand.",
+    "A honest bite: {angler} pulls {fish} from the well. Demplar's Herald does not stand for tavern chalk.",
     "{fish} breaks the surface for {angler}. Small boast, honest supper.",
   ],
   uncommon: [
@@ -38,7 +38,7 @@ const catchChronicles: Record<FishRarity, string[]> = {
     "{angler} and {fish} — an omen is not dinner; it is a mirror.",
   ],
   mythic: [
-    "The charter bells REMEMBER — {angler} hauls {fish} from the veil.",
+    "The tavern bells REMEMBER — {angler} hauls {fish} from the veil.",
     "Even the knights stop pretending: {angler} lands mythic {fish}.",
     "{fish} refuses the water for {angler}. Demplar's lamps flicker in approval.",
   ],
@@ -101,9 +101,9 @@ const comboCatchChronicles: string[] = [
 ];
 
 const demplarCatchChronicles: string[] = [
-  "Demplar's oldest net remembers — {angler} hauls {fish} from the charter deep.",
-  "The cellar iron hums: {angler} lands {fish}. Patron, myth, or both?",
-  "Charter rumor walks the rim — {angler} and {fish}. The lamps on X echo this hall.",
+  "Neighbor lore hums — {angler} hauls {fish} from depths the Codex never charted.",
+  "The cellar iron hums: {angler} lands {fish}. Their myth, our well.",
+  "Overheard rumor walks the rim — {angler} and {fish}. Lamps on X flicker; our wall chalks it.",
   "They say Demplar bought the first net with a promise the well still collects — {angler} just cashed in {fish}.",
 ];
 
@@ -171,8 +171,8 @@ const triviaWrong: string[] = [
 
 const renownMilestoneChronicles: Record<RenownMilestone, string[]> = {
   8: [
-    "The Herald has begun to spell {angler}'s name correctly — ★{milestone} renown.",
-    "Ripples become ripples heard: {angler} crosses ★{milestone}. Chalk becomes ink.",
+    "The tavern wall spells {angler}'s name right — ★{milestone} renown. (Their Herald would miss it.)",
+    "Ripples become ripples heard: {angler} crosses ★{milestone}. Chalk becomes gossip.",
   ],
   20: [
     "Patrons ask if {angler} studies at the Rim or merely haunts it — ★{milestone} renown.",
@@ -183,8 +183,8 @@ const renownMilestoneChronicles: Record<RenownMilestone, string[]> = {
     "★{milestone}: the degen knights pretend not to stare at {angler}. They fail.",
   ],
   60: [
-    "The charter hall inscribes {angler} in gold leaf — ★{milestone} renown.",
-    "★{milestone} renown: even Demplar's lamps burn a little brighter for {angler}.",
+    "The Moonwell wall inscribes {angler} in gold leaf — ★{milestone} renown.",
+    "★{milestone} renown: even neighbor lamps burn a little brighter for {angler}.",
   ],
 };
 
@@ -305,7 +305,7 @@ export function composeRenownDeed(
   });
   return {
     chronicle,
-    subtext: `${seasonArcane[season].name} — a milestone the Herald cannot misspell twice.`,
+    subtext: `${seasonArcane[season].name} — a milestone the tavern wall won't misspell twice.`,
   };
 }
 
@@ -334,7 +334,7 @@ export function composeDemplarDeed(
 /** Rotating feed heading lines for the projector wall */
 export const chronicleHeadings = [
   "Chronicle of the Hall",
-  "Deeds the Herald Will Misspell",
-  "Tonight's Inscribed Tales",
+  "Tavern Wall — Not the Herald's Codex",
+  "Tonight's Chalked Tales",
   "The Well's Living Ledger",
 ];

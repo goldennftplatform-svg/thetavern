@@ -1,4 +1,4 @@
-/** Lore pack — Moonwell charter hall, Demplar adjacency, original arcane fantasy. */
+/** Lore pack — Moonwell tavern on Demplarverse land; we relay their lore, we are not the charter. */
 
 export const GAME_TITLE = "The Moonwell Anglers";
 
@@ -12,11 +12,11 @@ export const tavernTeasers = [
 ];
 
 export const heraldLines = [
-  "The Herald tolls thrice: a catch, an omen, a name the Codex will misspell anyway.",
-  "Hark—renown is not coin here; it is the volume at which they tell your story tomorrow.",
-  "The oldest hook in the cellar bears a mark: Demplar—patron, myth, or both?",
-  "Where shadow breathes, the Moonwell answers—legends ignite when the deck runs hot.",
-  "The Rim Academy adjourns; the tavern holds convocation by candle and mist.",
+  "Overheard on X: Demplar's Herald tolls thrice — a catch, an omen, a name their Codex will misspell anyway.",
+  "Hark—renown is not coin here; it is the volume at which the tavern tells your story tomorrow.",
+  "The oldest hook in the cellar bears a mark: Demplar—neighbor myth, not our crest.",
+  "Where shadow breathes on this land, the Moonwell answers—we fish; they reckon on X.",
+  "The Rim Academy adjourns; our tavern holds convocation by candle and mist.",
   "Even pips only at the divination table—no odd numbers in the Moonwell deck.",
   "A wand is optional at the rim. A steady wrist is not.",
 ];
@@ -134,8 +134,8 @@ export const triviaWell = [
     ok: 0,
   },
   {
-    q: "Who keeps the hall's lamps burning (per the charter)?",
-    choices: ["Demplar", "The eels", "Moonlight alone"],
+    q: "Who keeps the tavern's lamps burning?",
+    choices: ["The house, with moonlight help", "Demplar's Herald on X", "The eels alone"],
     ok: 0,
   },
   {
@@ -146,10 +146,10 @@ export const triviaWell = [
 ];
 
 export const demplarNotice =
-  "⚔ Charter notice: Knights of the ancient table keep the nets and Herald's ink. @DemplarOfficial reckons on X — here we reckon casts before dawn.";
+  "⚔ Rim notice: Knights Demplar keep their Herald's ink on @DemplarOfficial — this tavern on their land reckons casts before dawn, not charter deeds.";
 
 export const demplarModalIntro =
-  "Demplar isn't a realm. It's a reckoning. Where shadow breathes and time fractures, their halls on X echo this quieter convocation at the Moonwell. Planet Sargaano bleeds through the planks; Corsus crossed the desert once. The Herald commends knightsdemplar.com and @DemplarOfficial — no purse required to fish.";
+  "We are a tavern on Demplarverse land—not Knights Demplar, not their Herald. Demplar isn't a realm; it's a reckoning elsewhere on X. Where shadow breathes and time fractures, their missives drift to our wall; Planet Sargaano bleeds through our planks; Corsus crossed the desert once in legend we borrow for trial night. knightsdemplar.com and @DemplarOfficial are theirs. No purse required to fish here.";
 
 export const creditsLine =
-  "Moonwell Anglers — charter hall for anglers, knights, and legend-spinners. Ally: Demplar.";
+  "Moonwell Anglers — rim tavern for anglers and legend-spinners. Neighbor lore: Demplar on X.";

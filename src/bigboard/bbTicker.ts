@@ -19,7 +19,7 @@ function tickerItemsHtml(feed: XLoreFeed): string {
     .join("");
 }
 
-/** CNN-style horizontal Herald ticker — duplicate track for seamless loop. */
+/** CNN-style horizontal relay ticker — duplicate track for seamless loop. */
 export function mountBbTicker(root: HTMLElement, feed: XLoreFeed): void {
   const html = tickerItemsHtml(feed);
   if (!html) return;
@@ -45,8 +45,8 @@ export function mountBbTicker(root: HTMLElement, feed: XLoreFeed): void {
   }
 }
 
-export function bbTickerShell(label = "DEMPLAR LIVE"): string {
-  return `<div class="bb-ticker" role="marquee" aria-live="off" aria-label="Demplar Herald frequency from X">
+export function bbTickerShell(label = "OVERHEARD ON X"): string {
+  return `<div class="bb-ticker" role="marquee" aria-live="off" aria-label="Tavern relay of Demplar posts from X">
   <div class="bb-ticker-label">${escapeHtml(label)}</div>
   <div class="bb-ticker-viewport">
     <div class="bb-ticker-track">

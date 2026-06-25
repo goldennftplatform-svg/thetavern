@@ -828,7 +828,7 @@ async function main() {
   rotateDockFact();
   setInterval(rotateDockFact, FACT_ROTATE_MS);
 
-  setLive(false, "Demplar charter hall");
+  setLive(false, "Moonwell tavern");
   const { url } = await resolveTrailServerUrl();
 
   if (!url) {
