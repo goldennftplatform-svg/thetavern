@@ -74,10 +74,12 @@ type BriefLine = { text: string; color: string; fontScale: number };
 
 function buildBriefLines(lore: string): BriefLine[] {
   return [
-    { text: "⚔ DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.35 },
-    { text: lore, color: "#98b8e8", fontScale: 1 },
-    { text: "I · SARGAANO SPRINT   II · CORCUS CIRCUIT   III · VEIL SHARDS", color: "#68b8a8", fontScale: 0.82 },
-    { text: "REACH THE GATE · BEAT THE CLOCK", color: "rgba(232,176,80,0.9)", fontScale: 0.82 },
+    { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.15 },
+    { text: lore, color: "#98b8e8", fontScale: 0.88 },
+    { text: "TRIAL I — SARGAANO SPRINT", color: "#68b8a8", fontScale: 0.72 },
+    { text: "TRIAL II — CORSUS CIRCUIT", color: "#68b8a8", fontScale: 0.72 },
+    { text: "TRIAL III — VEIL SHARDS", color: "#68b8a8", fontScale: 0.72 },
+    { text: "REACH THE GATE — BEAT THE CLOCK", color: "#e8b050", fontScale: 0.72 },
   ];
 }
 
@@ -265,6 +267,8 @@ export class DemplarWarrior {
   private briefLines = buildBriefLines(pickLine(warriorBriefLines));
   private briefDisplayLines: BriefLine[] = [];
   private briefLayoutW = 0;
+  private briefLayoutH = 0;
+  private briefBasePx = 6;
   private briefImpacted = new Set<number>();
 
   private briefDurationMs(): number {
@@ -272,12 +276,12 @@ export class DemplarWarrior {
     return Math.max(STAGE_MS.brief, rows * BRIEF_LINE_STAGGER_MS + BRIEF_LINE_FLY_MS + 900);
   }
 
-  private layoutBriefLines(ctx: CanvasRenderingContext2D, w: number): BriefLine[] {
-    const basePx = Math.max(6, w * 0.009);
-    const maxW = w * 0.84;
+  private layoutBriefLines(ctx: CanvasRenderingContext2D, w: number, basePx?: number): BriefLine[] {
+    const px = basePx ?? Math.max(5, Math.min(7.5, w * 0.011));
+    const maxW = w * 0.82;
     const out: BriefLine[] = [];
     for (const line of this.briefLines) {
-      ctx.font = `${basePx * line.fontScale}px "Press Start 2P", monospace`;
+      ctx.font = `${px * line.fontScale}px "Press Start 2P", monospace`;
       for (const row of wrapBriefLine(ctx, line.text, maxW)) {
         out.push({ ...line, text: row });
       }
@@ -285,12 +289,31 @@ export class DemplarWarrior {
     return out;
   }
 
-  private syncBriefLayout(ctx: CanvasRenderingContext2D, w: number): BriefLine[] {
-    if (this.briefDisplayLines.length && Math.abs(w - this.briefLayoutW) < 12) {
+  private syncBriefLayout(ctx: CanvasRenderingContext2D, w: number, h: number): BriefLine[] {
+    if (
+      this.briefDisplayLines.length &&
+      Math.abs(w - this.briefLayoutW) < 12 &&
+      Math.abs(h - this.briefLayoutH) < 16
+    ) {
       return this.briefDisplayLines;
     }
     this.briefLayoutW = w;
-    this.briefDisplayLines = this.layoutBriefLines(ctx, w);
+    this.briefLayoutH = h;
+    let basePx = Math.max(5, Math.min(7.5, w * 0.011));
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const rows = this.layoutBriefLines(ctx, w, basePx);
+      const lineH = Math.max(12, basePx * 2.05);
+      const knightZone = 78;
+      const panelH = rows.length * lineH + 24;
+      if (12 + panelH + knightZone <= h) {
+        this.briefBasePx = basePx;
+        this.briefDisplayLines = rows;
+        return rows;
+      }
+      basePx -= 0.45;
+    }
+    this.briefBasePx = 5;
+    this.briefDisplayLines = this.layoutBriefLines(ctx, w, 5);
     return this.briefDisplayLines;
   }
 
@@ -302,7 +325,7 @@ export class DemplarWarrior {
     const probe = document.createElement("canvas");
     const probeCtx = probe.getContext("2d");
     if (probeCtx) {
-      this.briefDisplayLines = this.layoutBriefLines(probeCtx, 520);
+      this.briefDisplayLines = this.layoutBriefLines(probeCtx, 520, 6.5);
       this.briefLayoutW = 520;
     } else {
       this.briefDisplayLines = [...this.briefLines];
@@ -865,12 +888,13 @@ export class DemplarWarrior {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#060a14";
     ctx.fillRect(0, 0, w, h);
-    this.drawHud(ctx, w, h, now);
 
     if (this.stage === "brief") {
       this.drawBrief(ctx, w, h, now);
       return;
     }
+
+    this.drawHud(ctx, w, h, now);
     if (this.stage === "platform") this.drawPlatform(ctx, w, h);
     else if (this.stage === "race") this.drawRace(ctx, w, h, now);
     else if (this.stage === "asteroids") this.drawAsteroids(ctx, w, h);
@@ -934,18 +958,29 @@ export class DemplarWarrior {
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
     const elapsed = this.stageElapsed(now);
     const tick = elapsed * 0.06;
-    const basePx = Math.max(6, w * 0.009);
-    const rows = this.syncBriefLayout(ctx, w);
-    const lineH = Math.max(15, h * 0.042);
-    const panelTop = h * 0.2;
-    const panelH = Math.min(h * 0.42, rows.length * lineH + 28);
-    const panelLeft = w * 0.06;
+    const basePx = this.briefBasePx;
+    const rows = this.syncBriefLayout(ctx, w, h);
+    const lineH = Math.max(12, basePx * 2.05);
+    const panelLeft = w * 0.05;
+    const panelW = w * 0.9;
+    const panelTop = 10;
+    const knightFootY = h - 18;
+    const panelH = Math.max(rows.length * lineH + 20, knightFootY - 86 - panelTop);
+    const textBlockH = rows.length * lineH;
+    const textStartY = panelTop + 14 + Math.max(0, (panelH - 28 - textBlockH) / 2) + lineH * 0.5;
 
-    ctx.fillStyle = "rgba(72, 48, 88, 0.35)";
-    ctx.fillRect(panelLeft, panelTop, w * 0.88, panelH);
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#1a1030");
+    grad.addColorStop(0.55, "#0a1428");
+    grad.addColorStop(1, "#060a14");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = "rgba(72, 48, 88, 0.42)";
+    ctx.fillRect(panelLeft, panelTop, panelW, panelH);
     ctx.strokeStyle = "#e8b050";
     ctx.lineWidth = 2;
-    ctx.strokeRect(panelLeft, panelTop, w * 0.88, panelH);
+    ctx.strokeRect(panelLeft, panelTop, panelW, panelH);
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -962,27 +997,26 @@ export class DemplarWarrior {
       ctx.font = font;
       const lineW = ctx.measureText(line.text).width;
       const targetX = w * 0.5;
-      const targetY = panelTop + 18 + i * lineH;
-      const startX = w + lineW * 0.5 + 32;
+      const targetY = textStartY + i * lineH;
+      const startX = w + lineW * 0.5 + 24;
       const x = startX + (targetX - startX) * eased;
-      const y = targetY - (1 - eased) * 12;
 
       ctx.save();
-      ctx.globalAlpha = Math.min(1, 0.25 + flyT * 0.85);
+      ctx.globalAlpha = Math.min(1, 0.3 + flyT * 0.75);
       ctx.fillStyle = line.color;
-      ctx.fillText(line.text, x, y);
+      ctx.fillText(line.text, x, targetY);
 
-      if (flyT >= 1 && t < BRIEF_LINE_FLY_MS + 80) {
-        const flash = 1 - (t - BRIEF_LINE_FLY_MS) / 80;
-        ctx.fillStyle = `rgba(232, 176, 80, ${0.28 * flash})`;
-        ctx.fillRect(x - lineW * 0.5 - 8, y - lineH * 0.42, lineW + 16, lineH * 0.84);
+      if (flyT >= 1 && t < BRIEF_LINE_FLY_MS + 70) {
+        const flash = 1 - (t - BRIEF_LINE_FLY_MS) / 70;
+        ctx.fillStyle = `rgba(232, 176, 80, ${0.22 * flash})`;
+        ctx.fillRect(x - lineW * 0.5 - 6, targetY - lineH * 0.45, lineW + 12, lineH * 0.9);
         ctx.fillStyle = line.color;
-        ctx.fillText(line.text, x, y);
+        ctx.fillText(line.text, x, targetY);
       }
       ctx.restore();
     }
 
-    drawKnightPortrait(ctx, w / 2, Math.min(h * 0.72, panelTop + panelH + lineH * 1.6), tick);
+    drawKnightPortrait(ctx, w / 2, knightFootY, tick);
     ctx.textAlign = "left";
   }
 
