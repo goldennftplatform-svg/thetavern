@@ -2,6 +2,7 @@ import type { ChanceGameId } from "../minigames/chance";
 import type { FoodId } from "../content/tavernNights";
 import { foodItem } from "../content/tavernNights";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
+import { cardRankChar, MOONWELL_SUIT_SYMBOL } from "../minigames/moonwellDeck";
 
 export function hubChoiceHtml(
   letter: string,
@@ -46,22 +47,103 @@ export function renderNightBanner(title: string, tagline: string, herald: string
   </div>`;
 }
 
-export function renderPlayingCard(c: MoonwellCard, face: "up" | "down" = "up"): string {
+export function renderPlayingCard(
+  c: MoonwellCard,
+  opts?: { face?: "up" | "down"; hero?: boolean },
+): string {
+  const face = opts?.face ?? "up";
+  const hero = opts?.hero ? " playing-card--hero" : "";
   if (face === "down") {
-    return `<div class="playing-card playing-card--back" aria-hidden="true"><span>?</span></div>`;
+    return `<div class="playing-card playing-card--back${hero}" aria-hidden="true"><span class="playing-card-back-mark">?</span></div>`;
   }
-  return `<div class="playing-card playing-card--${c.suit}" aria-label="${c.label}">
-    <span class="playing-card-rank">${c.label}</span>
+  const rank = cardRankChar(c);
+  const sym = MOONWELL_SUIT_SYMBOL[c.suit];
+  return `<div class="playing-card playing-card--${c.suit}${hero}" aria-label="${c.label}">
+    <div class="playing-card-corner playing-card-corner--tl">
+      <span class="playing-card-rank">${rank}</span>
+      <span class="playing-card-suit-sm">${sym}</span>
+    </div>
+    <div class="playing-card-pip" aria-hidden="true">${sym}</div>
+    <div class="playing-card-corner playing-card-corner--br">
+      <span class="playing-card-rank">${rank}</span>
+      <span class="playing-card-suit-sm">${sym}</span>
+    </div>
   </div>`;
 }
 
-export function renderCardRow(cards: MoonwellCard[], opts?: { hideLast?: boolean }): string {
-  return `<div class="card-row">${cards
+export function renderCardRow(cards: MoonwellCard[], opts?: { hideLast?: boolean; hero?: boolean }): string {
+  return `<div class="card-row${opts?.hero ? " card-row--hero" : ""}">${cards
     .map((c, i) => {
       const hide = opts?.hideLast && i === cards.length - 1;
-      return renderPlayingCard(c, hide ? "down" : "up");
+      return renderPlayingCard(c, { face: hide ? "down" : "up", hero: opts?.hero });
     })
     .join("")}</div>`;
+}
+
+export function studioStageHtml(title: string, body: string): string {
+  return `<div class="studio-stage">
+    <header class="studio-stage-head">${title}</header>
+    <div class="studio-stage-body">${body}</div>
+  </div>`;
+}
+
+export function chanceHighLowHtml(card: MoonwellCard): string {
+  return studioStageHtml(
+    "Ascendant / Descendant",
+    `${renderPlayingCard(card, { hero: true })}
+    <p class="studio-stage-lead">Will the next card rank higher or lower?</p>
+    <div class="chance-actions chance-actions--studio" id="chance-actions">
+      <button type="button" class="btn studio-choice studio-choice--high" data-guess="high">
+        <span class="studio-choice-label">Higher</span>
+        <span class="studio-choice-hint">▲</span>
+      </button>
+      <button type="button" class="btn studio-choice studio-choice--low" data-guess="low">
+        <span class="studio-choice-label">Lower</span>
+        <span class="studio-choice-hint">▼</span>
+      </button>
+    </div>`,
+  );
+}
+
+export function chanceOverUnderHtml(mark: number): string {
+  return studioStageHtml(
+    "Mark of the Mist",
+    `<p class="studio-mark">${mark}</p>
+    <p class="studio-stage-lead">One draw — over or under the house mark?</p>
+    <div class="chance-actions chance-actions--studio" id="chance-actions">
+      <button type="button" class="btn studio-choice studio-choice--high" data-guess="over">
+        <span class="studio-choice-label">Over ${mark}</span>
+      </button>
+      <button type="button" class="btn studio-choice studio-choice--low" data-guess="under">
+        <span class="studio-choice-label">Under ${mark}</span>
+      </button>
+    </div>`,
+  );
+}
+
+export function chancePickHtml(): string {
+  return studioStageHtml(
+    "Divination Table",
+    `<div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
+      ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
+      ${hubTileHtml("◎", "O / U", "chance:over_under", "jade")}
+    </div>${hubBackHtml()}`,
+  );
+}
+
+export function hubStudioHtml(): string {
+  return studioStageHtml(
+    "The Moonwell",
+    buildWellHubInner(),
+  );
+}
+
+function buildWellHubInner(): string {
+  return `<div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
+      ${hubTileHtml("🎣", "Cast", "fish", "gold")}
+      ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
+      ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
+    </div>`;
 }
 
 export function feastButtonHtml(id: FoodId, eaten: boolean): string {

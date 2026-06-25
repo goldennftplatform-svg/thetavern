@@ -20,6 +20,18 @@ const SUIT_GLYPH: Record<MoonwellSuit, string> = {
   swords: "†",
 };
 
+/** Readable suit pips for UI (standard symbols, not deck lore glyphs). */
+export const MOONWELL_SUIT_SYMBOL: Record<MoonwellSuit, string> = {
+  wands: "♣",
+  cups: "♥",
+  coins: "◆",
+  swords: "♠",
+};
+
+export function cardRankChar(c: MoonwellCard): string {
+  return pipLabel(c.rank);
+}
+
 function pipLabel(rank: number): string {
   if (rank === 14) return "A";
   if (rank === 13) return "K";

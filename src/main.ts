@@ -36,10 +36,12 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
 import {
+  chanceHighLowHtml,
+  chanceOverUnderHtml,
+  chancePickHtml,
   feastButtonHtml,
+  hubStudioHtml,
   hubBackHtml,
-  hubTileHtml,
-  renderCardRow,
   wireHubClicks,
 } from "./ui/tavernHub";
 
@@ -249,11 +251,7 @@ function biteWindowBonusMs(): number {
 }
 
 function buildWellHubHtml(): string {
-  return `<div class="hub-grid hub-grid--tiles" id="hub-grid">
-      ${hubTileHtml("🎣", "Cast", "fish", "gold")}
-      ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
-      ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
-    </div>`;
+  return hubStudioHtml();
 }
 
 function wirePhaseHub() {
@@ -465,11 +463,8 @@ function setPhase(next: GamePhase) {
       break;
     }
     case "chance_pick":
-      openMenu(`<div class="hub-grid hub-grid--tiles" id="hub-grid">
-          ${hubTileHtml("⬆", "Hi-Lo", "chance:high_low", "gold")}
-          ${hubTileHtml("◎", "O/U", "chance:over_under", "jade")}
-        </div>${hubBackHtml()}`);
-      showToast("Pick a game");
+      openMenu(chancePickHtml());
+      showToast("");
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
@@ -478,20 +473,11 @@ function setPhase(next: GamePhase) {
       if (state.chanceGame === "high_low") {
         if (state.chanceCards.length === 0) state.chanceCards = drawFromDeck(1);
         const first = state.chanceCards[0]!;
-        openMenu(`${renderCardRow([first])}
-          <div class="chance-actions" id="chance-actions">
-            <button type="button" class="btn big primary" data-guess="high">Higher</button>
-            <button type="button" class="btn big ghost" data-guess="low">Lower</button>
-          </div>`);
+        openMenu(chanceHighLowHtml(first));
       } else {
-        const mark = state.overUnderTarget ?? 8;
-        openMenu(`<p class="chance-mark">Mark ${mark}</p>
-          <div class="chance-actions" id="chance-actions">
-            <button type="button" class="btn big primary" data-guess="over">Over ${mark}</button>
-            <button type="button" class="btn big ghost" data-guess="under">Under ${mark}</button>
-          </div>`);
+        openMenu(chanceOverUnderHtml(state.overUnderTarget ?? 8));
       }
-      showToast(game.name);
+      showToast("");
       elPrimary.hidden = true;
       elPhase.querySelectorAll<HTMLButtonElement>("[data-guess]").forEach((btn) => {
         btn.addEventListener("click", () => {
