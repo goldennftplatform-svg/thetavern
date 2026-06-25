@@ -1199,12 +1199,24 @@ async function bootTrail() {
 
 canvas.addEventListener("pointerdown", (e) => {
   demplarPointer(e);
+  if (state.phase === "demplar_warrior" && demplarGame?.stage === "race") {
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* optional */
+    }
+  }
 });
 
 canvas.addEventListener("pointermove", (e) => {
   if (state.phase !== "demplar_warrior" || !demplarGame) return;
   const rect = canvas.getBoundingClientRect();
-  demplarGame.pointerMove(e.clientX - rect.left, rect.width);
+  demplarGame.pointerMove(
+    e.clientX - rect.left,
+    e.clientY - rect.top,
+    rect.width,
+    rect.height,
+  );
 });
 
 canvas.addEventListener("pointerup", () => {

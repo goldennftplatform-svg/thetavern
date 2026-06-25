@@ -8,6 +8,15 @@
 import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
 import { drawKnightFlyer, drawKnightPlatformer, drawKnightPortrait, drawKnightRacer } from "../sprites/knightSprite";
+import {
+  drawRaceBoostPad,
+  drawRaceSteeringWheel,
+  hitRaceBoost,
+  hitRaceWheel,
+  MAX_TURN,
+  raceWheelLayout,
+  steerFromWheelPointer,
+} from "./raceSteeringWheel";
 
 export type DemplarStage = "brief" | "platform" | "race" | "asteroids" | "done";
 
@@ -172,6 +181,11 @@ export class DemplarWarrior {
   private jumpHeld = false;
   private coyoteUntil = 0;
   private pointerSteer = 0;
+  private raceControls = {
+    wheelAngle: 0,
+    wheelDragging: false,
+    boostHeld: false,
+  };
 
   platform = {
     x: 64,
@@ -277,6 +291,7 @@ export class DemplarWarrior {
       raceOver: false,
       playerPlace: 5,
     };
+    this.raceControls = { wheelAngle: 0, wheelDragging: false, boostHeld: false };
     this.pointerSteer = 0;
   }
 
@@ -354,7 +369,10 @@ export class DemplarWarrior {
     if (this.stage === "race") {
       this.pointerSteer = dir;
       const player = this.race.racers.find((r) => r.isPlayer);
-      if (player) player.steerHeld = dir;
+      if (player) {
+        player.steerHeld = dir;
+        this.raceControls.wheelAngle = dir * MAX_TURN;
+      }
     }
     if (this.stage === "asteroids") {
       this.asteroids.shipX = Math.max(0.08, Math.min(0.92, this.asteroids.shipX + dir * 0.04));
@@ -363,8 +381,21 @@ export class DemplarWarrior {
 
   releaseSteer() {
     this.pointerSteer = 0;
+    if (this.stage === "race" && !this.raceControls.wheelDragging) {
+      const player = this.race.racers.find((r) => r.isPlayer);
+      if (player) player.steerHeld = 0;
+      this.raceControls.wheelAngle = 0;
+      return;
+    }
     const player = this.race.racers.find((r) => r.isPlayer);
     if (player) player.steerHeld = 0;
+  }
+
+  private applyWheelSteer(steer: number) {
+    const player = this.race.racers.find((r) => r.isPlayer);
+    if (!player) return;
+    player.steerHeld = steer;
+    this.raceControls.wheelAngle = steer * MAX_TURN;
   }
 
   boost(on: boolean) {
@@ -382,9 +413,17 @@ export class DemplarWarrior {
       return;
     }
     if (this.stage === "race") {
-      if (nx < w * 0.45) this.steer(-1);
-      else if (nx > w * 0.55) this.steer(1);
-      else this.boost(true);
+      const layout = raceWheelLayout(w, h);
+      if (hitRaceBoost(nx, ny, layout)) {
+        this.raceControls.boostHeld = true;
+        this.boost(true);
+        return;
+      }
+      if (hitRaceWheel(nx, ny, layout)) {
+        this.raceControls.wheelDragging = true;
+        this.applyWheelSteer(steerFromWheelPointer(nx, ny, layout));
+        return;
+      }
       return;
     }
     if (this.stage === "asteroids") {
@@ -395,11 +434,23 @@ export class DemplarWarrior {
 
   pointerUp() {
     this.releaseJump();
+    if (this.stage === "race") {
+      this.raceControls.wheelDragging = false;
+      this.raceControls.boostHeld = false;
+      this.boost(false);
+      this.releaseSteer();
+      return;
+    }
     this.releaseSteer();
     this.boost(false);
   }
 
-  pointerMove(nx: number, w: number) {
+  pointerMove(nx: number, ny: number, w: number, h: number) {
+    if (this.stage === "race" && this.raceControls.wheelDragging) {
+      const layout = raceWheelLayout(w, h);
+      this.applyWheelSteer(steerFromWheelPointer(nx, ny, layout));
+      return;
+    }
     if (this.stage === "asteroids") {
       this.asteroids.shipX = Math.max(0.08, Math.min(0.92, nx / w));
     }
@@ -542,12 +593,19 @@ export class DemplarWarrior {
   private tickRace(dt: number, elapsed: number, now: number) {
     if (this.race.raceOver) return;
 
+    const player = this.race.racers.find((r) => r.isPlayer)!;
+    if (!this.raceControls.wheelDragging && this.pointerSteer === 0) {
+      const decay = Math.pow(0.04, dt / 220);
+      player.steerHeld *= decay;
+      if (Math.abs(player.steerHeld) < 0.03) player.steerHeld = 0;
+      this.raceControls.wheelAngle = player.steerHeld * MAX_TURN;
+    }
+
     for (const r of this.race.racers) {
       this.tickRacer(r, dt, elapsed, now, r.isPlayer);
     }
 
     const ranked = racerRank(this.race.racers);
-    const player = this.race.racers.find((r) => r.isPlayer)!;
     this.race.playerPlace = ranked.indexOf(player) + 1;
 
     this.race.score += Math.floor(dt * 0.05);
@@ -945,10 +1003,19 @@ export class DemplarWarrior {
       ctx.textAlign = "left";
     });
 
+    const layout = raceWheelLayout(w, h);
+    drawRaceSteeringWheel(
+      ctx,
+      layout,
+      this.raceControls.wheelAngle,
+      this.raceControls.wheelDragging,
+    );
+    drawRaceBoostPad(ctx, layout, this.raceControls.boostHeld);
+
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = '6px "Press Start 2P", monospace';
     ctx.textAlign = "center";
-    ctx.fillText("L/R STEER · CENTER BOOST · 2 LAPS vs 4 RIVALS", w / 2, h - 12);
+    ctx.fillText("DRAG WHEEL · TAP BOOST · 2 LAPS vs 4 RIVALS", w / 2, h - 12);
     ctx.textAlign = "left";
   }
 
@@ -1024,7 +1091,7 @@ export class DemplarWarrior {
     if (this.stage === "platform") return "Jump gaps — reach the GATE before time runs out";
     if (this.stage === "race") {
       const p = this.race.playerPlace;
-      return `Lap race vs 4 rivals — you are P${p}/5`;
+      return `Drag the wheel to steer · tap ⚡ boost — P${p}/5`;
     }
     if (this.stage === "asteroids") return `Wave ${this.asteroids.wave} — shoot shards, guard your lives`;
     return "Demplar Warrior — three charter trials";
