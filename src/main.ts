@@ -1092,13 +1092,22 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       demplarGame?.jump();
     }
-    if (e.code === "ArrowLeft") {
+    if (e.code === "ArrowDown") {
+      e.preventDefault();
+      demplarGame?.boost(true);
+    }
+    if (e.code === "ArrowLeft" || e.code === "KeyA") {
       e.preventDefault();
       demplarGame?.steer(-1);
     }
-    if (e.code === "ArrowRight") {
+    if (e.code === "ArrowRight" || e.code === "KeyD") {
       e.preventDefault();
       demplarGame?.steer(1);
+    }
+    if (e.code === "KeyF") {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      demplarGame?.pointerDown(rect.width / 2, rect.height * 0.2, rect.width, rect.height);
     }
     return;
   }
@@ -1115,6 +1124,18 @@ window.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("keyup", (e) => {
+  if (state.phase === "demplar_warrior") {
+    if (e.code === "Space" || e.code === "ArrowUp") {
+      demplarGame?.releaseJump();
+    }
+    if (e.code === "ArrowDown") {
+      demplarGame?.boost(false);
+    }
+    if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "ArrowRight" || e.code === "KeyD") {
+      demplarGame?.releaseSteer();
+    }
+    return;
+  }
   if (state.phase === "fish_cast" && e.code === "Space") {
     finishCast();
   }
@@ -1178,6 +1199,20 @@ async function bootTrail() {
 
 canvas.addEventListener("pointerdown", (e) => {
   demplarPointer(e);
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (state.phase !== "demplar_warrior" || !demplarGame) return;
+  const rect = canvas.getBoundingClientRect();
+  demplarGame.pointerMove(e.clientX - rect.left, rect.width);
+});
+
+canvas.addEventListener("pointerup", () => {
+  demplarGame?.pointerUp();
+});
+
+canvas.addEventListener("pointercancel", () => {
+  demplarGame?.pointerUp();
 });
 
 async function startGameFromGate() {
