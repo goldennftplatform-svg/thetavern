@@ -230,6 +230,29 @@ function setPresence(atWell: boolean) {
   socket?.emit("moonwell:presence", { atWell });
 }
 
+let lastFishBroadcast = 0;
+
+function broadcastFishing(force = false) {
+  if (!socket) return;
+  const fishingPhases = ["fish_cast", "fish_wait", "fish_reel"] as const;
+  const isFishing = fishingPhases.includes(state.phase as (typeof fishingPhases)[number]);
+  const now = Date.now();
+  if (!force && now - lastFishBroadcast < 100) return;
+  lastFishBroadcast = now;
+
+  if (!isFishing) {
+    socket.emit("moonwell:fishing", { phase: "idle" });
+    return;
+  }
+
+  socket.emit("moonwell:fishing", {
+    phase: state.phase,
+    castPower: state.castPower,
+    biteOpen: state.biteWindowOpen,
+    reelProgress: state.reelProgress,
+  });
+}
+
 function announceCatch(c: CatchResult) {
   socket?.emit("hall:announce_deed", {
     kind: "catch",
@@ -675,6 +698,7 @@ function setPhase(next: GamePhase) {
   }
   hud();
   drawWell();
+  broadcastFishing(true);
 }
 
 function startCastLoop() {
@@ -686,6 +710,7 @@ function startCastLoop() {
       state.castPower = Math.max(0, state.castPower - 0.004);
     }
     drawWell();
+    broadcastFishing();
     rafCast = requestAnimationFrame(tick);
   };
   rafCast = requestAnimationFrame(tick);
@@ -698,6 +723,7 @@ function scheduleBiteWindow() {
     elStrike.hidden = false;
     juicePlay("bite");
     drawWell();
+    broadcastFishing(true);
     biteOpenTimer = window.setTimeout(() => {
       state.biteWindowOpen = false;
       elStrike.hidden = true;
@@ -727,6 +753,7 @@ function startReelLoop() {
 
     waitPulse = now / 1000;
     drawWell();
+    broadcastFishing();
 
     if (now - t0 < total) {
       reelRaf = requestAnimationFrame(tick);

@@ -60,6 +60,27 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on(
+    "moonwell:fishing",
+    (payload: {
+      phase?: string;
+      castPower?: number;
+      biteOpen?: boolean;
+      reelProgress?: number;
+    }) => {
+      const p = patrons.get(socket.id);
+      if (!p) return;
+      io.to(defaultRoom).emit("moonwell:fishing", {
+        ts: Date.now(),
+        from: p.name,
+        phase: payload?.phase ?? "idle",
+        castPower: payload?.castPower,
+        biteOpen: payload?.biteOpen,
+        reelProgress: payload?.reelProgress,
+      });
+    },
+  );
+
   socket.on("disconnect", () => {
     patrons.delete(socket.id);
     broadcastPatrons(defaultRoom);

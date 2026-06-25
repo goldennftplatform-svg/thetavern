@@ -1,6 +1,26 @@
-export type MapPatron = { name: string; pulseUntil?: number };
+import { drawCatchBurst, drawSplashFx, drawTableFish, type SplashFx, type TableFish } from "./tableFish";
+
+export type FishingPhase = "idle" | "fish_cast" | "fish_wait" | "fish_reel";
+
+export type MapPatron = {
+  name: string;
+  pulseUntil?: number;
+  fishing?: {
+    phase: FishingPhase;
+    castPower?: number;
+    biteOpen?: boolean;
+    reelProgress?: number;
+    updatedAt: number;
+  };
+};
 
 export type SeatSlot = { x: number; y: number; angle: number; index: number };
+
+export type MapFx = {
+  tableFish: TableFish[];
+  splashes: SplashFx[];
+  catchBurstUntil: number;
+};
 
 function hashName(s: string): number {
   let h = 2166136261;
@@ -17,7 +37,6 @@ export function hueForName(name: string): number {
   return h % 360;
 }
 
-/** Seat ring around the giant table — used for canvas + DOM overlay. */
 export function computeSeatRing(w: number, h: number, count = 20): SeatSlot[] {
   const cx = w / 2;
   const cy = h / 2 + 4;
@@ -119,7 +138,7 @@ function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tic
   ctx.fillText("THE GREAT TABLE", cx, ty + th + 28);
   ctx.textAlign = "left";
 
-  return { tx, ty, tw, th, cx, cy };
+  return { cx, cy, mrx, mry };
 }
 
 function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number) {
@@ -155,6 +174,60 @@ function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number) {
   }
 }
 
+function drawFishingLine(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  wx: number,
+  wy: number,
+  patron: MapPatron,
+  tick: number,
+) {
+  const f = patron.fishing;
+  if (!f || f.phase === "idle") return;
+
+  const lean = f.phase === "fish_cast" ? (f.castPower ?? 0) * 0.12 : f.phase === "fish_reel" ? 0.08 : 0.04;
+  const tx = sx + (wx - sx) * lean;
+  const ty = sy + (wy - sy) * lean;
+
+  ctx.strokeStyle = f.biteOpen ? "#e87850" : f.phase === "fish_reel" ? "#e8b050" : "#88b8a8";
+  ctx.lineWidth = f.biteOpen ? 3 : 2;
+  ctx.setLineDash(f.phase === "fish_wait" ? [4, 4] : []);
+  ctx.beginPath();
+  ctx.moveTo(tx, ty - 8);
+  const sag = Math.sin(tick * 0.08 + hashName(patron.name)) * (f.phase === "fish_reel" ? 10 : 4);
+  ctx.quadraticCurveTo((tx + wx) / 2, (ty + wy) / 2 + sag, wx, wy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (f.phase === "fish_cast" && (f.castPower ?? 0) > 0.15) {
+    const p = f.castPower ?? 0;
+    ctx.fillStyle = `rgba(232, 176, 80, ${0.25 + p * 0.45})`;
+    ctx.beginPath();
+    ctx.arc(wx, wy, 6 + p * 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (f.biteOpen) {
+    const pulse = 0.6 + Math.sin(tick * 0.35) * 0.4;
+    ctx.strokeStyle = `rgba(232, 120, 80, ${pulse})`;
+    ctx.lineWidth = 2;
+    for (let r = 10; r < 36; r += 10) {
+      ctx.beginPath();
+      ctx.arc(wx, wy, r + Math.sin(tick * 0.2 + r) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  if (f.phase === "fish_reel") {
+    const prog = f.reelProgress ?? 0;
+    ctx.fillStyle = "#3a7868";
+    ctx.fillRect(wx - 22, wy + 12, 44 * prog, 5);
+    ctx.strokeStyle = "#000";
+    ctx.strokeRect(wx - 22, wy + 12, 44, 5);
+  }
+}
+
 function drawPatronToken(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -162,8 +235,10 @@ function drawPatronToken(
   name: string,
   tick: number,
   pulse: boolean,
+  fishing?: MapPatron["fishing"],
 ) {
-  const bob = Math.sin(tick * 0.05 + hashName(name) * 0.01) * 3;
+  const active = fishing && fishing.phase !== "idle";
+  const bob = Math.sin(tick * 0.05 + hashName(name) * 0.01) * (active ? 5 : 3);
   const px = x - 14;
   const py = y - 14 + bob;
   const hue = hueForName(name);
@@ -175,11 +250,28 @@ function drawPatronToken(
     ctx.fill();
   }
 
+  if (fishing?.biteOpen) {
+    ctx.fillStyle = "rgba(232, 120, 80, 0.35)";
+    ctx.beginPath();
+    ctx.arc(x, y + bob, 18, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.fillStyle = `hsl(${hue} 42% 48%)`;
   ctx.fillRect(px, py, 28, 28);
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = active ? "#e8b050" : "#000";
+  ctx.lineWidth = active ? 3 : 3;
   ctx.strokeRect(px, py, 28, 28);
+
+  if (active) {
+    const badge =
+      fishing!.phase === "fish_cast" ? "CAST" : fishing!.phase === "fish_wait" ? "WAIT" : "REEL";
+    ctx.fillStyle = "#e8b050";
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = "center";
+    ctx.fillText(badge, x, py - 4);
+    ctx.textAlign = "left";
+  }
 
   ctx.fillStyle = "#0c1018";
   ctx.font = '10px "Press Start 2P", monospace';
@@ -196,36 +288,55 @@ function drawPatronToken(
   ctx.textAlign = "left";
 }
 
-/** Top-down hall: giant communal table, Moonwell in the center, patrons seated around. */
 export function drawTavernMap(
   canvas: HTMLCanvasElement,
   patrons: MapPatron[],
   flashLine: string,
   tick = 0,
+  fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0 },
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const w = canvas.clientWidth || 960;
   const h = canvas.clientHeight || 520;
+  const now = performance.now();
   ctx.imageSmoothingEnabled = false;
 
   drawPlankFloor(ctx, w, h);
   drawSideTables(ctx, w, h);
-  drawGiantTable(ctx, w, h, tick);
+  const well = drawGiantTable(ctx, w, h, tick);
+
+  drawCatchBurst(ctx, well.cx, well.cy, tick, fx.catchBurstUntil, now);
+  drawSplashFx(ctx, fx.splashes, now);
+  drawTableFish(ctx, well.cx, well.cy, fx.tableFish, tick, now);
 
   const seats = computeSeatRing(w, h);
-  const now = performance.now();
 
   for (const seat of seats) {
     drawChair(ctx, seat.x, seat.y, seat.angle);
   }
 
   const sorted = [...patrons].sort((a, b) => hashName(a.name) - hashName(b.name));
+
+  for (const p of sorted) {
+    const seat = seats[hashName(p.name) % seats.length]!;
+    drawFishingLine(ctx, seat.x, seat.y, well.cx, well.cy, p, tick);
+  }
+
   sorted.forEach((p) => {
     const seat = seats[hashName(p.name) % seats.length]!;
     const pulse = (p.pulseUntil ?? 0) > now;
-    drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse);
+    drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse, p.fishing);
   });
+
+  const activeFishers = sorted.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
+  if (activeFishers > 0) {
+    ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
+    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.textAlign = "center";
+    ctx.fillText(`${activeFishers} ANGLING`, w / 2, 18);
+    ctx.textAlign = "left";
+  }
 
   if (sorted.length === 0) {
     ctx.fillStyle = "rgba(248, 240, 255, 0.55)";

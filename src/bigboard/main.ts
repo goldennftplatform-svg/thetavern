@@ -8,7 +8,8 @@ import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
 import { tonightUtc } from "../content/tavernNights";
 import { bbIconForKind } from "./bbIcons";
-import { drawTavernMap, resizeMapCanvas, type MapPatron } from "./tavernMap";
+import { drawTavernMap, resizeMapCanvas, type FishingPhase, type MapPatron, type MapFx } from "./tavernMap";
+import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
 
 initMobileShellClass();
@@ -102,6 +103,96 @@ let flashTimer = 0;
 let calloutTimer = 0;
 let animTick = 0;
 let factIndex = 0;
+let tableFish: TableFish[] = [];
+let splashes: SplashFx[] = [];
+let catchBurstUntil = 0;
+let mapShakeUntil = 0;
+
+const mapFx = (): MapFx => ({
+  tableFish,
+  splashes,
+  catchBurstUntil,
+});
+
+function expirePatronFishing() {
+  const now = performance.now();
+  patronList = patronList.map((p) => {
+    if (!p.fishing) return p;
+    if (now - p.fishing.updatedAt > 9000) {
+      const { fishing: _, ...rest } = p;
+      return rest;
+    }
+    return p;
+  });
+  splashes = splashes.filter((s) => now - s.startedAt < 1500);
+  tableFish = tableFish.filter((f) => now - f.landedAt < 60_000);
+}
+
+function onFishingUpdate(d: {
+  from?: string;
+  phase?: string;
+  castPower?: number;
+  biteOpen?: boolean;
+  reelProgress?: number;
+}) {
+  if (!d.from) return;
+  const phase = (d.phase ?? "idle") as FishingPhase;
+  const updatedAt = performance.now();
+
+  patronList = patronList.map((p) => {
+    if (p.name !== d.from) return p;
+    if (phase === "idle") {
+      const { fishing: _, ...rest } = p;
+      return rest;
+    }
+    return {
+      ...p,
+      fishing: {
+        phase,
+        castPower: d.castPower,
+        biteOpen: d.biteOpen,
+        reelProgress: d.reelProgress,
+        updatedAt,
+      },
+    };
+  });
+
+  if (phase === "fish_wait" && d.biteOpen) {
+    const seat = patronList.find((p) => p.name === d.from);
+    if (seat) {
+      splashes.push({
+        x: mapCanvas.clientWidth / 2,
+        y: mapCanvas.clientHeight / 2 + 4,
+        startedAt: performance.now(),
+        rarity: "uncommon",
+      });
+    }
+  }
+}
+
+function addCatchToTable(d: Deed) {
+  if (!d.fish) return;
+  const id = `${d.ts ?? Date.now()}-${d.from ?? "?"}`;
+  tableFish.push({
+    id,
+    name: d.fish,
+    rarity: d.rarity ?? "common",
+    from: d.from ?? "Angler",
+    landedAt: performance.now(),
+  });
+  while (tableFish.length > 10) tableFish.shift();
+
+  const cx = mapCanvas.clientWidth / 2;
+  const cy = mapCanvas.clientHeight / 2 + 4;
+  splashes.push({
+    x: cx,
+    y: cy,
+    startedAt: performance.now(),
+    rarity: d.rarity ?? "common",
+  });
+  catchBurstUntil = performance.now() + 2200;
+  if (d.rarity === "mythic") mapShakeUntil = performance.now() + 900;
+}
 
 const dockFacts = [
   ...heraldLines,
@@ -163,7 +254,33 @@ function pulsePatron(name?: string) {
 }
 
 function redrawMap() {
-  drawTavernMap(mapCanvas, patronList, flashLine, animTick);
+  const frame = mapCanvas.closest(".bb-map-frame") as HTMLElement | null;
+  if (frame && performance.now() < mapShakeUntil) {
+    const s = Math.sin(animTick * 0.9) * 3;
+    frame.style.transform = `translate(${s}px, ${s * 0.5}px)`;
+  } else if (frame) {
+    frame.style.transform = "";
+  }
+  expirePatronFishing();
+  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx());
+}
+
+function startDemoFishingLoop() {
+  const phases: FishingPhase[] = ["fish_cast", "fish_wait", "fish_reel", "idle"];
+  let phaseIdx = 0;
+  window.setInterval(() => {
+    if (patronList.length === 0) return;
+    const p = patronList[phaseIdx % patronList.length]!;
+    const phase = phases[phaseIdx % phases.length]!;
+    phaseIdx += 1;
+    onFishingUpdate({
+      from: p.name,
+      phase,
+      castPower: phase === "fish_cast" ? 0.4 + Math.random() * 0.5 : undefined,
+      biteOpen: phase === "fish_wait" && Math.random() > 0.5,
+      reelProgress: phase === "fish_reel" ? Math.random() : undefined,
+    });
+  }, 2800);
 }
 
 function startAnimLoop() {
@@ -195,7 +312,7 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   const prev = new Set(patronList.map((x) => x.name));
   patronList = p.patrons.map((x) => {
     const existing = patronList.find((e) => e.name === x.name);
-    return { name: x.name, pulseUntil: existing?.pulseUntil };
+    return { name: x.name, pulseUntil: existing?.pulseUntil, fishing: existing?.fishing };
   });
   const joined = patronList.filter((x) => !prev.has(x.name));
   if (joined.length === 1) {
@@ -238,6 +355,7 @@ async function main() {
     showDemoHall(
       "Preview: Example, Angler & Guest at the table — open the game (same Wi‑Fi / localhost) for live seats.",
     );
+    startDemoFishingLoop();
     return;
   }
 
@@ -251,6 +369,7 @@ async function main() {
     showDemoHall(
       "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
     );
+    startDemoFishingLoop();
     return;
   }
 
@@ -258,6 +377,7 @@ async function main() {
   if (socket) {
     socket.on("hall:deed", (d: Deed) => {
       appendDeed(d);
+      if (d.kind === "catch") addCatchToTable(d);
       const line = lineForDeed(d);
       setFlash(line, d.from);
       if (d.kind === "catch" && d.rarity === "mythic") {
@@ -265,12 +385,14 @@ async function main() {
       }
     });
     socket.on("moonwell:patrons", onPatrons);
+    socket.on("moonwell:fishing", onFishingUpdate);
     // Until real patrons arrive, keep the preview tokens bobbing at the table
     if (patronList.length === 0) {
       showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
     }
   } else {
     showDemoHall("Preview seats at the Great Table.");
+    startDemoFishingLoop();
   }
 }
 
