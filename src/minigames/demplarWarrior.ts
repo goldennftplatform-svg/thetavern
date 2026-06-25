@@ -7,6 +7,7 @@
 
 import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
+import { drawKnightFlyer, drawKnightPlatformer, drawKnightPortrait, drawKnightRacer } from "../sprites/knightSprite";
 
 export type DemplarStage = "brief" | "platform" | "race" | "asteroids" | "done";
 
@@ -684,7 +685,7 @@ export class DemplarWarrior {
     this.drawHud(ctx, w, h, now);
 
     if (this.stage === "brief") {
-      this.drawBrief(ctx, w, h);
+      this.drawBrief(ctx, w, h, now);
       return;
     }
     if (this.stage === "platform") this.drawPlatform(ctx, w, h);
@@ -747,12 +748,14 @@ export class DemplarWarrior {
     ctx.textAlign = "left";
   }
 
-  private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
+    const tick = (now - this.stageStarted) * 0.06;
     ctx.fillStyle = "rgba(72, 48, 88, 0.35)";
     ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.48);
     ctx.strokeStyle = "#e8b050";
     ctx.lineWidth = 2;
     ctx.strokeRect(w * 0.1, h * 0.2, w * 0.8, h * 0.48);
+    drawKnightPortrait(ctx, w / 2, h * 0.58, tick);
     ctx.fillStyle = "#e8b050";
     ctx.font = `${Math.max(10, w * 0.02)}px "Press Start 2P", monospace`;
     ctx.textAlign = "center";
@@ -821,13 +824,9 @@ export class DemplarWarrior {
 
     const px = p.x - cam;
     const py = groundY + p.y;
-    ctx.fillStyle = "#68b8a8";
-    ctx.fillRect(px - 11, py - 32, 22, 32);
-    ctx.fillStyle = "#e8b050";
-    ctx.fillRect(px - 14, py - 40, 28, 10);
-    ctx.fillStyle = "#f8f0ff";
-    ctx.font = '7px "Press Start 2P", monospace';
-    ctx.fillText("D", px - 4, py - 44);
+    const pose = !p.onGround ? (p.vy < -1.5 ? "jump" : "fall") : "run";
+    const frame = Math.floor(p.x / 14) % 2;
+    drawKnightPlatformer(ctx, px, py, { pose, frame, facing: 1, scale: 2 });
 
     const gx = GOAL_X - cam;
     if (gx > -20 && gx < w + 60) {
@@ -929,16 +928,20 @@ export class DemplarWarrior {
       ctx.save();
       ctx.translate(px, py);
       ctx.rotate(angle);
-      ctx.fillStyle = r.isPlayer ? "#68e8a8" : r.color;
-      ctx.fillRect(-12, -7, 24, 14);
-      ctx.fillStyle = "#1a1810";
-      ctx.fillRect(4, -5, 8, 10);
+      if (r.isPlayer) {
+        drawKnightRacer(ctx, 0, 0, 0, true);
+      } else {
+        ctx.fillStyle = r.color;
+        ctx.fillRect(-12, -7, 24, 14);
+        ctx.fillStyle = "#1a1810";
+        ctx.fillRect(4, -5, 8, 10);
+      }
       ctx.restore();
 
       ctx.fillStyle = r.isPlayer ? "#f8f0ff" : "rgba(248,240,255,0.7)";
       ctx.font = '5px "Press Start 2P", monospace';
       ctx.textAlign = "center";
-      ctx.fillText(r.isPlayer ? "YOU" : String(idx + 1), px, py - 12);
+      ctx.fillText(r.isPlayer ? "YOU" : String(idx + 1), px, py - 16);
       ctx.textAlign = "left";
     });
 
@@ -993,15 +996,7 @@ export class DemplarWarrior {
 
     const shipX = this.asteroids.shipX * w;
     const shipY = h - 28;
-    ctx.fillStyle = "#68e8a8";
-    ctx.beginPath();
-    ctx.moveTo(shipX, shipY - 22);
-    ctx.lineTo(shipX - 14, shipY);
-    ctx.lineTo(shipX + 14, shipY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#e8b050";
-    ctx.fillRect(shipX - 4, shipY - 8, 8, 8);
+    drawKnightFlyer(ctx, shipX, shipY);
 
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = '6px "Press Start 2P", monospace';
