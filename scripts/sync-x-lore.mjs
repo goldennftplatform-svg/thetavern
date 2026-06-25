@@ -12,6 +12,28 @@ import { fileURLToPath } from "node:url";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const root = join(__dir, "..");
+
+/** Load .env.local / .env for X_SYNDICATION_COOKIE without committing secrets. */
+function loadDotEnv() {
+  for (const name of [".env.local", ".env"]) {
+    const path = join(root, name);
+    if (!existsSync(path)) continue;
+    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq < 1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
+
+loadDotEnv();
 const outPath = join(root, "public", "lore", "x-feed.json");
 const seedPath = join(root, "src", "content", "xFeedSeed.json");
 
@@ -100,31 +122,52 @@ function normalizeDate(raw) {
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function fetchTimeline(handle) {
   const url = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(handle)}`;
   const headers = {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    Accept: "text/html,application/xhtml+xml",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    Referer: "https://platform.twitter.com/",
+    Origin: "https://platform.twitter.com",
   };
   const cookie = process.env.X_SYNDICATION_COOKIE;
   if (cookie) headers.Cookie = cookie;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 18_000);
-  try {
-    const res = await fetch(url, { headers, signal: ctrl.signal });
-    const html = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-    if (!m) throw new Error("No __NEXT_DATA__ in syndication response");
-    const data = JSON.parse(m[1]);
-    const posts = extractPostsFromNextData(data, handle);
-    if (posts.length === 0) throw new Error("Parsed zero posts");
-    return posts;
-  } finally {
-    clearTimeout(timer);
+  let lastErr = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) {
+      const wait = 2000 * 2 ** (attempt - 1);
+      console.log(`[x:sync] @${handle} retry ${attempt}/3 after ${wait}ms…`);
+      await sleep(wait);
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 22_000);
+    try {
+      const res = await fetch(url, { headers, signal: ctrl.signal });
+      const html = await res.text();
+      if (res.status === 429) throw new Error(`HTTP 429 (rate limited — wait a few min or add X_SYNDICATION_COOKIE to .env.local)`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+      if (!m) throw new Error("No __NEXT_DATA__ in syndication response");
+      const data = JSON.parse(m[1]);
+      const posts = extractPostsFromNextData(data, handle);
+      if (posts.length === 0) throw new Error("Parsed zero posts");
+      return posts;
+    } catch (err) {
+      lastErr = err;
+      if (!String(err.message).includes("429") || attempt === 3) throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  throw lastErr ?? new Error("fetch failed");
 }
 
 function mergePosts(live, seed, handle) {
