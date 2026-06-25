@@ -1,5 +1,7 @@
 /** Catch fanfare — Suno track plays once when a fish is landed (see public/audio/manifest.json). */
 
+import { primeWarriorSfx } from "./warriorSfx";
+
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/hall-ambience.mp3`;
 const CATCH_VOLUME = 0.22;
 
@@ -67,6 +69,7 @@ export function bindHallMusicGestures(): void {
   gestureHooked = true;
   const prime = () => {
     primeHallMusic();
+    primeWarriorSfx();
   };
   document.addEventListener("pointerdown", prime, { capture: true, passive: true });
   document.addEventListener("keydown", prime, { capture: true, passive: true });

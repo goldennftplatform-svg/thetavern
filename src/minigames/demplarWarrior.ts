@@ -7,6 +7,7 @@
 
 import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
+import { playWarriorImpact } from "../audio/warriorSfx";
 import { drawKnightFlyer, drawKnightPlatformer, drawKnightPortrait, drawKnightRacer } from "../sprites/knightSprite";
 import {
   drawRaceBoostPad,
@@ -64,6 +65,10 @@ const STAGE_MS = {
   race: 52_000,
   asteroids: 42_000,
 } as const;
+
+const BRIEF_CHUNK_CHARS = 8;
+const BRIEF_CHUNK_STAGGER_MS = 240;
+const BRIEF_CHUNK_FLY_MS = 200;
 
 const LAP_COUNT = 2;
 const PLAYER_SCREEN_X = 148;
@@ -166,6 +171,20 @@ function trackAt(t: number, track: Track): { x: number; y: number; angle: number
   return { x: last.x1, y: last.y1, angle: 0 };
 }
 
+function chunkBy8(text: string): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += BRIEF_CHUNK_CHARS) {
+    chunks.push(text.slice(i, i + BRIEF_CHUNK_CHARS));
+  }
+  return chunks;
+}
+
+function buildBriefCrawl(): string[] {
+  const lore = pickLine(warriorBriefLines);
+  const raw = `⚔ DEMPLAR WARRIOR · ${lore} · I RUN · II 2-LAP RACE vs 4 · III SHOOT · REACH THE GATE · BEAT THE CLOCK`;
+  return chunkBy8(raw);
+}
+
 function racerRank(racers: Racer[]): Racer[] {
   return [...racers].sort((a, b) => {
     if (a.finished && b.finished) return a.finishMs - b.finishMs;
@@ -228,6 +247,13 @@ export class DemplarWarrior {
   };
 
   result: DemplarRunResult = { total: 0, platform: 0, race: 0, asteroids: 0 };
+
+  private briefChunks = buildBriefCrawl();
+  private briefImpacted = new Set<number>();
+
+  private briefDurationMs(): number {
+    return Math.max(STAGE_MS.brief, this.briefChunks.length * BRIEF_CHUNK_STAGGER_MS + BRIEF_CHUNK_FLY_MS + 520);
+  }
 
   constructor() {
     this.resetPlatform();
@@ -484,14 +510,29 @@ export class DemplarWarrior {
   update(dt: number, now: number) {
     const elapsed = this.stageElapsed(now);
 
-    if (this.stage === "brief" && elapsed > STAGE_MS.brief) {
-      this.advanceStage(now, "platform");
+    if (this.stage === "brief") {
+      this.tickBriefImpacts(elapsed);
+      if (elapsed > this.briefDurationMs()) {
+        this.advanceStage(now, "platform");
+        return;
+      }
       return;
     }
 
     if (this.stage === "platform") this.tickPlatform(dt, elapsed, now);
     if (this.stage === "race") this.tickRace(dt, elapsed, now);
     if (this.stage === "asteroids") this.tickAsteroids(dt, elapsed, now);
+  }
+
+  private tickBriefImpacts(elapsed: number) {
+    for (let i = 0; i < this.briefChunks.length; i++) {
+      const impactAt = i * BRIEF_CHUNK_STAGGER_MS + BRIEF_CHUNK_FLY_MS;
+      if (elapsed >= impactAt && !this.briefImpacted.has(i)) {
+        this.briefImpacted.add(i);
+        playWarriorImpact(0.85 + (i % 4) * 0.08);
+        if (navigator.vibrate) navigator.vibrate(10 + (i % 3) * 4);
+      }
+    }
   }
 
   private respawnPlatform() {
@@ -827,25 +868,54 @@ export class DemplarWarrior {
   }
 
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
-    const tick = (now - this.stageStarted) * 0.06;
+    const elapsed = this.stageElapsed(now);
+    const tick = elapsed * 0.06;
+    const fontMain = `${Math.max(7, w * 0.011)}px "Press Start 2P", monospace`;
+    const lineH = Math.max(16, h * 0.048);
+    const panelTop = h * 0.14;
+    const panelH = Math.min(h * 0.52, this.briefChunks.length * lineH + 36);
+
     ctx.fillStyle = "rgba(72, 48, 88, 0.35)";
-    ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.48);
+    ctx.fillRect(w * 0.06, panelTop, w * 0.88, panelH);
     ctx.strokeStyle = "#e8b050";
     ctx.lineWidth = 2;
-    ctx.strokeRect(w * 0.1, h * 0.2, w * 0.8, h * 0.48);
-    drawKnightPortrait(ctx, w / 2, h * 0.58, tick);
-    ctx.fillStyle = "#e8b050";
-    ctx.font = `${Math.max(10, w * 0.02)}px "Press Start 2P", monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText("⚔ DEMPLAR WARRIOR", w / 2, h * 0.32);
-    ctx.fillStyle = "#98b8e8";
-    ctx.font = `${Math.max(7, w * 0.011)}px "Press Start 2P", monospace`;
-    ctx.fillText(pickLine(warriorBriefLines), w / 2, h * 0.42);
-    ctx.fillStyle = "#68b8a8";
-    ctx.font = `${Math.max(6, w * 0.009)}px "Press Start 2P", monospace`;
-    ctx.fillText("I RUN  ·  II 2-LAP RACE vs 4  ·  III SHOOT", w / 2, h * 0.52);
-    ctx.fillStyle = "rgba(232, 176, 80, 0.65)";
-    ctx.fillText("REACH THE GATE · BEAT THE CLOCK", w / 2, h * 0.6);
+    ctx.strokeRect(w * 0.06, panelTop, w * 0.88, panelH);
+
+    ctx.font = fontMain;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    for (let i = 0; i < this.briefChunks.length; i++) {
+      const chunk = this.briefChunks[i]!;
+      const chunkStart = i * BRIEF_CHUNK_STAGGER_MS;
+      const t = elapsed - chunkStart;
+      if (t < 0) continue;
+
+      const flyT = Math.min(1, t / BRIEF_CHUNK_FLY_MS);
+      const eased = 1 - Math.pow(1 - flyT, 3);
+      const targetX = w * 0.1;
+      const targetY = panelTop + 22 + i * lineH;
+      const startX = w + ctx.measureText(chunk).width + 48;
+      const x = startX + (targetX - startX) * eased;
+      const y = targetY - (1 - eased) * 18;
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, flyT * 1.35);
+      ctx.fillStyle = i === 0 ? "#e8b050" : i < 3 ? "#98b8e8" : "#68b8a8";
+      ctx.fillText(chunk, x, y);
+
+      if (flyT >= 1 && t < BRIEF_CHUNK_FLY_MS + 90) {
+        const flash = 1 - (t - BRIEF_CHUNK_FLY_MS) / 90;
+        ctx.fillStyle = `rgba(232, 176, 80, ${0.35 * flash})`;
+        const tw = ctx.measureText(chunk).width;
+        ctx.fillRect(x - 6, y - lineH * 0.45, tw + 12, lineH * 0.9);
+        ctx.fillStyle = i === 0 ? "#e8b050" : i < 3 ? "#98b8e8" : "#68b8a8";
+        ctx.fillText(chunk, x, y);
+      }
+      ctx.restore();
+    }
+
+    drawKnightPortrait(ctx, w / 2, h * 0.82, tick);
     ctx.textAlign = "left";
   }
 

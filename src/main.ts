@@ -63,6 +63,7 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import { primeWarriorSfx } from "./audio/warriorSfx";
 import { demplarEpigraphs, knightNoticeBoard, warriorBriefLines } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
@@ -823,6 +824,7 @@ function startDemplarLoop() {
 }
 
 function startDemplarWarrior() {
+  primeWarriorSfx();
   demplarGame = new DemplarWarrior();
   setPhase("demplar_warrior");
 }
