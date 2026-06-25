@@ -22,9 +22,17 @@ type Patron = { id: string; name: string; atWell: boolean };
 
 const patrons = new Map<string, Patron>();
 
+function patronSnapshot() {
+  return [...patrons.values()].filter((p) => p.atWell);
+}
+
 function broadcastPatrons(room: string) {
-  const list = [...patrons.values()].filter((p) => p.atWell);
+  const list = patronSnapshot();
   io.to(room).emit("moonwell:patrons", { patrons: list });
+}
+
+function sendPatronsTo(socket: import("socket.io").Socket) {
+  socket.emit("moonwell:patrons", { patrons: patronSnapshot() });
 }
 
 function pushDeed(room: string, deed: Record<string, unknown>) {
@@ -34,12 +42,13 @@ function pushDeed(room: string, deed: Record<string, unknown>) {
 io.on("connection", (socket) => {
   const defaultRoom = "moonwell";
 
-  socket.on("tavern:join", (payload: { name?: string; projector?: boolean }) => {
+  socket.on("tavern:join", async (payload: { name?: string; projector?: boolean }) => {
     const name = (payload?.name ?? `Angler ${socket.id.slice(0, 4)}`).slice(0, 32);
     const atWell = !payload?.projector;
     patrons.set(socket.id, { id: socket.id, name, atWell });
-    void socket.join(defaultRoom);
-    broadcastPatrons(defaultRoom);
+    await socket.join(defaultRoom);
+    sendPatronsTo(socket);
+    socket.to(defaultRoom).emit("moonwell:patrons", { patrons: patronSnapshot() });
     socket.emit("tavern:welcome", { room: defaultRoom, name });
   });
 

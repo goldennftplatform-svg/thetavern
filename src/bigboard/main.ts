@@ -327,7 +327,8 @@ function setWhisper(line: string) {
   }, WHISPER_MS);
 }
 
-let patronList: MapPatron[] = [];
+let patronList: MapPatron[] = DEMO_PATRONS.map((p) => ({ name: p.name }));
+let hallHasLivePatrons = false;
 let flashLine = "";
 let flashTimer = 0;
 let calloutTimer = 0;
@@ -529,12 +530,29 @@ function refreshDock() {
 }
 
 function showDemoHall(caption: string) {
-  patronList = DEMO_PATRONS.map((p) => ({ name: p.name }));
+  const now = performance.now();
+  patronList = DEMO_PATRONS.map((p, i) => ({
+    name: p.name,
+    pulseUntil: now + 2000 + i * 400,
+    fishing:
+      i === 0
+        ? { phase: "fish_cast" as const, castPower: 0.52, updatedAt: now }
+        : i === 1
+          ? { phase: "fish_wait" as const, biteOpen: true, updatedAt: now }
+          : undefined,
+  }));
+  hallHasLivePatrons = false;
   setLive(false, `Preview · ${tonightUtc().title}`);
   patronsEl.textContent = caption;
   refreshDock();
   countLiveActivity();
   redrawMap();
+}
+
+function ensurePreviewPatrons() {
+  if (!hallHasLivePatrons && patronList.length === 0) {
+    showDemoHall("Preview knights at the Great Table — fishing, chance, and chronicles.");
+  }
 }
 
 function bootPreviewHall(caption?: string) {
@@ -685,9 +703,12 @@ function flashForDeed(d: Deed): string {
 
 function onPatrons(p: { patrons: { name: string }[] }) {
   if (p.patrons.length === 0) {
+    hallHasLivePatrons = false;
     showDemoHall("Live hall — preview tokens until an angler stands at the Moonwell.");
+    if (!demoRunning) void startDemoEvening();
     return;
   }
+  hallHasLivePatrons = true;
   const prev = new Set(patronList.map((x) => x.name));
   patronList = p.patrons.map((x) => {
     const existing = patronList.find((e) => e.name === x.name);
@@ -745,7 +766,36 @@ async function initCharterChrome() {
   refreshCharterChrome();
 }
 
+function bindTrailSocket(socket: import("socket.io-client").Socket) {
+  socket.on("moonwell:patrons", onPatrons);
+  socket.on("moonwell:fishing", onFishingUpdate);
+  socket.on("moonwell:chance", onChanceUpdate);
+  socket.on("connect", () => {
+    window.setTimeout(ensurePreviewPatrons, 400);
+  });
+}
+
 async function main() {
+  playLink.href = import.meta.env.BASE_URL || "/";
+  if (playHero) playHero.href = playLink.href;
+
+  const resize = () => {
+    applyWallClass();
+    resizeMapCanvas(mapCanvas);
+    redrawMap();
+  };
+  resize();
+  window.addEventListener("resize", resize);
+  startAnimLoop();
+  bootPreviewHall();
+  requestAnimationFrame(() => resize());
+  const mapStack = mapCanvas.parentElement;
+  if (mapStack && typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(mapStack);
+  }
+  window.setInterval(ensurePreviewPatrons, 10_000);
+
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
     await document.fonts.load('400 24px "VT323"');
@@ -754,9 +804,6 @@ async function main() {
   } catch {
     /* optional */
   }
-
-  playLink.href = import.meta.env.BASE_URL || "/";
-  if (playHero) playHero.href = playLink.href;
 
   await initCharterChrome();
   void loadXLoreFeed().then((feed) => initHeraldTickers(feed));
@@ -778,21 +825,8 @@ async function main() {
   const night = tonightUtc();
   setMood("gathering");
   setWhisper(pickXPostText() || pickLine(knightHallWhispers));
-  refreshDockPatrons();
   rotateDockFact();
-  refreshStats();
   setInterval(rotateDockFact, FACT_ROTATE_MS);
-
-  const resize = () => {
-    applyWallClass();
-    resizeMapCanvas(mapCanvas);
-    redrawMap();
-  };
-  resize();
-  window.addEventListener("resize", resize);
-  startAnimLoop();
-  bootPreviewHall();
-  requestAnimationFrame(() => resize());
 
   setLive(false, "Demplar charter hall");
   const { url } = await resolveTrailServerUrl();
@@ -805,7 +839,9 @@ async function main() {
 
   let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
   try {
-    client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true });
+    client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true }, {
+      onSocket: bindTrailSocket,
+    });
     setLive(true, `Live charter · ${night.title}`);
   } catch {
     bootPreviewHall(
@@ -819,10 +855,6 @@ async function main() {
     socket.on("hall:deed", (d: Deed) => {
       director.enqueue(d);
     });
-    socket.on("moonwell:patrons", onPatrons);
-    socket.on("moonwell:fishing", onFishingUpdate);
-    socket.on("moonwell:chance", onChanceUpdate);
-    // Until real patrons arrive, keep the preview tokens bobbing at the table
     if (patronList.length === 0) {
       showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
       void startDemoEvening();

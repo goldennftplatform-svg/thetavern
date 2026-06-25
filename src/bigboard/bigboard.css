@@ -486,23 +486,36 @@
 .bb-map-stage {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: min(58vh, 560px);
   position: relative;
+}
+
+.bb-map-stage > .bb-map-frame {
+  flex: 1 1 auto;
+  min-height: min(52vh, 520px);
 }
 
 .bb-map-canvas-stack {
-  flex: 1;
-  min-height: 200px;
-  padding-top: 34px;
-  display: flex;
   position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 300px;
+  aspect-ratio: 960 / 486;
+  max-height: 100%;
+  padding-top: 34px;
+  box-sizing: border-box;
 }
 
 .bb-map-canvas-stack #tavern-map {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  height: auto !important;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34px;
+  bottom: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 260px !important;
+  display: block !important;
 }
 
 .bb-map-whisper {
@@ -664,8 +677,8 @@
 #tavern-map {
   display: block;
   width: 100%;
-  height: auto;
-  min-height: 280px;
+  height: 100%;
+  min-height: 260px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -924,7 +937,7 @@ html.bb-wall .bb-main {
   grid-template-columns: minmax(0, 2.2fr) minmax(260px, 0.75fr);
   padding: 12px;
   gap: 12px;
-  height: calc(100dvh - 72px);
+  min-height: 0;
 }
 
 html.bb-wall .bb-dock {
@@ -932,17 +945,18 @@ html.bb-wall .bb-dock {
 }
 
 html.bb-wall #tavern-map {
-  min-height: 0;
+  min-height: 260px;
   height: 100%;
 }
 
 html.bb-wall .bb-map-frame {
-  min-height: 0;
+  min-height: min(48vh, 480px);
   flex: 1;
 }
 
 html.bb-wall .bb-map-stage {
-  height: 100%;
+  min-height: min(52vh, 520px);
+  height: auto;
 }
 
 html.bb-wall .bb-feed {

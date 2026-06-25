@@ -14,6 +14,7 @@ export async function connectTrail(
   trailUrl: string,
   source: TrailResolutionSource,
   opts: { name: string; projector?: boolean },
+  hooks?: { onSocket?: (socket: Socket) => void },
 ): Promise<TrailClient> {
   if (!trailUrl) {
     return { socket: null, trailUrl: "", source: "offline" };
@@ -26,6 +27,8 @@ export async function connectTrail(
     reconnectionAttempts: 12,
     reconnectionDelay: 800,
   });
+
+  hooks?.onSocket?.(socket);
 
   const join = () => socket.emit("tavern:join", { name: opts.name, projector: opts.projector });
   socket.on("connect", join);

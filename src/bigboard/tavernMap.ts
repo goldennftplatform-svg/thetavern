@@ -565,12 +565,13 @@ export function drawTavernMap(
 }
 
 export function resizeMapCanvas(canvas: HTMLCanvasElement): void {
-  const stack = canvas.parentElement;
-  const box = stack ?? canvas;
-  const rect = box.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
+  const parent = canvas.parentElement?.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const lw = Math.max(320, rect.width || 960);
-  const lh = Math.max(200, rect.height || 320);
+  const lw = Math.max(320, rect.width || parent?.width || 960);
+  const lh = Math.max(260, rect.height || parent?.height || 486);
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
   canvas.width = Math.floor(lw * dpr);
   canvas.height = Math.floor(lh * dpr);
   const ctx = canvas.getContext("2d");
