@@ -46,6 +46,17 @@ html.gate-open #app {
   letter-spacing: 0.06em;
 }
 
+.gate-recall {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--jade);
+  padding: 8px 10px;
+  border: 1px solid rgba(104, 184, 168, 0.35);
+  border-radius: 8px;
+  background: rgba(58, 120, 104, 0.1);
+}
+
 .gate-screen input#nickname {
   font-size: 18px;
   min-height: 52px;

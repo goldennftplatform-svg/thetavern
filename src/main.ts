@@ -31,6 +31,13 @@ import { composeCatchDeed, composeFeastDeed, composeGambleDeed, composePerilDeed
 import type { FoodBuff } from "./game/types";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
+import {
+  loadAnglerState,
+  loadLastName,
+  peekAnglerSave,
+  rememberLastName,
+  saveAnglerState,
+} from "./game/anglerSave";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
 import {
@@ -169,6 +176,7 @@ const elBtnCharter = $("btn-charter");
 const elBtnCloseModal = $("btn-close-modal");
 const elBtnModalX = $("btn-modal-x");
 const elBtnSkipGate = $("btn-skip-gate");
+const elGateRecall = $("gate-recall");
 
 function openDemplarModal() {
   elModalBody.textContent = demplarModalIntro;
@@ -227,6 +235,40 @@ let rafCast = 0;
 let reelRaf = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
+let saveTimer = 0;
+
+function scheduleSave() {
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    if (state.phase !== "enter" && state.phase !== "herald") saveAnglerState(state);
+  }, 350);
+}
+
+function updateGateRecall() {
+  const raw = elNick.value.trim();
+  if (!raw) {
+    elGateRecall.hidden = true;
+    return;
+  }
+  const peek = peekAnglerSave(raw);
+  if (!peek) {
+    elGateRecall.hidden = true;
+    return;
+  }
+  const title =
+    peek.titles.length > 0 ? peek.titles[peek.titles.length - 1]! : "returning angler";
+  elGateRecall.textContent = `Welcome back, ${peek.nickname} — ★${peek.renown} · ◎${peek.tokens} · ${peek.catalogSize} in the codex · ${title}`;
+  elGateRecall.hidden = false;
+}
+
+function initNicknameGate() {
+  const last = loadLastName();
+  if (last) {
+    elNick.value = last;
+    updateGateRecall();
+  }
+  elNick.addEventListener("input", updateGateRecall);
+}
 
 function setPresence(atWell: boolean) {
   socket?.emit("moonwell:presence", { atWell });
@@ -796,6 +838,7 @@ function setPhase(next: GamePhase) {
   drawWell();
   broadcastFishing(true);
   broadcastChance();
+  scheduleSave();
 }
 
 function startCastLoop() {
@@ -990,8 +1033,11 @@ async function bootTrail() {
 }
 
 async function startGameFromGate() {
-  const name = elNick.value.trim() || "Anonymous Angler";
-  state = initialState(name.slice(0, 28));
+  const raw = elNick.value.trim() || "Anonymous Angler";
+  const display = raw.slice(0, 28);
+  const peek = peekAnglerSave(display);
+  state = loadAnglerState(display) ?? initialState(display);
+  rememberLastName(state.nickname);
   elGate.hidden = true;
   elGame.hidden = false;
   document.documentElement.classList.remove("gate-open");
@@ -1004,6 +1050,9 @@ async function startGameFromGate() {
   requestAnimationFrame(() => {
     resizeCanvas();
     setPhase("well");
+    if (peek) {
+      showToast(`The well remembers thee — ★${state.renown} renown · ◎${state.tokens} tokens`, 5200);
+    }
   });
 }
 
@@ -1014,9 +1063,15 @@ $("btn-enter-name").addEventListener("click", () => {
 });
 elBtnSkipGate.addEventListener("click", () => {
   elNick.value = "";
+  updateGateRecall();
   primeHallMusic();
   void startHallMusic();
   void startGameFromGate();
+});
+
+initNicknameGate();
+window.addEventListener("beforeunload", () => {
+  if (state.phase !== "enter" && state.phase !== "herald") saveAnglerState(state);
 });
 
 requestAnimationFrame(function tick(now: number) {
