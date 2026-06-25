@@ -564,8 +564,8 @@ export function resizeMapCanvas(canvas: HTMLCanvasElement): void {
   const box = stack ?? canvas;
   const rect = box.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const lw = rect.width || 960;
-  const lh = Math.max(200, rect.height || 320);
+  const lw = Math.max(1, rect.width || 960);
+  const lh = Math.max(120, rect.height || 320);
   canvas.width = Math.floor(lw * dpr);
   canvas.height = Math.floor(lh * dpr);
   const ctx = canvas.getContext("2d");

@@ -99,8 +99,7 @@ let liveGamblers = 0;
 
 function isWallMode(): boolean {
   try {
-    if (new URLSearchParams(window.location.search).get("wall") === "1") return true;
-    return window.matchMedia("(min-width: 1100px) and (min-height: 600px)").matches;
+    return new URLSearchParams(window.location.search).get("wall") === "1";
   } catch {
     return false;
   }
@@ -782,6 +781,11 @@ async function main() {
   };
   resize();
   window.addEventListener("resize", resize);
+  const mapStack = mapCanvas.parentElement;
+  if (mapStack && typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(mapStack);
+  }
   startAnimLoop();
 
   setLive(false, "Demplar charter hall");
