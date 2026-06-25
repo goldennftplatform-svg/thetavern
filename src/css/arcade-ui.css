@@ -131,7 +131,8 @@ html.play-active .canvas-wrap {
 }
 
 /* Let STRIKE receive taps — canvas was eating clicks on mobile */
-.play-shell[data-phase="fish_wait"] .canvas-wrap {
+.play-shell[data-phase="fish_wait"] .canvas-wrap,
+.play-shell[data-phase="fish_wait"] .canvas-wrap canvas {
   pointer-events: none;
 }
 

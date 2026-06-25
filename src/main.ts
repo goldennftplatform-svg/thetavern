@@ -41,6 +41,7 @@ import {
 } from "./game/anglerSave";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
+import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
   resolveHighLow,

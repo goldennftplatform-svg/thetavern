@@ -67,9 +67,11 @@ async function run() {
   await page.locator("#btn-primary").dispatchEvent("pointerdown");
   await sleep(400);
   await page.locator("#btn-primary").dispatchEvent("pointerup");
-  await page.waitForSelector("#btn-strike:not([hidden])", { timeout: 8000 });
-  await page.keyboard.press("Space");
-  await page.waitForSelector("[data-continue='renown']", { timeout: 14000 });
+  await page.waitForSelector("#btn-strike:not([hidden])", { timeout: 10000 });
+  await page.locator("#btn-strike").click({ force: true });
+  await page.waitForSelector("#play-shell[data-phase='fish_reel']", { timeout: 10000 });
+  await page.locator("#btn-primary").click({ force: true });
+  await page.waitForSelector("[data-continue='renown']", { timeout: 12000 });
 
   const menuDisplay = await page.locator("#play-menu").evaluate((el) => getComputedStyle(el).display);
   const continueVisible = await page.locator("[data-continue='renown']").isVisible();
