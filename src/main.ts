@@ -1318,16 +1318,16 @@ async function ensurePixelFonts() {
 async function bootTrail() {
   const { url } = await resolveTrailServerUrl();
   if (!url) {
-    elTrail.textContent = "Solo at the Moonwell — cast freely. Live hall is optional.";
+    elTrail.textContent = "Solo at the Moonwell — no trail URL (GitHub Pages needs a tunnel).";
     return;
   }
   elTrail.textContent = "Joining the live hall…";
   try {
     const c = await connectTrail(url, "trailJson", { name: state.nickname });
     socket = c.socket;
-    elTrail.textContent = "Live hall — other anglers may share the table.";
+    elTrail.textContent = "Live hall — bigboard reflects your casts and deeds.";
   } catch {
-    elTrail.textContent = "Live hall is resting — solo play works fine.";
+    elTrail.textContent = "Live hall offline — run npm run live, then refresh Play + bigboard.";
   }
 }
 

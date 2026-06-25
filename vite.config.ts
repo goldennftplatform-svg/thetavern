@@ -18,10 +18,18 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     host: true,
+    proxy: {
+      "/socket.io": { target: "http://127.0.0.1:3847", ws: true, changeOrigin: true },
+      "/health": { target: "http://127.0.0.1:3847", changeOrigin: true },
+    },
   },
   preview: {
     port: 4174,
     strictPort: true,
+    proxy: {
+      "/socket.io": { target: "http://127.0.0.1:3847", ws: true, changeOrigin: true },
+      "/health": { target: "http://127.0.0.1:3847", changeOrigin: true },
+    },
   },
   build: {
     rollupOptions: {

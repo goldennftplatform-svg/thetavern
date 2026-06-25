@@ -92,8 +92,11 @@ export async function resolveTrailServerUrl(): Promise<{ url: string; source: Tr
     /* offline build */
   }
 
-  // Local dev only — never used on github.io / public hosts
+  // Local dev — Vite proxies /socket.io → trail on :3847 (npm run live)
   if (!isPublicDeploy()) {
+    if (import.meta.env.DEV) {
+      return { url: window.location.origin, source: "trailJson" };
+    }
     return { url: "http://127.0.0.1:3847", source: "trailJson" };
   }
 

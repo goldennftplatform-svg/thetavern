@@ -314,6 +314,11 @@ let whisperLine = "";
 let whisperTimer = 0;
 const lastBiteSplash = new Map<string, number>();
 let demoRunning = false;
+let trailLive = false;
+
+function stopDemoEvening() {
+  demoRunning = false;
+}
 
 function setWhisper(line: string) {
   window.clearTimeout(whisperTimer);
@@ -389,23 +394,31 @@ function onFishingUpdate(d: {
   const phase = (d.phase ?? "idle") as FishingPhase;
   const updatedAt = performance.now();
 
-  patronList = patronList.map((p) => {
-    if (p.name !== d.from) return p;
-    if (phase === "idle") {
-      const { fishing: _, ...rest } = p;
-      return rest;
-    }
-    return {
-      ...p,
-      fishing: {
-        phase,
-        castPower: d.castPower,
-        biteOpen: d.biteOpen,
-        reelProgress: d.reelProgress,
-        updatedAt,
-      },
-    };
-  });
+  const fishing =
+    phase === "idle"
+      ? undefined
+      : {
+          phase,
+          castPower: d.castPower,
+          biteOpen: d.biteOpen,
+          reelProgress: d.reelProgress,
+          updatedAt,
+        };
+
+  const idx = patronList.findIndex((p) => p.name === d.from);
+  if (idx < 0) {
+    if (phase === "idle") return;
+    patronList = [...patronList, { name: d.from, fishing }];
+  } else {
+    patronList = patronList.map((p) => {
+      if (p.name !== d.from) return p;
+      if (phase === "idle") {
+        const { fishing: _, ...rest } = p;
+        return rest;
+      }
+      return { ...p, fishing: fishing! };
+    });
+  }
 
   if (phase === "fish_wait" && d.biteOpen) {
     const now = performance.now();
@@ -550,6 +563,7 @@ function showDemoHall(caption: string) {
 }
 
 function ensurePreviewPatrons() {
+  if (trailLive) return;
   if (!hallHasLivePatrons && patronList.length === 0) {
     showDemoHall("Preview knights at the Great Table — fishing, chance, and chronicles.");
   }
@@ -704,10 +718,18 @@ function flashForDeed(d: Deed): string {
 function onPatrons(p: { patrons: { name: string }[] }) {
   if (p.patrons.length === 0) {
     hallHasLivePatrons = false;
+    if (trailLive) {
+      patronList = [];
+      patronsEl.textContent = "Live hall — open Play, enter a name, and cast to appear here.";
+      countLiveActivity();
+      redrawMap();
+      return;
+    }
     showDemoHall("Live hall — preview tokens until an angler stands at the Moonwell.");
     if (!demoRunning) void startDemoEvening();
     return;
   }
+  stopDemoEvening();
   hallHasLivePatrons = true;
   const prev = new Set(patronList.map((x) => x.name));
   patronList = p.patrons.map((x) => {
@@ -832,6 +854,7 @@ async function main() {
   const { url } = await resolveTrailServerUrl();
 
   if (!url) {
+    bootPreviewHall("Offline build — run npm run live locally for a live hall feed.");
     return;
   }
 
@@ -842,10 +865,15 @@ async function main() {
     client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true }, {
       onSocket: bindTrailSocket,
     });
-    setLive(true, `Live charter · ${night.title}`);
+    trailLive = true;
+    stopDemoEvening();
+    patronList = [];
+    setLive(true, `Live hall · ${night.title}`);
+    patronsEl.textContent = "Live hall connected — waiting for anglers at the Moonwell.";
+    redrawMap();
   } catch {
     bootPreviewHall(
-      "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",
+      "Preview seats — run npm run live (trail :3847 + Vite :5174) then refresh both tabs.",
     );
     return;
   }
@@ -853,11 +881,11 @@ async function main() {
   const socket = client?.socket;
   if (socket) {
     socket.on("hall:deed", (d: Deed) => {
+      stopDemoEvening();
       director.enqueue(d);
     });
     if (patronList.length === 0) {
-      showDemoHall("Live hall connected — waiting for anglers. Preview tokens shown until someone joins.");
-      void startDemoEvening();
+      setWhisper("Live hall online — cast in Play to light up the map.");
     }
   } else {
     bootPreviewHall("Preview seats at the Great Table.");

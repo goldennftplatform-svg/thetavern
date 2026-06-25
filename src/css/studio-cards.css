@@ -37,14 +37,15 @@ html.play-active .play-menu {
   inset: 0;
   display: flex !important;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  padding: max(12px, env(safe-area-inset-top, 0px)) 20px max(24px, env(safe-area-inset-bottom, 0px));
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   background:
     radial-gradient(ellipse 100% 80% at 50% 40%, rgba(18, 26, 38, 0.97), rgba(4, 6, 10, 0.99)),
     rgba(4, 6, 10, 0.96);
@@ -67,7 +68,7 @@ html.play-active .play-menu {
 
 .play-menu-body {
   width: 100%;
-  max-width: min(420px, 100%);
+  max-width: min(96vw, 680px);
   margin: 0 auto;
   flex-shrink: 0;
   padding-bottom: 8px;
@@ -570,6 +571,111 @@ html.play-active .play-menu {
   color: #c8b8e8;
 }
 
+/* Ledger & notices — full-width readable scroll, not a skinny centered column */
+.play-menu-body:has(.studio-stage--ledger) {
+  width: 100%;
+  max-width: min(96vw, 680px) !important;
+  margin: 0;
+  align-self: stretch;
+}
+
+.studio-stage--ledger {
+  width: 100%;
+  text-align: left;
+}
+
+.studio-stage--ledger .studio-stage-head {
+  text-align: left;
+  font-size: clamp(1.35rem, 4.5vw, 1.9rem);
+  letter-spacing: 0.1em;
+  margin-bottom: 18px;
+}
+
+.studio-stage--ledger .studio-stage-body {
+  align-items: stretch;
+  gap: 20px;
+  width: 100%;
+}
+
+.studio-stage--ledger .studio-stage-lead {
+  max-width: none;
+  text-align: left;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(1rem, 3.2vw, 1.15rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-top: 4px;
+}
+
+.studio-stage--ledger .studio-scoreboard {
+  justify-content: flex-start;
+  gap: 12px 16px;
+}
+
+.studio-stage--ledger .studio-stat {
+  font-size: clamp(1.3rem, 3.8vw, 1.55rem);
+  padding: 10px 16px;
+}
+
+.studio-stage--ledger .studio-stat small {
+  font-size: 0.8rem;
+}
+
+.studio-stage--ledger .studio-angler,
+.studio-stage--ledger .studio-titles {
+  text-align: left;
+  font-size: clamp(1.15rem, 3.4vw, 1.3rem);
+  max-width: none;
+}
+
+.studio-stage--ledger .studio-ledger-list {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px 14px 1.35rem;
+  font-size: clamp(1.2rem, 3.6vw, 1.45rem);
+  line-height: 1.5;
+  color: var(--ink);
+  background: rgba(8, 12, 20, 0.55);
+  border: 1px solid rgba(152, 144, 200, 0.22);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.studio-stage--ledger .studio-ledger-list li {
+  margin-bottom: 14px;
+}
+
+.studio-stage--ledger .studio-ledger-list li:last-child {
+  margin-bottom: 0;
+}
+
+.studio-stage--ledger .studio-ledger-list--archive {
+  border-color: rgba(200, 184, 232, 0.28);
+}
+
+.studio-stage--ledger .studio-ledger-list--archive .studio-archive-line {
+  color: #d8cce8;
+}
+
+.studio-stage--ledger .studio-hub-footer {
+  justify-content: stretch;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.studio-stage--ledger .studio-link-btn,
+.studio-stage--ledger .studio-continue {
+  width: 100%;
+  min-height: 50px;
+  font-size: clamp(0.9rem, 2.8vw, 1rem) !important;
+  letter-spacing: 0.06em;
+}
+
 .studio-hub-footer--scroll {
   flex-wrap: wrap;
   gap: 8px;
@@ -743,6 +849,17 @@ html.play-active .play-menu {
 @media (min-width: 720px) {
   .play-menu-body {
     max-width: min(520px, 100%);
+  }
+
+  .play-menu-body:has(.studio-stage--ledger) {
+    max-width: min(720px, 92vw) !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .studio-stage--ledger .studio-ledger-list {
+    font-size: 1.4rem;
+    padding: 16px 20px 16px 1.5rem;
   }
 
   .play-menu .playing-card--hero {

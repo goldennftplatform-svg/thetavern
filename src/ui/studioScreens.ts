@@ -218,6 +218,7 @@ export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines
     <ul class="studio-ledger-list">${noticeLis}</ul>
     <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+    "studio-stage--ledger",
   );
 }
 
