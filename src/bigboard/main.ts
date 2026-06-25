@@ -48,6 +48,7 @@ const statsEl = document.getElementById("bb-stats")!;
 const playLink = document.getElementById("bb-play-link") as HTMLAnchorElement;
 const feedHint = document.getElementById("bb-feed-hint")!;
 const mapFrame = document.querySelector(".bb-map-frame") as HTMLElement;
+const elMapWhisper = document.getElementById("bb-map-whisper")!;
 const moodEl = document.getElementById("bb-mood")!;
 const spotlightEl = document.getElementById("bb-spotlight") as HTMLDivElement;
 const spotlightMain = document.getElementById("bb-spotlight-main")!;
@@ -315,9 +316,12 @@ let demoRunning = false;
 function setWhisper(line: string) {
   window.clearTimeout(whisperTimer);
   whisperLine = line;
+  const t = line.length > 88 ? `${line.slice(0, 86)}…` : line;
+  elMapWhisper.textContent = t;
   if (!line) return;
   whisperTimer = window.setTimeout(() => {
     whisperLine = "";
+    elMapWhisper.textContent = "";
   }, WHISPER_MS);
 }
 
@@ -559,7 +563,7 @@ function redrawMap() {
     frame.style.transform = "";
   }
   expirePatronFishing();
-  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx(), whisperLine, mapTheme);
+  drawTavernMap(mapCanvas, patronList, "", animTick, mapFx(), "", mapTheme);
 }
 
 async function demoBeat(ms: number): Promise<void> {

@@ -53,11 +53,16 @@ export function hueForName(name: string): number {
   return h % 360;
 }
 
-export function computeSeatRing(w: number, h: number, count = 20): SeatSlot[] {
-  const cx = w / 2;
-  const cy = h / 2 + 4;
-  const rx = Math.min(w * 0.38, 280);
-  const ry = Math.min(h * 0.32, 160);
+export function computeSeatRing(
+  w: number,
+  h: number,
+  count = 20,
+  table?: { cx: number; cy: number; tw: number; th: number },
+): SeatSlot[] {
+  const cx = table?.cx ?? w / 2;
+  const cy = table?.cy ?? h / 2 + 4;
+  const rx = table ? Math.min(table.tw * 0.44, 240) : Math.min(w * 0.38, 280);
+  const ry = table ? Math.min(table.th * 0.4, 130) : Math.min(h * 0.32, 160);
   const seats: SeatSlot[] = [];
   for (let i = 0; i < count; i++) {
     const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
@@ -87,10 +92,10 @@ function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number,
   drawCornerPillar(ctx, w - 44, 0, h, tick, false);
 
   const banners = [
-    { x: 8, y: 56, c: "#483058", label: "SARGAANO" },
-    { x: w - 56, y: 60, c: "#304858", label: "CORSUS" },
-    { x: 8, y: h - 108, c: "#584838", label: "VEIL" },
-    { x: w - 56, y: h - 112, c: "#385848", label: "CODEX" },
+    { x: 56, y: 18, c: "#483058", label: "SARGAANO" },
+    { x: w - 104, y: 18, c: "#304858", label: "CORSUS" },
+    { x: 56, y: h - 82, c: "#584838", label: "VEIL" },
+    { x: w - 104, y: h - 82, c: "#385848", label: "CODEX" },
   ];
   for (const b of banners) {
     ctx.fillStyle = b.c;
@@ -107,12 +112,10 @@ function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number,
     ctx.textAlign = "left";
   }
 
-  ctx.fillStyle = "rgba(232, 176, 80, 0.28)";
-  ctx.font = '7px "Press Start 2P", monospace';
+  ctx.fillStyle = "rgba(232, 176, 80, 0.22)";
+  ctx.font = '6px "Press Start 2P", monospace';
   ctx.textAlign = "center";
-  ctx.fillText("⚔ KNIGHTS OF THE ANCIENT CHARTER ⚔", w / 2, 22);
-  ctx.fillStyle = "rgba(152, 144, 200, 0.5)";
-  ctx.fillText("DEMPLARVERSE · MOONWELL CONVOCATION", w / 2, h - 14);
+  ctx.fillText("⚔ CHARTER HALL ⚔", w / 2, 12);
   ctx.textAlign = "left";
 }
 
@@ -178,16 +181,18 @@ function drawCharterSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
 function drawGiantTable(
   ctx: CanvasRenderingContext2D,
   w: number,
-  h: number,
+  ph: number,
   tick: number,
   theme?: MapDrawTheme,
 ) {
+  const padX = 76;
+  const padTop = 10;
+  const tw = Math.max(200, w - padX * 2);
+  const th = Math.min(ph * 0.54, ph - padTop - 16);
+  const tx = (w - tw) / 2;
+  const ty = padTop + 4;
   const cx = w / 2;
-  const cy = h / 2 + 4;
-  const tw = Math.min(w * 0.78, w - 48);
-  const th = Math.min(h * 0.58, h - 72);
-  const tx = cx - tw / 2;
-  const ty = cy - th / 2;
+  const cy = ty + th / 2;
 
   ctx.fillStyle = "#1a0c08";
   ctx.fillRect(tx - 8, ty - 8, tw + 16, th + 16);
@@ -253,22 +258,22 @@ function drawGiantTable(
   ctx.fillText("⚔ CHARTER TABLE", cx, cy - mry - 4);
   ctx.textAlign = "left";
 
-  ctx.fillStyle = "rgba(248, 216, 32, 0.08)";
-  ctx.font = `${Math.max(7, w * 0.01)}px "Press Start 2P", monospace`;
+  ctx.fillStyle = "rgba(248, 216, 32, 0.12)";
+  ctx.font = `${Math.max(6, w * 0.008)}px "Press Start 2P", monospace`;
   ctx.textAlign = "center";
-  ctx.fillText("THE GREAT TABLE", cx, ty + th + 28);
+  ctx.fillText("THE GREAT TABLE", cx, ty + th - 10);
   ctx.textAlign = "left";
 
-  return { cx, cy, mrx, mry };
+  return { cx, cy, mrx, mry, tx, ty, tw, th };
 }
 
 function patronAtChance(p: MapPatron): boolean {
   return !!p.chance && p.chance.phase !== "idle";
 }
 
-function chanceSeat(index: number): { x: number; y: number; angle: number } {
-  const baseX = 148;
-  const baseY = 72;
+function chanceSeat(index: number, table: { tx: number; ty: number }): { x: number; y: number; angle: number } {
+  const baseX = table.tx + 14;
+  const baseY = table.ty + 54;
   return {
     x: baseX + (index % 3) * 36,
     y: baseY + Math.floor(index / 3) * 30,
@@ -280,9 +285,10 @@ function seatForPatron(
   p: MapPatron,
   seats: SeatSlot[],
   chanceIndex: number,
+  table: { tx: number; ty: number },
 ): SeatSlot {
   if (patronAtChance(p)) {
-    const c = chanceSeat(chanceIndex);
+    const c = chanceSeat(chanceIndex, table);
     return { ...c, index: -1 };
   }
   return seats[hashName(p.name) % seats.length]!;
@@ -302,12 +308,16 @@ function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
   ctx.restore();
 }
 
-function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number, chanceActive: boolean) {
+function drawSideTables(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  _ph: number,
+  table: { tx: number; ty: number; tw: number; th: number },
+) {
   const zones: Array<{ x: number; y: number; label: string; sub?: string; color: string; hot?: boolean }> = [
-    { x: 52, y: 52, label: "CHANCE", sub: "DIVINE", color: "#e8b050", hot: chanceActive },
-    { x: w - 120, y: 52, label: "WARRIOR", sub: "TRIALS", color: "#9890c8" },
-    { x: 52, y: h - 68, label: "BAR", sub: "CHARTER", color: "#c89898" },
-    { x: w - 120, y: h - 68, label: "CODEX", sub: "DEMPLAR", color: "#8cb8d8" },
+    { x: w - 70, y: table.ty + 8, label: "WARRIOR", sub: "TRIALS", color: "#9890c8" },
+    { x: 10, y: table.ty + table.th - 44, label: "BAR", sub: "CHARTER", color: "#c89898" },
+    { x: w - 70, y: table.ty + table.th - 44, label: "CODEX", sub: "DEMPLAR", color: "#8cb8d8" },
   ];
   for (const z of zones) {
     if (z.hot) {
@@ -459,10 +469,10 @@ function drawPatronToken(
   ctx.textAlign = "left";
 
   ctx.fillStyle = "#f8f0ff";
-  ctx.font = '7px "Press Start 2P", monospace';
-  const short = name.length > 12 ? `${name.slice(0, 10)}…` : name;
+  ctx.font = '6px "Press Start 2P", monospace';
+  const short = name.length > 9 ? `${name.slice(0, 7)}…` : name;
   ctx.textAlign = "center";
-  ctx.fillText(short, x, py + 38);
+  ctx.fillText(short, x, py - 6);
   ctx.textAlign = "left";
 }
 
@@ -479,6 +489,7 @@ export function drawTavernMap(
   if (!ctx) return;
   const w = canvas.clientWidth || 960;
   const h = canvas.clientHeight || 520;
+  const ph = h;
   const now = performance.now();
   ctx.imageSmoothingEnabled = false;
 
@@ -496,16 +507,16 @@ export function drawTavernMap(
       updatedAt: p.chance!.updatedAt,
     }));
 
-  drawPlankFloor(ctx, w, h, tick);
-  drawSideTables(ctx, w, h, chancePatrons.length > 0);
-  const well = drawGiantTable(ctx, w, h, tick, theme);
+  drawPlankFloor(ctx, w, ph, tick);
+  const table = drawGiantTable(ctx, w, ph, tick, theme);
+  drawSideTables(ctx, w, ph, table);
 
-  drawChanceCorner(ctx, w, h, chanceSessions, tick, fx.chanceFlashUntil, now);
-  drawCatchBurst(ctx, well.cx, well.cy, tick, fx.catchBurstUntil, now);
+  drawChanceCorner(ctx, 10, table.ty + 8, chanceSessions, tick, fx.chanceFlashUntil, now);
+  drawCatchBurst(ctx, table.cx, table.cy, tick, fx.catchBurstUntil, now);
   drawSplashFx(ctx, fx.splashes, now);
-  drawTableFish(ctx, well.cx, well.cy, fx.tableFish, tick, now);
+  drawTableFish(ctx, table.cx, table.cy, fx.tableFish, tick, now);
 
-  const seats = computeSeatRing(w, h);
+  const seats = computeSeatRing(w, ph, 20, table);
 
   for (const seat of seats) {
     drawChair(ctx, seat.x, seat.y, seat.angle);
@@ -514,79 +525,47 @@ export function drawTavernMap(
   let chanceIdx = 0;
   for (const p of sorted) {
     if (patronAtChance(p)) continue;
-    const seat = seatForPatron(p, seats, 0);
-    drawFishingLine(ctx, seat.x, seat.y, well.cx, well.cy, p, tick);
+    const seat = seatForPatron(p, seats, 0, table);
+    drawFishingLine(ctx, seat.x, seat.y, table.cx, table.cy, p, tick);
   }
 
   chanceIdx = 0;
   sorted.forEach((p) => {
     const atChance = patronAtChance(p);
-    const seat = seatForPatron(p, seats, atChance ? chanceIdx++ : 0);
+    const seat = seatForPatron(p, seats, atChance ? chanceIdx++ : 0, table);
     const pulse = (p.pulseUntil ?? 0) > now;
     drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse, p.fishing, p.chance);
   });
 
   const activeFishers = sorted.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
   const activeGamblers = chancePatrons.length;
-  const headerY = 18;
   if (activeFishers > 0 || activeGamblers > 0) {
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.textAlign = "center";
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = "right";
+    const headerY = 14;
     if (activeFishers > 0 && activeGamblers > 0) {
       ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
-      ctx.fillText(`${activeFishers} ANGLING`, w / 2 - 52, headerY);
+      ctx.fillText(`${activeFishers} ANGLING`, w - 10, headerY);
       ctx.fillStyle = "rgba(232, 176, 80, 0.95)";
-      ctx.fillText(`${activeGamblers} AT CHANCE`, w / 2 + 58, headerY);
+      ctx.fillText(`${activeGamblers} AT CHANCE`, w - 10, headerY + 12);
     } else if (activeFishers > 0) {
       ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
-      ctx.fillText(`${activeFishers} ANGLING`, w / 2, headerY);
+      ctx.fillText(`${activeFishers} ANGLING`, w - 10, headerY);
     } else {
       ctx.fillStyle = "rgba(232, 176, 80, 0.95)";
-      ctx.fillText(`${activeGamblers} AT CHANCE`, w / 2, headerY);
+      ctx.fillText(`${activeGamblers} AT CHANCE`, w - 10, headerY);
     }
-    ctx.textAlign = "left";
-  }
-
-  if (sorted.length === 0) {
-    ctx.fillStyle = "rgba(248, 240, 255, 0.55)";
-    ctx.font = '8px "Press Start 2P", monospace';
-    ctx.textAlign = "center";
-    ctx.fillText("Pull up a chair — bind thy name at the Moonwell charter", w / 2, h - 18);
-    ctx.textAlign = "left";
-  }
-
-  if (whisperLine && !flashLine) {
-    const drift = Math.sin(tick * 0.03) * 0.08 + 0.42;
-    ctx.fillStyle = `rgba(248, 240, 255, ${drift})`;
-    ctx.font = `${Math.max(6, w * 0.008)}px "Press Start 2P", monospace`;
-    const t = whisperLine.length > 72 ? `${whisperLine.slice(0, 70)}…` : whisperLine;
-    ctx.textAlign = "center";
-    ctx.fillText(t, w / 2, h - 22);
-    ctx.textAlign = "left";
-  }
-
-  if (flashLine) {
-    const pulse = 0.85 + Math.sin(tick * 0.12) * 0.15;
-    ctx.fillStyle = `rgba(0,0,0,${0.82 * pulse})`;
-    ctx.fillRect(12, h - 64, w - 24, 52);
-    ctx.strokeStyle = "#e8b050";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(12, h - 64, w - 24, 52);
-    ctx.fillStyle = "#e8b050";
-    ctx.font = `${Math.max(7, w * 0.009)}px "Press Start 2P", monospace`;
-    const t = flashLine.length > 88 ? `${flashLine.slice(0, 86)}…` : flashLine;
-    ctx.textAlign = "center";
-    ctx.fillText(t, w / 2, h - 32);
     ctx.textAlign = "left";
   }
 }
 
 export function resizeMapCanvas(canvas: HTMLCanvasElement): void {
-  const rect = canvas.getBoundingClientRect();
+  const stack = canvas.parentElement;
+  const box = stack ?? canvas;
+  const rect = box.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const lw = rect.width || 960;
-  const lh = Math.min(560, Math.max(320, rect.width * 0.52));
-  canvas.style.height = `${lh}px`;
+  const lh = Math.max(200, rect.height || 320);
   canvas.width = Math.floor(lw * dpr);
   canvas.height = Math.floor(lh * dpr);
   const ctx = canvas.getContext("2d");

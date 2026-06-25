@@ -79,15 +79,13 @@ export function drawMiniCard(
 
 export function drawChanceCorner(
   ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
+  zoneX: number,
+  zoneY: number,
   sessions: ChanceSession[],
   tick: number,
   flashUntil: number,
   now: number,
 ): void {
-  const zoneX = 24;
-  const zoneY = 24;
   const zw = 120;
   const zh = 88;
   const active = sessions;

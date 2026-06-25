@@ -197,15 +197,23 @@
 }
 
 .bb-map-frame {
-  border-color: rgba(152, 144, 200, 0.32);
-}
-
-.bb-map-frame.bb-mood--celebration {
-  border-color: rgba(232, 176, 80, 0.55);
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(152, 144, 200, 0.32);
+  border-radius: 10px;
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(106, 72, 136, 0.22),
-    0 0 24px rgba(232, 176, 80, 0.12);
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 0 48px rgba(0, 0, 0, 0.2);
+  background: #060a10;
+  overflow: hidden;
+  line-height: 0;
+  container-type: inline-size;
+  will-change: transform;
+  transition: box-shadow 1.2s ease, border-color 1.2s ease;
+  min-height: 280px;
 }
 
 .bb-header {
@@ -331,21 +339,40 @@
   position: relative;
 }
 
-.bb-map-frame {
-  position: relative;
+.bb-map-canvas-stack {
   flex: 1;
-  border: 1px solid var(--frame-border, rgba(232, 176, 80, 0.28));
-  border-radius: 10px;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.45),
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    inset 0 0 48px rgba(0, 0, 0, 0.2);
-  background: #060a10;
+  min-height: 200px;
+  padding-top: 34px;
+  display: flex;
+  position: relative;
+}
+
+.bb-map-canvas-stack #tavern-map {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  height: auto !important;
+}
+
+.bb-map-whisper {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 14px;
+  min-height: 30px;
+  line-height: 1.45;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.28rem, 0.82vw, 0.36rem);
+  color: rgba(248, 240, 255, 0.78);
+  text-align: center;
+  background: rgba(12, 8, 20, 0.94);
+  border-top: 1px solid rgba(232, 176, 80, 0.22);
+  white-space: nowrap;
   overflow: hidden;
-  line-height: 0;
-  container-type: inline-size;
-  will-change: transform;
-  transition: box-shadow 1.2s ease, border-color 1.2s ease;
+  text-overflow: ellipsis;
+}
+
+.bb-map-whisper:empty {
+  display: none;
 }
 
 .bb-map-frame.bb-mood--quiet {
@@ -369,12 +396,18 @@
   pointer-events: none;
   position: absolute;
   left: 14px;
-  top: 14px;
-  z-index: 3;
+  top: 42px;
+  z-index: 5;
+  max-width: min(52%, 340px);
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: rgba(12, 8, 20, 0.78);
+  border: 1px solid rgba(152, 144, 200, 0.2);
   font-family: "Press Start 2P", monospace;
-  font-size: clamp(0.32rem, 1vw, 0.4rem);
-  color: rgba(248, 240, 255, 0.55);
+  font-size: clamp(0.3rem, 0.9vw, 0.38rem);
+  color: rgba(248, 240, 255, 0.62);
   letter-spacing: 0.04em;
+  line-height: 1.5;
   transition: opacity 0.8s ease, color 0.8s ease;
 }
 
@@ -394,7 +427,7 @@
   pointer-events: none;
   position: absolute;
   left: 50%;
-  bottom: 18%;
+  bottom: 52px;
   transform: translateX(-50%);
   z-index: 6;
   width: min(88%, 560px);
@@ -642,7 +675,7 @@
 .bb-callout {
   position: absolute;
   left: 50%;
-  top: 16px;
+  top: 40px;
   transform: translateX(-50%);
   z-index: 5;
   max-width: min(92%, 640px);
