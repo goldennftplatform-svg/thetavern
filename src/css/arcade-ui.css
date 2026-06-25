@@ -119,6 +119,11 @@ html.play-active .canvas-wrap {
   border-radius: 12px;
 }
 
+/* Let STRIKE receive taps — canvas was eating clicks on mobile */
+.play-shell[data-phase="fish_wait"] .canvas-wrap {
+  pointer-events: none;
+}
+
 html.play-active canvas#well {
   width: 100%;
   height: 100%;
@@ -168,8 +173,6 @@ html.play-active canvas#well {
 .play-shell[data-phase="fish_cast"] .play-menu,
 .play-shell[data-phase="fish_wait"] .play-menu,
 .play-shell[data-phase="fish_reel"] .play-menu,
-.play-shell[data-phase="resolve"] .play-menu,
-.play-shell[data-phase="chance_result"] .play-menu,
 .play-shell[data-phase="enter"] .play-menu,
 .play-shell[data-phase="herald"] .play-menu {
   display: none !important;
@@ -255,7 +258,8 @@ html.play-active canvas#well {
 /* Giant strike — center of canvas */
 .strike-float {
   position: absolute !important;
-  z-index: 12;
+  z-index: 30;
+  pointer-events: auto;
   top: 42%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -299,6 +303,9 @@ html.play-active .play-dock .actions {
 .play-shell[data-phase="feast"] .play-dock,
 .play-shell[data-phase="fish_wait"] .play-dock,
 .play-shell[data-phase="resolve"] .play-dock,
+.play-shell[data-phase="renown"] .play-dock,
+.play-shell[data-phase="peril"] .play-dock,
+.play-shell[data-phase="trivia"] .play-dock,
 .play-shell[data-phase="chance_result"] .play-dock {
   display: none;
 }

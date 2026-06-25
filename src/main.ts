@@ -49,7 +49,6 @@ import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
   hubBackHtml,
-  wireHubClicks,
 } from "./ui/tavernHub";
 import {
   catchResolveHtml,
@@ -62,7 +61,6 @@ import {
   renownStudioHtml,
   triviaStudioHtml,
   triviaTeachHtml,
-  wireStudioActions,
   type RunSnapshot,
 } from "./ui/studioScreens";
 
@@ -304,37 +302,76 @@ function buildWellHubHtml(): string {
   return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse);
 }
 
-function wirePhaseHub() {
-  wireHubClicks(elPhase, handleHubAction);
-  wireStudioActions(elPhase, {
-    onContinue: (target) => {
-      if (target === "renown") setPhase("renown");
-      else if (target === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
-      else if (target === "well") setPhase("well");
-    },
-    onPeril: (index) => {
+function handleTriviaChoice(index: number) {
+  const t = triviaWell[state.triviaIndex % triviaWell.length]!;
+  const correct = index === t.ok;
+  state.renown += correct ? 4 : 1;
+  state.triviaIndex++;
+  state.runCount++;
+  hud();
+  if (correct && "teach" in t && t.teach) {
+    openMenu(triviaTeachHtml(t.teach));
+    elPrimary.hidden = true;
+  } else {
+    setPhase("well");
+  }
+}
+
+let menuClickBound = false;
+
+function ensureMenuClickDelegation() {
+  if (menuClickBound) return;
+  menuClickBound = true;
+  elPhase.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-hub-action], [data-continue], [data-peril-choice], [data-trivia-choice], [data-feast-id], [data-guess]",
+    );
+    if (!btn || (btn as HTMLButtonElement).disabled) return;
+
+    const guess = btn.getAttribute("data-guess");
+    if (guess) {
+      finishChance(guess as "high" | "low" | "over" | "under");
+      return;
+    }
+
+    const cont = btn.getAttribute("data-continue");
+    if (cont) {
+      if (cont === "renown") setPhase("renown");
+      else if (cont === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
+      else if (cont === "well") setPhase("well");
+      return;
+    }
+
+    const peril = btn.getAttribute("data-peril-choice");
+    if (peril !== null) {
+      const choiceIndex = Number(peril);
       state.perilIndex++;
-      state.renown += 2 + index;
+      state.renown += 2 + choiceIndex;
       state.runCount++;
       hud();
       setPhase("well");
-    },
-    onTrivia: (index) => {
-      const t = triviaWell[state.triviaIndex % triviaWell.length]!;
-      const correct = index === t.ok;
-      state.renown += correct ? 4 : 1;
-      state.triviaIndex++;
-      state.runCount++;
-      hud();
-      if (correct && "teach" in t && t.teach) {
-        openMenu(triviaTeachHtml(t.teach));
-        elPrimary.hidden = true;
-        wirePhaseHub();
-      } else {
-        setPhase("well");
-      }
-    },
+      return;
+    }
+
+    const trivia = btn.getAttribute("data-trivia-choice");
+    if (trivia !== null) {
+      handleTriviaChoice(Number(trivia));
+      return;
+    }
+
+    const feastId = btn.getAttribute("data-feast-id");
+    if (feastId) {
+      buyFeast(feastId as FoodId);
+      return;
+    }
+
+    const hub = btn.getAttribute("data-hub-action");
+    if (hub) handleHubAction(hub);
   });
+}
+
+function wirePhaseHub() {
+  ensureMenuClickDelegation();
 }
 
 function handleHubAction(action: string) {
@@ -361,7 +398,6 @@ function handleHubAction(action: string) {
   if (action === "ledger") {
     openMenu(ledgerStudioHtml(runSnapshot(), noticeLines()));
     elPrimary.hidden = true;
-    wirePhaseHub();
     return;
   }
   if (action === "charter") {
@@ -576,7 +612,6 @@ function setPhase(next: GamePhase) {
       wirePhaseHub();
       break;
     case "chance_play": {
-      const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
       if (state.chanceGame === "high_low") {
         if (state.chanceCards.length === 0) state.chanceCards = drawFromDeck(1);
         const first = state.chanceCards[0]!;
@@ -586,11 +621,7 @@ function setPhase(next: GamePhase) {
       }
       showToast("");
       elPrimary.hidden = true;
-      elPhase.querySelectorAll<HTMLButtonElement>("[data-guess]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          finishChance(btn.getAttribute("data-guess") as "high" | "low" | "over" | "under");
-        });
-      });
+      wirePhaseHub();
       break;
     }
     case "chance_result": {

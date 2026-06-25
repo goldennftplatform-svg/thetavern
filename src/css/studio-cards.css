@@ -35,7 +35,7 @@ html.play-active .play-menu {
 .play-shell[data-phase="chance_result"] .play-menu {
   position: absolute;
   inset: 0;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   padding: max(12px, env(safe-area-inset-top, 0px)) 20px max(12px, env(safe-area-inset-bottom, 0px));
