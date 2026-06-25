@@ -536,7 +536,7 @@ html.play-active canvas#well {
   line-height: 0;
 }
 
-#tavern-map {
+.tavern-map-frame #tavern-map {
   display: block;
   width: 100%;
   height: auto;

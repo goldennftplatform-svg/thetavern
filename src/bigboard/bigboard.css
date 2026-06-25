@@ -724,8 +724,79 @@ body.bigboard-body {
 }
 
 @media (max-width: 899px) {
+  .bb-header--charter {
+    padding: 8px 12px 6px;
+  }
+
+  .bb-charter-kicker,
+  .bb-charter-tag {
+    display: none;
+  }
+
+  .bb-charter-brand {
+    margin-bottom: 6px;
+    align-items: center;
+  }
+
+  .bb-charter-crest-wrap {
+    width: 44px;
+    height: 44px;
+  }
+
+  .bb-header--charter h1 {
+    margin: 0;
+    font-size: clamp(0.72rem, 4vw, 0.95rem);
+    line-height: 1.25;
+  }
+
+  .bb-status-row {
+    gap: 6px;
+  }
+
+  .bb-stats {
+    display: none;
+  }
+
+  .bb-play-hero {
+    flex: 1 1 100%;
+    justify-content: center;
+    padding: 8px 12px;
+  }
+
+  .bb-charter-night-pill {
+    padding: 6px 8px;
+  }
+
+  .bb-main {
+    grid-template-rows: minmax(240px, 1fr) minmax(0, min(24vh, 160px));
+  }
+
+  .bb-map-canvas-stack {
+    min-height: 200px;
+  }
+
   .bb-feed-col {
-    max-height: min(26vh, 200px);
+    max-height: min(24vh, 160px);
+  }
+
+  .bb-dock {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 6px 10px max(6px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .bb-dock::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bb-dock-panel {
+    flex: 0 0 min(72vw, 240px);
+    padding: 8px 10px;
+    font-size: 0.88rem;
   }
 }
 

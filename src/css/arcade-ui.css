@@ -193,6 +193,36 @@ html.play-active canvas#well {
   opacity: 0.92;
 }
 
+.play-shell[data-phase="demplar_warrior"][data-warrior-stage="brief"] .play-toast {
+  display: none !important;
+}
+
+/* Warrior — full viewport canvas; no HUD/dock eating the stage */
+html.play-active .play-shell[data-phase="demplar_warrior"] {
+  grid-template-rows: minmax(0, 1fr) !important;
+  grid-template-areas: "stage" !important;
+  max-width: min(640px, 100%) !important;
+}
+
+html.play-active .play-shell[data-phase="demplar_warrior"] .play-hud,
+html.play-active .play-shell[data-phase="demplar_warrior"] .play-dock {
+  display: none !important;
+}
+
+html.play-active .play-shell[data-phase="demplar_warrior"] .play-stage,
+html.play-active .play-shell[data-phase="demplar_warrior"] .stage-viewport,
+html.play-active .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
+  flex: 1 1 auto !important;
+  min-height: min(72dvh, 680px) !important;
+  max-height: none !important;
+  height: 100% !important;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
+  max-height: none !important;
+  min-height: min(68dvh, 640px) !important;
+}
+
 .play-shell[data-phase="fish_cast"] .play-menu,
 .play-shell[data-phase="fish_wait"] .play-menu,
 .play-shell[data-phase="fish_reel"] .play-menu,

@@ -156,11 +156,12 @@ export function drawKnightPortrait(
   cx: number,
   footY: number,
   tick: number,
+  scale = 3,
 ) {
   drawKnightPlatformer(ctx, cx, footY, {
     pose: "run",
     frame: Math.floor(tick * 0.12) % 2,
     facing: 1,
-    scale: 3,
+    scale,
   });
 }

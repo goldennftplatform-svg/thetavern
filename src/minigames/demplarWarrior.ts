@@ -69,17 +69,34 @@ const STAGE_MS = {
 const BRIEF_CHUNK_CHARS = 8;
 const BRIEF_LINE_STAGGER_MS = 680;
 const BRIEF_LINE_FLY_MS = 420;
+/** h wonder / PROMPTME: never ship illegible canvas type (Press Start 2P sub-12px). */
+const BRIEF_MIN_FONT_PX = 26;
+const BRIEF_MAX_FONT_PX = 36;
 
-type BriefLine = { text: string; color: string; fontScale: number };
+type BriefLine = { text: string; color: string; fontScale: number; title?: boolean };
+
+function briefFont(line: BriefLine, px: number): string {
+  const size = Math.max(BRIEF_MIN_FONT_PX, Math.round(px * line.fontScale));
+  if (line.title) {
+    return `600 ${size}px "Pixelify Sans", sans-serif`;
+  }
+  return `${size}px "VT323", monospace`;
+}
+
+function briefBaseFontPx(w: number, h: number): number {
+  const short = Math.min(w, h);
+  return Math.max(
+    BRIEF_MIN_FONT_PX,
+    Math.min(BRIEF_MAX_FONT_PX, Math.floor(short * 0.062), Math.floor(w * 0.078)),
+  );
+}
 
 function buildBriefLines(lore: string): BriefLine[] {
   return [
-    { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.15 },
-    { text: lore, color: "#98b8e8", fontScale: 0.88 },
-    { text: "TRIAL I — SARGAANO SPRINT", color: "#68b8a8", fontScale: 0.72 },
-    { text: "TRIAL II — CORSUS CIRCUIT", color: "#68b8a8", fontScale: 0.72 },
-    { text: "TRIAL III — VEIL SHARDS", color: "#68b8a8", fontScale: 0.72 },
-    { text: "REACH THE GATE — BEAT THE CLOCK", color: "#e8b050", fontScale: 0.72 },
+    { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.18, title: true },
+    { text: lore, color: "#d8e4f8", fontScale: 1.05 },
+    { text: "SPRINT · CIRCUIT · VEIL SHARDS", color: "#78d0b8", fontScale: 1 },
+    { text: "REACH THE GATE", color: "#e8b050", fontScale: 1 },
   ];
 }
 
@@ -268,20 +285,35 @@ export class DemplarWarrior {
   private briefDisplayLines: BriefLine[] = [];
   private briefLayoutW = 0;
   private briefLayoutH = 0;
-  private briefBasePx = 6;
+  private briefBasePx = BRIEF_MIN_FONT_PX;
+  private briefLineH = 22;
   private briefImpacted = new Set<number>();
+
+  /** QA hook — smoke tests assert readable brief typography. */
+  getBriefMetrics(): { basePx: number; lineH: number; rowCount: number; minFontPx: number } {
+    const minFontPx = Math.max(
+      BRIEF_MIN_FONT_PX,
+      ...this.briefLines.map((line) => Math.round(this.briefBasePx * line.fontScale)),
+    );
+    return {
+      basePx: this.briefBasePx,
+      lineH: this.briefLineH,
+      rowCount: this.briefDisplayLines.length,
+      minFontPx,
+    };
+  }
 
   private briefDurationMs(): number {
     const rows = this.briefDisplayLines.length || this.briefLines.length;
     return Math.max(STAGE_MS.brief, rows * BRIEF_LINE_STAGGER_MS + BRIEF_LINE_FLY_MS + 900);
   }
 
-  private layoutBriefLines(ctx: CanvasRenderingContext2D, w: number, basePx?: number): BriefLine[] {
-    const px = basePx ?? Math.max(5, Math.min(7.5, w * 0.011));
-    const maxW = w * 0.82;
+  private layoutBriefLines(ctx: CanvasRenderingContext2D, w: number, h: number, basePx?: number): BriefLine[] {
+    const px = basePx ?? briefBaseFontPx(w, h);
+    const maxW = w * 0.86;
     const out: BriefLine[] = [];
     for (const line of this.briefLines) {
-      ctx.font = `${px * line.fontScale}px "Press Start 2P", monospace`;
+      ctx.font = briefFont(line, px);
       for (const row of wrapBriefLine(ctx, line.text, maxW)) {
         out.push({ ...line, text: row });
       }
@@ -299,22 +331,13 @@ export class DemplarWarrior {
     }
     this.briefLayoutW = w;
     this.briefLayoutH = h;
-    let basePx = Math.max(5, Math.min(7.5, w * 0.011));
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const rows = this.layoutBriefLines(ctx, w, basePx);
-      const lineH = Math.max(12, basePx * 2.05);
-      const knightZone = 78;
-      const panelH = rows.length * lineH + 24;
-      if (12 + panelH + knightZone <= h) {
-        this.briefBasePx = basePx;
-        this.briefDisplayLines = rows;
-        return rows;
-      }
-      basePx -= 0.45;
-    }
-    this.briefBasePx = 5;
-    this.briefDisplayLines = this.layoutBriefLines(ctx, w, 5);
-    return this.briefDisplayLines;
+    const basePx = briefBaseFontPx(w, h);
+    const rows = this.layoutBriefLines(ctx, w, h, basePx);
+    const lineH = Math.max(BRIEF_MIN_FONT_PX + 8, Math.round(basePx * 1.34));
+    this.briefBasePx = basePx;
+    this.briefLineH = lineH;
+    this.briefDisplayLines = rows;
+    return rows;
   }
 
   constructor() {
@@ -325,8 +348,11 @@ export class DemplarWarrior {
     const probe = document.createElement("canvas");
     const probeCtx = probe.getContext("2d");
     if (probeCtx) {
-      this.briefDisplayLines = this.layoutBriefLines(probeCtx, 520, 6.5);
+      this.briefDisplayLines = this.layoutBriefLines(probeCtx, 520, 420);
       this.briefLayoutW = 520;
+      this.briefLayoutH = 420;
+      this.briefBasePx = briefBaseFontPx(520, 420);
+      this.briefLineH = Math.round(this.briefBasePx * 1.28);
     } else {
       this.briefDisplayLines = [...this.briefLines];
     }
@@ -960,14 +986,14 @@ export class DemplarWarrior {
     const tick = elapsed * 0.06;
     const basePx = this.briefBasePx;
     const rows = this.syncBriefLayout(ctx, w, h);
-    const lineH = Math.max(12, basePx * 2.05);
-    const panelLeft = w * 0.05;
-    const panelW = w * 0.9;
-    const panelTop = 10;
-    const knightFootY = h - 18;
-    const panelH = Math.max(rows.length * lineH + 20, knightFootY - 86 - panelTop);
+    const lineH = this.briefLineH;
+    const panelLeft = w * 0.04;
+    const panelW = w * 0.92;
+    const panelTop = Math.max(12, h * 0.06);
+    const knightFootY = h - Math.max(20, h * 0.05);
+    const panelH = Math.min(h * 0.72, knightFootY - panelTop - 12);
     const textBlockH = rows.length * lineH;
-    const textStartY = panelTop + 14 + Math.max(0, (panelH - 28 - textBlockH) / 2) + lineH * 0.5;
+    const textStartY = panelTop + 18 + Math.max(0, (panelH - 36 - textBlockH) / 2) + lineH * 0.5;
 
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, "#1a1030");
@@ -976,11 +1002,11 @@ export class DemplarWarrior {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    ctx.fillStyle = "rgba(72, 48, 88, 0.42)";
+    ctx.fillStyle = "rgba(72, 48, 88, 0.5)";
     ctx.fillRect(panelLeft, panelTop, panelW, panelH);
     ctx.strokeStyle = "#e8b050";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(panelLeft, panelTop, panelW, panelH);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(panelLeft + 1, panelTop + 1, panelW - 2, panelH - 2);
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -993,7 +1019,7 @@ export class DemplarWarrior {
 
       const flyT = Math.min(1, t / BRIEF_LINE_FLY_MS);
       const eased = 1 - Math.pow(1 - flyT, 3);
-      const font = `${basePx * line.fontScale}px "Press Start 2P", monospace`;
+      const font = briefFont(line, basePx);
       ctx.font = font;
       const lineW = ctx.measureText(line.text).width;
       const targetX = w * 0.5;
@@ -1002,21 +1028,25 @@ export class DemplarWarrior {
       const x = startX + (targetX - startX) * eased;
 
       ctx.save();
-      ctx.globalAlpha = Math.min(1, 0.3 + flyT * 0.75);
+      ctx.globalAlpha = Math.min(1, 0.35 + flyT * 0.75);
       ctx.fillStyle = line.color;
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = line.title ? 6 : 3;
       ctx.fillText(line.text, x, targetY);
+      ctx.shadowBlur = 0;
 
       if (flyT >= 1 && t < BRIEF_LINE_FLY_MS + 70) {
         const flash = 1 - (t - BRIEF_LINE_FLY_MS) / 70;
         ctx.fillStyle = `rgba(232, 176, 80, ${0.22 * flash})`;
-        ctx.fillRect(x - lineW * 0.5 - 6, targetY - lineH * 0.45, lineW + 12, lineH * 0.9);
+        ctx.fillRect(x - lineW * 0.5 - 8, targetY - lineH * 0.48, lineW + 16, lineH * 0.96);
         ctx.fillStyle = line.color;
         ctx.fillText(line.text, x, targetY);
       }
       ctx.restore();
     }
 
-    drawKnightPortrait(ctx, w / 2, knightFootY, tick);
+    const knightScale = Math.min(1.35, w / 280, (h * 0.16) / 48);
+    drawKnightPortrait(ctx, w / 2, knightFootY, tick, knightScale);
     ctx.textAlign = "left";
   }
 

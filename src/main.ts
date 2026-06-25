@@ -64,7 +64,7 @@ import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
 import { primeWarriorSfx } from "./audio/warriorSfx";
-import { demplarEpigraphs, knightNoticeBoard, warriorBriefLines } from "./content/demplarKnights";
+import { demplarEpigraphs, knightNoticeBoard } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
 import {
@@ -804,6 +804,14 @@ function finishDemplarRun() {
   setPhase("demplar_result");
 }
 
+function syncWarriorShell() {
+  if (state.phase === "demplar_warrior" && demplarGame) {
+    elPlayShell.dataset.warriorStage = demplarGame.stage;
+  } else {
+    delete elPlayShell.dataset.warriorStage;
+  }
+}
+
 function startDemplarLoop() {
   lastDemplarT = performance.now();
   const tick = (now: number) => {
@@ -813,6 +821,7 @@ function startDemplarLoop() {
     demplarGame.update(dt, now);
     stageBanner = demplarGame.banner;
     showToast(demplarGame.hint(), 0);
+    syncWarriorShell();
     drawDemplar();
     if (demplarGame.done) {
       finishDemplarRun();
@@ -827,6 +836,7 @@ function startDemplarWarrior() {
   primeWarriorSfx();
   demplarGame = new DemplarWarrior();
   setPhase("demplar_warrior");
+  syncWarriorShell();
 }
 
 function demplarPointer(e: PointerEvent) {
@@ -976,7 +986,7 @@ function setPhase(next: GamePhase) {
     }
     case "demplar_warrior":
       closeMenu();
-      showToast(`⚔ ${pickLine(warriorBriefLines)}`);
+      showToast("");
       elPrimary.hidden = true;
       requestAnimationFrame(() => {
         resizeCanvas();
@@ -1010,6 +1020,7 @@ function setPhase(next: GamePhase) {
   }
   hud();
   drawWell();
+  syncWarriorShell();
   broadcastFishing(true);
   broadcastChance();
   scheduleSave();
@@ -1398,3 +1409,9 @@ requestAnimationFrame(function tick(now: number) {
   }
   requestAnimationFrame(tick);
 });
+
+if (import.meta.env.DEV) {
+  (window as Window & { __tavernQA?: { getDemplar: () => DemplarWarrior | null } }).__tavernQA = {
+    getDemplar: () => demplarGame,
+  };
+}
