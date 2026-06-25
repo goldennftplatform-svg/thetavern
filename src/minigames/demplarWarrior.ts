@@ -91,6 +91,11 @@ function briefBaseFontPx(w: number, h: number): number {
   );
 }
 
+function warriorHintFont(w: number): string {
+  const px = Math.max(16, Math.min(22, Math.floor(w * 0.042)));
+  return `${px}px "VT323", monospace`;
+}
+
 function buildBriefLines(lore: string): BriefLine[] {
   return [
     { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.18, title: true },
@@ -164,6 +169,296 @@ const PLATFORM_PICKUPS: Pickup[] = [
 ];
 
 const GOAL_X = 3650;
+const WARRIOR_HUD_H = 44;
+
+/** Sargaano charter causeway — parallax props (no collision). */
+type SargaanoProp = { x: number; y: number; kind: "banner" | "torch" | "pillar" | "well" | "swords" };
+const SARGAANO_PROPS: SargaanoProp[] = [
+  { x: 120, y: 0, kind: "banner" },
+  { x: 400, y: 0, kind: "torch" },
+  { x: 780, y: -36, kind: "pillar" },
+  { x: 1050, y: -72, kind: "swords" },
+  { x: 1350, y: -36, kind: "banner" },
+  { x: 1680, y: 0, kind: "well" },
+  { x: 2050, y: 0, kind: "torch" },
+  { x: 2480, y: -96, kind: "pillar" },
+  { x: 2850, y: -48, kind: "banner" },
+  { x: 3180, y: 0, kind: "swords" },
+  { x: 3480, y: 0, kind: "torch" },
+];
+
+const SARGAANO = {
+  skyTop: "#120818",
+  skyMid: "#281838",
+  skyLow: "#3a2848",
+  veil: "#c87878",
+  moon: "#d8dce8",
+  stone: "#3a3048",
+  stoneDark: "#221830",
+  stoneCap: "#4a3858",
+  mortar: "#1a1420",
+  gold: "#e8b050",
+  goldDim: "#a87830",
+  charter: "#9890c8",
+  mist: "rgba(152, 144, 200, 0.18)",
+} as const;
+
+function drawSargaanoSky(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  groundY: number,
+  cam: number,
+  tick: number,
+) {
+  const top = WARRIOR_HUD_H;
+  const grad = ctx.createLinearGradient(0, top, 0, groundY);
+  grad.addColorStop(0, SARGAANO.skyTop);
+  grad.addColorStop(0.45, SARGAANO.skyMid);
+  grad.addColorStop(1, SARGAANO.skyLow);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, top, w, groundY - top);
+
+  for (let i = 0; i < 36; i++) {
+    const sx = ((i * 97 + 13) % (w + 40)) - 20;
+    const sy = top + 12 + ((i * 53) % Math.floor((groundY - top) * 0.55));
+    ctx.fillStyle = i % 5 === 0 ? "rgba(232, 176, 80, 0.55)" : "rgba(220, 228, 240, 0.35)";
+    ctx.fillRect(sx, sy, i % 5 === 0 ? 2 : 1, 1);
+  }
+
+  const moonX = w * 0.78 - cam * 0.04;
+  const moonY = top + (groundY - top) * 0.14;
+  ctx.fillStyle = "rgba(200, 210, 230, 0.08)";
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, 42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = SARGAANO.moon;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#9aa8b8";
+  ctx.fillRect(moonX - 6, moonY - 2, 10, 8);
+
+  const bleed = 0.35 + Math.sin(tick * 0.002) * 0.12;
+  const veilGrad = ctx.createLinearGradient(0, groundY - 120, 0, groundY);
+  veilGrad.addColorStop(0, "rgba(200, 120, 120, 0)");
+  veilGrad.addColorStop(1, `rgba(200, 120, 120, ${bleed * 0.35})`);
+  ctx.fillStyle = veilGrad;
+  ctx.fillRect(0, groundY - 120, w, 120);
+
+  const hallX = w * 0.5 - cam * 0.08;
+  const hallBase = groundY - 8;
+  ctx.fillStyle = "rgba(10, 8, 18, 0.72)";
+  ctx.fillRect(hallX - 90, hallBase - 72, 180, 72);
+  ctx.fillRect(hallX - 70, hallBase - 98, 140, 28);
+  ctx.fillStyle = "rgba(232, 176, 80, 0.22)";
+  ctx.fillRect(hallX - 62, hallBase - 94, 124, 4);
+  for (let i = -1; i <= 1; i++) {
+    ctx.fillStyle = "rgba(72, 48, 88, 0.55)";
+    ctx.fillRect(hallX + i * 52 - 8, hallBase - 72, 16, 72);
+  }
+  ctx.fillStyle = SARGAANO.mist;
+  ctx.fillRect(0, groundY - 48, w, 48);
+}
+
+function drawSargaanoProp(
+  ctx: CanvasRenderingContext2D,
+  prop: SargaanoProp,
+  sx: number,
+  groundY: number,
+  tick: number,
+) {
+  const py = groundY + prop.y;
+  const sway = Math.sin(tick * 0.003 + prop.x * 0.01) * 3;
+
+  switch (prop.kind) {
+    case "pillar": {
+      ctx.fillStyle = SARGAANO.stoneDark;
+      ctx.fillRect(sx - 10, py - 88, 20, 88);
+      ctx.fillStyle = SARGAANO.goldDim;
+      ctx.fillRect(sx - 12, py - 92, 24, 6);
+      ctx.fillStyle = SARGAANO.charter;
+      ctx.fillRect(sx - 4, py - 78, 8, 8);
+      break;
+    }
+    case "torch": {
+      const flicker = 0.7 + Math.sin(tick * 0.02 + prop.x) * 0.3;
+      ctx.fillStyle = SARGAANO.stoneDark;
+      ctx.fillRect(sx - 4, py - 36, 8, 36);
+      ctx.fillStyle = `rgba(232, 176, 80, ${0.35 * flicker})`;
+      ctx.beginPath();
+      ctx.arc(sx, py - 42, 10 * flicker, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(200, 120, 80, ${0.55 * flicker})`;
+      ctx.fillRect(sx - 3, py - 48, 6, 10);
+      break;
+    }
+    case "banner": {
+      ctx.fillStyle = SARGAANO.stoneDark;
+      ctx.fillRect(sx - 3, py - 64, 6, 64);
+      ctx.fillStyle = "#583868";
+      ctx.fillRect(sx + sway, py - 58, 22, 34);
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.fillRect(sx + sway + 2, py - 54, 18, 3);
+      ctx.font = '7px "VT323", monospace';
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.textAlign = "center";
+      ctx.fillText("⚔", sx + sway + 11, py - 38);
+      ctx.textAlign = "left";
+      break;
+    }
+    case "swords": {
+      ctx.fillStyle = SARGAANO.stoneDark;
+      ctx.fillRect(sx - 14, py - 28, 28, 28);
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.fillRect(sx - 10, py - 22, 4, 18);
+      ctx.fillRect(sx + 6, py - 22, 4, 18);
+      ctx.fillStyle = "#c8d8e8";
+      ctx.fillRect(sx - 12, py - 24, 8, 3);
+      ctx.fillRect(sx + 4, py - 24, 8, 3);
+      break;
+    }
+    case "well": {
+      ctx.fillStyle = SARGAANO.stoneDark;
+      ctx.fillRect(sx - 18, py - 12, 36, 12);
+      ctx.fillStyle = "#1a4858";
+      ctx.beginPath();
+      ctx.ellipse(sx, py - 14, 16, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = SARGAANO.goldDim;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "rgba(136, 200, 184, 0.35)";
+      ctx.beginPath();
+      ctx.ellipse(sx - 3, py - 15, 6, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+}
+
+function drawCharterPlat(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  groundY: number,
+  plat: Plat,
+  platIndex: number,
+) {
+  const py = groundY + plat.y;
+  const tileW = 32;
+  const tiles = Math.ceil(plat.w / tileW);
+
+  for (let t = 0; t < tiles; t++) {
+    const tx = sx + t * tileW;
+    const tw = Math.min(tileW, plat.w - t * tileW);
+    if (tw <= 0) continue;
+
+    ctx.fillStyle = SARGAANO.stoneDark;
+    ctx.fillRect(tx, py + 6, tw, plat.h - 6);
+    ctx.fillStyle = (t + platIndex) % 2 === 0 ? SARGAANO.stone : SARGAANO.stoneCap;
+    ctx.fillRect(tx + 1, py + 4, tw - 2, plat.h - 8);
+    ctx.fillStyle = SARGAANO.mortar;
+    ctx.fillRect(tx, py + plat.h - 4, tw, 2);
+
+    ctx.fillStyle = SARGAANO.goldDim;
+    ctx.fillRect(tx, py, tw, 4);
+    ctx.fillStyle = SARGAANO.gold;
+    ctx.fillRect(tx + 2, py, tw - 4, 2);
+
+    if (t === 0 || t === tiles - 1) {
+      ctx.fillStyle = SARGAANO.charter;
+      ctx.fillRect(tx + 4, py - 10, tw - 8, 8);
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.fillRect(tx + 6, py - 8, tw - 12, 2);
+    }
+  }
+
+  if (platIndex % 3 === 1 && plat.w > 80) {
+    ctx.font = '8px "VT323", monospace';
+    ctx.fillStyle = SARGAANO.gold;
+    ctx.textAlign = "center";
+    ctx.fillText("⚔", sx + plat.w / 2, py - 2);
+    ctx.textAlign = "left";
+  }
+
+  ctx.strokeStyle = "rgba(232, 176, 80, 0.45)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sx, py, plat.w, plat.h);
+}
+
+function drawCharterPickup(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  groundY: number,
+  pick: Pickup,
+  tick: number,
+) {
+  const bob = Math.sin(tick * 0.006 + pick.x * 0.02) * 4;
+  const py = groundY + pick.y - 8 + bob;
+
+  if (pick.kind === "coin") {
+    ctx.fillStyle = "rgba(232, 176, 80, 0.25)";
+    ctx.beginPath();
+    ctx.arc(sx, py, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = SARGAANO.gold;
+    ctx.beginPath();
+    ctx.arc(sx, py, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#f8f0c0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = '10px "VT323", monospace';
+    ctx.fillStyle = SARGAANO.stoneDark;
+    ctx.textAlign = "center";
+    ctx.fillText("◎", sx, py + 4);
+    ctx.textAlign = "left";
+  } else {
+    ctx.fillStyle = "rgba(152, 144, 200, 0.35)";
+    ctx.fillRect(sx - 10, py - 20, 20, 24);
+    ctx.fillStyle = SARGAANO.charter;
+    ctx.fillRect(sx - 8, py - 18, 16, 20);
+    ctx.fillStyle = SARGAANO.gold;
+    ctx.fillRect(sx - 6, py - 16, 12, 3);
+    ctx.font = '12px "VT323", monospace';
+    ctx.fillStyle = SARGAANO.gold;
+    ctx.textAlign = "center";
+    ctx.fillText("†", sx, py - 2);
+    ctx.textAlign = "left";
+  }
+}
+
+function drawCharterGate(ctx: CanvasRenderingContext2D, gx: number, groundY: number, tick: number) {
+  const glow = 0.55 + Math.sin(tick * 0.004) * 0.2;
+  ctx.fillStyle = SARGAANO.stoneDark;
+  ctx.fillRect(gx - 28, groundY - 108, 18, 108);
+  ctx.fillRect(gx + 16, groundY - 108, 18, 108);
+  ctx.fillStyle = SARGAANO.stone;
+  ctx.fillRect(gx - 26, groundY - 112, 14, 8);
+  ctx.fillRect(gx + 18, groundY - 112, 14, 8);
+
+  ctx.fillStyle = `rgba(232, 176, 80, ${glow})`;
+  ctx.fillRect(gx - 8, groundY - 96, 34, 6);
+  ctx.fillRect(gx - 8, groundY - 72, 34, 4);
+
+  ctx.fillStyle = "rgba(10, 8, 18, 0.55)";
+  ctx.fillRect(gx - 6, groundY - 90, 30, 90);
+
+  ctx.strokeStyle = SARGAANO.gold;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(gx - 6, groundY - 90);
+  ctx.lineTo(gx + 8, groundY - 108);
+  ctx.lineTo(gx + 22, groundY - 90);
+  ctx.stroke();
+
+  ctx.font = '10px "VT323", monospace';
+  ctx.fillStyle = SARGAANO.gold;
+  ctx.textAlign = "center";
+  ctx.fillText("CHARTER", gx + 8, groundY - 98);
+  ctx.fillText("GATE", gx + 8, groundY - 86);
+  ctx.textAlign = "left";
+}
 
 /** Closed circuit — Corsus desert loop (normalized 0–1). */
 const TRACK_POINTS: Array<[number, number]> = [
@@ -921,7 +1216,7 @@ export class DemplarWarrior {
     }
 
     this.drawHud(ctx, w, h, now);
-    if (this.stage === "platform") this.drawPlatform(ctx, w, h);
+    if (this.stage === "platform") this.drawPlatform(ctx, w, h, now);
     else if (this.stage === "race") this.drawRace(ctx, w, h, now);
     else if (this.stage === "asteroids") this.drawAsteroids(ctx, w, h);
     else this.drawDone(ctx, w, h);
@@ -937,35 +1232,43 @@ export class DemplarWarrior {
         ? 0
         : Math.max(0, timeMax - elapsed) / 1000;
 
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(0, 0, w, 36);
+    const hudH = WARRIOR_HUD_H;
+    const titlePx = Math.max(18, Math.min(26, Math.floor(w * 0.048)));
+    const subPx = Math.max(16, Math.min(22, Math.floor(w * 0.04)));
+    const statPx = Math.max(16, Math.min(20, Math.floor(w * 0.038)));
+    const timePx = Math.max(18, Math.min(24, Math.floor(w * 0.046)));
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(0, 0, w, hudH);
     ctx.fillStyle = "#e8b050";
-    ctx.font = '8px "Press Start 2P", monospace';
-    ctx.fillText(this.banner.slice(0, 22), 10, 14);
+    ctx.font = `${titlePx}px "VT323", monospace`;
+    ctx.fillText(this.fitHudLine(ctx, this.banner, w * 0.42), 10, 16);
     ctx.fillStyle = "#98b8e8";
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillText(this.subBanner.slice(0, 40), 10, 28);
+    ctx.font = `${subPx}px "VT323", monospace`;
+    ctx.fillText(this.fitHudLine(ctx, this.subBanner, w * 0.58), 10, 34);
 
     if (this.stage === "race" && !this.race.raceOver) {
       const player = this.race.racers.find((r) => r.isPlayer)!;
       const lap = Math.min(LAP_COUNT, Math.floor(player.lapProgress) + 1);
       ctx.fillStyle = "#f8f0ff";
-      ctx.fillText(`LAP ${lap}/${LAP_COUNT}  P${this.race.playerPlace}/5`, w * 0.32, 14);
+      ctx.font = `${statPx}px "VT323", monospace`;
+      ctx.fillText(`LAP ${lap}/${LAP_COUNT}  P${this.race.playerPlace}/5`, w * 0.34, 16);
     }
 
     if (this.stage === "asteroids") {
       ctx.fillStyle = "#f8f0ff";
-      ctx.fillText(`W${this.asteroids.wave} ♥${this.asteroids.lives}`, w * 0.34, 14);
+      ctx.font = `${statPx}px "VT323", monospace`;
+      ctx.fillText(`W${this.asteroids.wave} ♥${this.asteroids.lives}`, w * 0.36, 16);
       if (this.asteroids.combo > 1) {
         ctx.fillStyle = "#e87850";
-        ctx.fillText(`x${this.asteroids.combo}`, w * 0.52, 14);
+        ctx.fillText(`x${this.asteroids.combo}`, w * 0.54, 16);
       }
     }
 
     if (timeLeft > 0) {
       ctx.textAlign = "right";
       ctx.fillStyle = "#68b8a8";
-      ctx.fillText(`${timeLeft.toFixed(1)}s`, w - 10, 18);
+      ctx.font = `${timePx}px "VT323", monospace`;
+      ctx.fillText(`${timeLeft.toFixed(1)}s`, w - 10, 20);
       ctx.textAlign = "left";
     }
 
@@ -977,8 +1280,18 @@ export class DemplarWarrior {
       (this.stage === "asteroids" ? this.asteroids.score : 0);
     ctx.textAlign = "right";
     ctx.fillStyle = "#f8f0ff";
-    ctx.fillText(`◎ ${live}`, w - 10, 30);
+    ctx.font = `${statPx}px "VT323", monospace`;
+    ctx.fillText(`◎ ${live}`, w - 10, 36);
     ctx.textAlign = "left";
+  }
+
+  private fitHudLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let trimmed = text;
+    while (trimmed.length > 3 && ctx.measureText(`${trimmed}…`).width > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return `${trimmed}…`;
   }
 
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
@@ -1050,55 +1363,44 @@ export class DemplarWarrior {
     ctx.textAlign = "left";
   }
 
-  private drawPlatform(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  private drawPlatform(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
     const groundY = h * 0.72;
     const p = this.platform;
     const cam = p.cam;
+    const tick = now;
 
-    const grad = ctx.createLinearGradient(0, 36, 0, h);
-    grad.addColorStop(0, "#1a2848");
-    grad.addColorStop(1, "#0a1428");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 36, w, h - 36);
+    drawSargaanoSky(ctx, w, h, groundY, cam, tick);
 
-    for (let i = 0; i < 30; i++) {
-      const px = ((i * 64 - cam * 0.25) % (w + 64)) - 32;
-      ctx.fillStyle = i % 2 ? "#243858" : "#1a2840";
-      ctx.fillRect(px, groundY + 24, 64, h);
+    for (const prop of SARGAANO_PROPS) {
+      const sx = prop.x - cam;
+      if (sx < -60 || sx > w + 60) continue;
+      drawSargaanoProp(ctx, prop, sx, groundY, tick);
     }
 
-    for (const plat of p.plats) {
+    const abyssGrad = ctx.createLinearGradient(0, groundY + 20, 0, h);
+    abyssGrad.addColorStop(0, "#120818");
+    abyssGrad.addColorStop(1, "#06040c");
+    ctx.fillStyle = abyssGrad;
+    ctx.fillRect(0, groundY + 20, w, h - groundY - 20);
+
+    for (let i = 0; i < 24; i++) {
+      const px = ((i * 80 - cam * 0.18) % (w + 80)) - 40;
+      ctx.fillStyle = i % 2 ? "rgba(58, 40, 72, 0.45)" : "rgba(34, 24, 48, 0.55)";
+      ctx.fillRect(px, groundY + 28, 48, h);
+    }
+
+    for (let pi = 0; pi < p.plats.length; pi++) {
+      const plat = p.plats[pi]!;
       const sx = plat.x - cam;
       if (sx < -120 || sx > w + 120) continue;
-      ctx.fillStyle = "#5a3820";
-      ctx.fillRect(sx, groundY + plat.y, plat.w, plat.h);
-      ctx.fillStyle = "#3d2818";
-      ctx.fillRect(sx + 4, groundY + plat.y + 4, plat.w - 8, plat.h - 8);
-      ctx.strokeStyle = "#e8b050";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(sx, groundY + plat.y, plat.w, plat.h);
+      drawCharterPlat(ctx, sx, groundY, plat, pi);
     }
 
     for (const pick of p.pickups) {
       if (pick.taken) continue;
       const sx = pick.x - cam;
       if (sx < -24 || sx > w + 24) continue;
-      if (pick.kind === "coin") {
-        ctx.fillStyle = "#e8b050";
-        ctx.beginPath();
-        ctx.arc(sx, groundY + pick.y - 8, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#f8f0c0";
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = "#98b8e8";
-        ctx.fillRect(sx - 8, groundY + pick.y - 22, 16, 20);
-        ctx.fillStyle = "#e8b050";
-        ctx.font = '8px "Press Start 2P", monospace';
-        ctx.textAlign = "center";
-        ctx.fillText("†", sx, groundY + pick.y - 8);
-        ctx.textAlign = "left";
-      }
+      drawCharterPickup(ctx, sx, groundY, pick, tick);
     }
 
     const px = p.x - cam;
@@ -1108,31 +1410,28 @@ export class DemplarWarrior {
     drawKnightPlatformer(ctx, px, py, { pose, frame, facing: 1, scale: 2 });
 
     const gx = GOAL_X - cam;
-    if (gx > -20 && gx < w + 60) {
-      ctx.fillStyle = "#e8b050";
-      ctx.fillRect(gx, groundY - 88, 6, 88);
-      ctx.fillStyle = "#c87878";
-      ctx.fillRect(gx - 18, groundY - 96, 42, 28);
-      ctx.fillStyle = "#f8f0ff";
-      ctx.font = '6px "Press Start 2P", monospace';
-      ctx.fillText("GATE", gx - 10, groundY - 102);
+    if (gx > -40 && gx < w + 80) {
+      drawCharterGate(ctx, gx, groundY, tick);
     }
 
     const prog = Math.min(1, p.x / GOAL_X);
-    ctx.fillStyle = "#1a222c";
+    ctx.fillStyle = "#1a1420";
     ctx.fillRect(12, h - 22, w - 24, 8);
-    ctx.fillStyle = "#68b8a8";
+    ctx.fillStyle = SARGAANO.gold;
     ctx.fillRect(12, h - 22, (w - 24) * prog, 8);
+    ctx.strokeStyle = SARGAANO.charter;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, h - 22, w - 24, 8);
 
-    ctx.fillStyle = "rgba(248,240,255,0.7)";
-    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.fillStyle = "rgba(248, 240, 255, 0.75)";
+    ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("TAP / SPACE — JUMP (hold higher)", w / 2, h - 28);
+    ctx.fillText("SARGAANO CAUSEWAY — TAP / SPACE TO LEAP", w / 2, h - 28);
     ctx.textAlign = "left";
   }
 
   private drawRace(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
-    const playTop = 40;
+    const playTop = WARRIOR_HUD_H;
     const playH = h - playTop - 8;
 
     ctx.fillStyle = "#1a2818";
@@ -1234,14 +1533,14 @@ export class DemplarWarrior {
     drawRaceBoostPad(ctx, layout, this.raceControls.boostHeld);
 
     ctx.fillStyle = "rgba(248,240,255,0.7)";
-    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
     ctx.fillText("DRAG WHEEL · TAP BOOST · 2 LAPS vs 4 RIVALS", w / 2, h - 12);
     ctx.textAlign = "left";
   }
 
   private drawAsteroids(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    const playTop = 40;
+    const playTop = WARRIOR_HUD_H;
     ctx.fillStyle = "#080818";
     ctx.fillRect(0, playTop, w, h - playTop);
 
@@ -1287,7 +1586,7 @@ export class DemplarWarrior {
     drawKnightFlyer(ctx, shipX, shipY);
 
     ctx.fillStyle = "rgba(248,240,255,0.7)";
-    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
     ctx.fillText("DRAG SHIP · TAP TO SHOOT · SURVIVE WAVES", w / 2, h - 10);
     ctx.textAlign = "left";
@@ -1310,7 +1609,7 @@ export class DemplarWarrior {
 
   hint(): string {
     if (this.stage === "brief") return "";
-    if (this.stage === "platform") return "Jump gaps — reach the GATE before time runs out";
+    if (this.stage === "platform") return "Sprint the Sargaano causeway — leap the veil pits to the Charter Gate";
     if (this.stage === "race") {
       const p = this.race.playerPlace;
       return `Drag the wheel to steer · tap ⚡ boost — P${p}/5`;

@@ -143,28 +143,37 @@ html.play-active canvas#well {
   max-height: none;
 }
 
-/* Floating toast — one line, no scroll box */
+/* Floating toast — one line on phone, wraps on wider screens */
 .play-toast {
   position: absolute;
   left: 50%;
   top: 10px;
   transform: translateX(-50%);
   z-index: 8;
-  max-width: calc(100% - 24px);
+  max-width: min(calc(100% - 24px), 420px);
   padding: 8px 16px;
   font-family: var(--font-label, "Silkscreen", monospace);
-  font-size: 0.82rem;
+  font-size: clamp(0.78rem, 2.2vw, 0.92rem);
   color: var(--ink);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.35;
   background: rgba(8, 12, 18, 0.88);
   border: 1px solid rgba(232, 176, 80, 0.35);
   border-radius: 999px;
   backdrop-filter: blur(8px);
   pointer-events: none;
   animation: toast-in 0.25s ease-out;
+}
+
+@media (min-width: 720px) {
+  .play-toast {
+    white-space: normal;
+    border-radius: 12px;
+    max-width: min(92%, 480px);
+  }
 }
 
 @keyframes toast-in {
@@ -189,11 +198,6 @@ html.play-active canvas#well {
 }
 
 .play-shell[data-phase="demplar_warrior"] .play-toast {
-  display: block !important;
-  opacity: 0.92;
-}
-
-.play-shell[data-phase="demplar_warrior"][data-warrior-stage="brief"] .play-toast {
   display: none !important;
 }
 
@@ -201,7 +205,7 @@ html.play-active canvas#well {
 html.play-active .play-shell[data-phase="demplar_warrior"] {
   grid-template-rows: minmax(0, 1fr) !important;
   grid-template-areas: "stage" !important;
-  max-width: min(640px, 100%) !important;
+  max-width: 100% !important;
 }
 
 html.play-active .play-shell[data-phase="demplar_warrior"] .play-hud,
@@ -213,14 +217,9 @@ html.play-active .play-shell[data-phase="demplar_warrior"] .play-stage,
 html.play-active .play-shell[data-phase="demplar_warrior"] .stage-viewport,
 html.play-active .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
   flex: 1 1 auto !important;
-  min-height: min(72dvh, 680px) !important;
+  min-height: min(68dvh, 640px) !important;
   max-height: none !important;
   height: 100% !important;
-}
-
-html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
-  max-height: none !important;
-  min-height: min(68dvh, 640px) !important;
 }
 
 .play-shell[data-phase="fish_cast"] .play-menu,
@@ -430,7 +429,7 @@ html.play-active .canvas-wrap {
   overflow: hidden;
 }
 
-/* Kill play-shell.css desktop 2-column split during arcade play */
+/* Mobile-first play shell; scale up cleanly on desktop */
 html.play-active .play-shell {
   grid-template-columns: 1fr !important;
   grid-template-rows: auto minmax(0, 1fr) auto !important;
@@ -438,7 +437,7 @@ html.play-active .play-shell {
     "hud"
     "stage"
     "dock" !important;
-  max-width: min(520px, 100%) !important;
+  max-width: 100% !important;
   margin-left: auto !important;
   margin-right: auto !important;
   width: 100%;
@@ -469,14 +468,49 @@ html.play-active .play-dock {
 }
 
 html.play-active #app {
-  max-width: min(520px, 100%) !important;
+  max-width: 100% !important;
   margin: 0 auto !important;
 }
 
-@media (min-width: 720px) {
+html.play-active .canvas-wrap {
+  min-height: min(50dvh, 480px);
+}
+
+@media (min-width: 600px) {
   html.play-active #app {
-    max-width: min(520px, 100%) !important;
-    margin: 0 auto;
+    max-width: min(680px, 96vw) !important;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  html.play-active .canvas-wrap {
+    min-height: min(56dvh, 540px);
+  }
+}
+
+@media (min-width: 900px) {
+  html.play-active #app {
+    max-width: min(920px, 94vw) !important;
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  }
+
+  html.play-active .canvas-wrap {
+    min-height: min(60dvh, 580px);
+    border-radius: 14px;
+  }
+
+  html.play-active .play-shell[data-phase="demplar_warrior"] {
+    max-width: min(860px, 100%) !important;
+  }
+
+  html.play-active .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
+    min-height: min(78dvh, 720px) !important;
+  }
+
+  html.play-active .play-hud {
+    font-size: 0.78rem;
+    gap: 8px 20px;
   }
 }
 

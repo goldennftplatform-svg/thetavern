@@ -66,7 +66,7 @@ const elMapCharterNight = document.getElementById("bb-map-charter-night")!;
 let loadedTheme: LoadedMediaTheme | null = null;
 let mapTheme: MapDrawTheme = {};
 
-const FEED_MAX = 16;
+const FEED_MAX = 40;
 const CALLOUT_MS = 7_500;
 const PATRON_PULSE_MS = 6_000;
 const FACT_ROTATE_MS = 48_000;

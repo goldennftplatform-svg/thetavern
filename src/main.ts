@@ -254,6 +254,10 @@ let state: GameState = initialState("Traveler");
 let socket: Socket | null = null;
 let loadedTheme: LoadedMediaTheme | null = null;
 
+/** Fishing tempo — lower = slower cast/reel (0.5 = half speed). */
+const FISH_PACE = 0.5;
+const REEL_DURATION_MS = 5500 / FISH_PACE;
+
 /** Scratch for one fishing attempt */
 let castQuality = 0;
 let struckBite = false;
@@ -820,7 +824,6 @@ function startDemplarLoop() {
     lastDemplarT = now;
     demplarGame.update(dt, now);
     stageBanner = demplarGame.banner;
-    showToast(demplarGame.hint(), 0);
     syncWarriorShell();
     drawDemplar();
     if (demplarGame.done) {
@@ -1030,9 +1033,9 @@ function startCastLoop() {
   const tick = () => {
     if (state.phase !== "fish_cast") return;
     if (chargeActive) {
-      state.castPower = Math.min(1, state.castPower + 0.022);
+      state.castPower = Math.min(1, state.castPower + 0.022 * FISH_PACE);
     } else {
-      state.castPower = Math.max(0, state.castPower - 0.004);
+      state.castPower = Math.max(0, state.castPower - 0.004 * FISH_PACE);
     }
     drawWell();
     broadcastFishing();
@@ -1094,7 +1097,7 @@ function finishReel(good: number, total: number) {
 
 function startReelLoop() {
   const t0 = performance.now();
-  const total = 5500;
+  const total = REEL_DURATION_MS;
   let good = 0;
   let last = t0;
 
@@ -1109,16 +1112,16 @@ function startReelLoop() {
     const dt = Math.min(48, Math.max(0, now - last));
     last = now;
 
-    state.reelTension += 0.00008 * dt;
-    state.reelTension += Math.sin(now * 0.004) * 0.00022 * dt;
+    state.reelTension += 0.00008 * FISH_PACE * dt;
+    state.reelTension += Math.sin(now * 0.004 * FISH_PACE) * 0.00022 * FISH_PACE * dt;
     if (reelHoldDir) {
-      state.reelTension += reelHoldDir * 0.00055 * dt;
+      state.reelTension += reelHoldDir * 0.00055 * FISH_PACE * dt;
     }
     state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension));
 
     const inZone = state.reelTension >= 0.34 && state.reelTension <= 0.66;
     if (inZone) good += dt;
-    good += dt * 0.12;
+    good += dt * 0.12 * FISH_PACE;
 
     state.reelProgress = Math.min(1, good / (total * 0.42));
 
@@ -1143,7 +1146,7 @@ elPrimary.addEventListener("pointerdown", (e) => {
 });
 elPrimary.addEventListener("click", () => {
   if (state.phase === "fish_reel" && !reelFinishing) {
-    finishReel(2400, 5500);
+    finishReel(2400 / FISH_PACE, REEL_DURATION_MS);
   }
 });
 function finishCast() {
@@ -1184,7 +1187,7 @@ function bindReelButton(btn: HTMLElement, dir: -1 | 1) {
     if (state.phase !== "fish_reel") return;
     e.preventDefault();
     reelHoldDir = dir;
-    nudgeReel(dir * 0.07);
+    nudgeReel(dir * 0.07 * FISH_PACE);
     try {
       btn.setPointerCapture(e.pointerId);
     } catch {
@@ -1248,11 +1251,11 @@ window.addEventListener("keydown", (e) => {
   if (state.phase === "fish_reel") {
     if (e.code === "KeyA" || e.code === "ArrowLeft") {
       reelHoldDir = -1;
-      nudgeReel(-0.06);
+      nudgeReel(-0.06 * FISH_PACE);
     }
     if (e.code === "KeyD" || e.code === "ArrowRight") {
       reelHoldDir = 1;
-      nudgeReel(0.06);
+      nudgeReel(0.06 * FISH_PACE);
     }
   }
 });

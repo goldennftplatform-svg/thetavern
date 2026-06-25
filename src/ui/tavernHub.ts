@@ -80,8 +80,9 @@ export function renderCardRow(cards: MoonwellCard[], opts?: { hideLast?: boolean
     .join("")}</div>`;
 }
 
-export function studioStageHtml(title: string, body: string): string {
-  return `<div class="studio-stage">
+export function studioStageHtml(title: string, body: string, extraClass = ""): string {
+  const cls = extraClass ? ` ${extraClass}` : "";
+  return `<div class="studio-stage${cls}">
     <header class="studio-stage-head">${title}</header>
     <div class="studio-stage-body">${body}</div>
   </div>`;

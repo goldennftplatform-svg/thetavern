@@ -31,6 +31,8 @@ Ship **The Moonwell Anglers** — a browser tavern hangout (fishing spine + chan
 3. **Warrior** — readable brief intro → platform → race → asteroids → result
 4. **Bigboard** — one viewport, no page scroll; demo patrons if trail offline
 
+**Layout:** mobile-first full-width canvas; from 600px center in `680px`, from 900px widen to `920px` / warrior `860px` tall stage. No 520px phone strip on desktop.
+
 ## QA checklist (run every time)
 
 ```bash

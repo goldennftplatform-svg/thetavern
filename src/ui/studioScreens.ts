@@ -251,14 +251,14 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
 
   return studioStageHtml(
     "Herald's frequency",
-    `${scoreboardHtml(s)}
-    <p class="studio-stage-lead">Doom scroll the charter ally — ${ally}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · ${feed.posts.length} missives</p>
+    `<p class="studio-stage-lead">Doom scroll the charter ally — ${ally}</p>
+    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · <strong>${feed.posts.length}</strong> missives — keep scrolling</p>
     <div class="studio-x-scroll" role="feed" aria-label="Charter posts from X">${cards}</div>
     <div class="studio-hub-footer studio-hub-footer--scroll">
       <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>
       <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>
     </div>`,
+    "studio-stage--herald",
   );
 }
 

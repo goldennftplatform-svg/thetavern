@@ -126,8 +126,13 @@ html.tavern-mobile .play-hud .hud-buff {
   display: none;
 }
 
-html.tavern-mobile .canvas-wrap {
+html.tavern-mobile:not(.play-active) .canvas-wrap {
   max-height: 40dvh;
+}
+
+html.tavern-mobile.play-active .canvas-wrap {
+  max-height: none !important;
+  min-height: min(52dvh, 520px);
 }
 
 html.tavern-mobile .play-narrative {
@@ -180,7 +185,7 @@ html.tavern-mobile .top .pill {
 }
 
 @media (min-width: 800px) {
-  .play-shell {
+  html:not(.play-active) .play-shell {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
     grid-template-rows: auto auto auto auto auto;

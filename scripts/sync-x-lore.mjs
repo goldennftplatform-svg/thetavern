@@ -216,7 +216,7 @@ async function main() {
     version: 1,
     syncedAt: new Date().toISOString(),
     accounts,
-    posts: allPosts.slice(0, 120),
+    posts: allPosts.slice(0, 200),
     syncErrors: errors.length ? errors : undefined,
   };
 

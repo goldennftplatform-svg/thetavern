@@ -44,7 +44,7 @@ html.play-active .play-shell {
     "stage"
     "dock";
   gap: 6px;
-  max-width: 520px;
+  max-width: 100%;
   margin: 0 auto;
   width: 100%;
 }
