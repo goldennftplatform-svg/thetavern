@@ -2,6 +2,7 @@
 
 import type { FishRarity } from "./lore";
 import type { Season } from "./lore";
+import { knightHallWhispers } from "./demplarKnights";
 
 export const WORLD_EPIGRAPH =
   "The Rim Academy adjourns at dusk. The tavern does not. Here the Moonwell scries in ripples what lecture halls only whisper.";
@@ -89,6 +90,7 @@ export const hubVerse =
   "Three paths from the rim: cast the well, read the cards, sup at the enchanted board. All roads return here.";
 
 export const hubLoreLines = [
+  ...knightHallWhispers,
   "The Rim Academy adjourns at dusk; the charter hall does not. Patrons wager in riddles—the true coin is the tale inscribed at dawn.",
   "Knights, degens, and third-year fools share one table. Only the fish know your house.",
   "Somewhere a bell tower sleeps. The Moonwell keeps convocation by candle and mist.",

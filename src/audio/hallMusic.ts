@@ -1,7 +1,7 @@
-/** Soft hall ambience — local copy of Suno track (see public/audio/manifest.json). */
+/** Catch fanfare — Suno track plays once when a fish is landed (see public/audio/manifest.json). */
 
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/hall-ambience.mp3`;
-const VOLUME = 0.16;
+const CATCH_VOLUME = 0.22;
 
 let audio: HTMLAudioElement | null = null;
 let playing = false;
@@ -14,20 +14,26 @@ function prefersSilent(): boolean {
 export function primeHallMusic(): void {
   if (prefersSilent() || audio) return;
   audio = new Audio(AUDIO_SRC);
-  audio.loop = true;
-  audio.volume = VOLUME;
+  audio.loop = false;
+  audio.volume = CATCH_VOLUME;
   audio.preload = "auto";
+  audio.addEventListener("ended", () => {
+    playing = false;
+  });
   audio.addEventListener("error", () => {
     playing = false;
     console.warn("[hallMusic] failed to load", AUDIO_SRC);
   });
 }
 
-export async function startHallMusic(): Promise<boolean> {
+/** One-shot fanfare on catch — not ambient loop. */
+export async function playCatchFanfare(): Promise<boolean> {
   if (prefersSilent()) return false;
   if (!audio) primeHallMusic();
   if (!audio) return false;
-  if (playing && !audio.paused) return true;
+  audio.loop = false;
+  audio.volume = CATCH_VOLUME;
+  audio.currentTime = 0;
   try {
     if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
       await new Promise<void>((resolve, reject) => {
@@ -55,23 +61,15 @@ export async function startHallMusic(): Promise<boolean> {
   }
 }
 
-/** Keep trying on user gestures until the browser allows playback. */
+/** Prime audio on first gesture so catch playback is allowed later. */
 export function bindHallMusicGestures(): void {
   if (gestureHooked) return;
   gestureHooked = true;
-  const tryPlay = () => {
-    if (!playing) void startHallMusic();
+  const prime = () => {
+    primeHallMusic();
   };
-  document.addEventListener("pointerdown", tryPlay, { capture: true, passive: true });
-  document.addEventListener("keydown", tryPlay, { capture: true, passive: true });
-}
-
-export function duckHallMusic(): void {
-  if (audio) audio.volume = VOLUME * 0.55;
-}
-
-export function restoreHallMusic(): void {
-  if (audio) audio.volume = VOLUME;
+  document.addEventListener("pointerdown", prime, { capture: true, passive: true });
+  document.addEventListener("keydown", prime, { capture: true, passive: true });
 }
 
 export function stopHallMusic(): void {
@@ -79,8 +77,4 @@ export function stopHallMusic(): void {
   audio.pause();
   audio.currentTime = 0;
   playing = false;
-}
-
-export function setHallMusicVolume(v: number): void {
-  if (audio) audio.volume = Math.max(0, Math.min(1, v));
 }

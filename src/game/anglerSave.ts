@@ -1,17 +1,30 @@
 /**
  * Per-name angler progress — localStorage vault + cookie for last bound name.
+ * Charter night resets at 4am Pacific; prior nights archive in the vault.
  */
 
 import type { Season } from "../content/lore";
 import type { FoodId } from "../content/tavernNights";
+import { charterDayId, formatCharterDayLabel, CHARTER_RESET_BLURB } from "./charterDay";
 import { buildMoonwellDeck, shuffleDeck, type MoonwellCard } from "../minigames/moonwellDeck";
 import { initialState } from "./state";
 import type { GameState } from "./types";
 
 const VAULT_KEY = "moonwell_angler_vault";
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 const COOKIE_NAME = "moonwell_name";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 400; // ~400 days
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
+const ARCHIVE_MAX = 40;
+const DAILY_TOKEN_STIPEND = 2;
+
+export type CharterDayArchive = {
+  dayId: string;
+  closedAt: number;
+  renown: number;
+  tokens: number;
+  catalog: string[];
+  runCount: number;
+};
 
 type AnglerSaveV1 = {
   v: 1;
@@ -30,16 +43,37 @@ type AnglerSaveV1 = {
   updatedAt: number;
 };
 
+type AnglerSaveV2 = {
+  v: 2;
+  nickname: string;
+  charterDayId: string;
+  season: Season;
+  runCount: number;
+  renown: number;
+  tokens: number;
+  titles: string[];
+  catalog: string[];
+  perilIndex: number;
+  triviaIndex: number;
+  feastsEaten: FoodId[];
+  deckIds: string[];
+  demplarBest?: number;
+  archive: CharterDayArchive[];
+  updatedAt: number;
+};
+
 export type AnglerSavePeek = {
   nickname: string;
   renown: number;
   tokens: number;
   catalogSize: number;
   titles: string[];
+  charterNight: string;
+  archiveCount: number;
   updatedAt: number;
 };
 
-type Vault = Record<string, AnglerSaveV1>;
+type Vault = Record<string, AnglerSaveV1 | AnglerSaveV2>;
 
 function nameKey(name: string): string {
   return name.trim().toLowerCase().slice(0, 28);
@@ -86,26 +120,130 @@ function restoreDeck(savedIds: string[]): MoonwellCard[] {
   return deck.length > 0 ? deck : shuffleDeck(buildMoonwellDeck());
 }
 
-export function peekAnglerSave(name: string): AnglerSavePeek | null {
+function freshDeckIds(): string[] {
+  return shuffleDeck(buildMoonwellDeck()).map((c) => c.id);
+}
+
+function migrateV1(v1: AnglerSaveV1): AnglerSaveV2 {
+  return {
+    v: 2,
+    nickname: v1.nickname,
+    charterDayId: charterDayId(),
+    season: v1.season,
+    runCount: v1.runCount,
+    renown: v1.renown,
+    tokens: v1.tokens,
+    titles: [...v1.titles],
+    catalog: [...v1.catalog],
+    perilIndex: v1.perilIndex,
+    triviaIndex: v1.triviaIndex,
+    feastsEaten: [...v1.feastsEaten],
+    deckIds: [...v1.deckIds],
+    demplarBest: v1.demplarBest,
+    archive: [],
+    updatedAt: v1.updatedAt,
+  };
+}
+
+function hadDailyActivity(save: AnglerSaveV2): boolean {
+  return save.runCount > 0 || save.renown > 0 || save.catalog.length > 0 || save.tokens > DAILY_TOKEN_STIPEND;
+}
+
+function applyCharterRollover(save: AnglerSaveV2): AnglerSaveV2 {
+  const today = charterDayId();
+  if (save.charterDayId === today) return save;
+
+  const archive = [...save.archive];
+  if (hadDailyActivity(save)) {
+    archive.unshift({
+      dayId: save.charterDayId,
+      closedAt: Date.now(),
+      renown: save.renown,
+      tokens: save.tokens,
+      catalog: [...save.catalog],
+      runCount: save.runCount,
+    });
+    if (archive.length > ARCHIVE_MAX) archive.length = ARCHIVE_MAX;
+  }
+
+  return {
+    ...save,
+    charterDayId: today,
+    runCount: 0,
+    renown: 0,
+    tokens: DAILY_TOKEN_STIPEND,
+    catalog: [],
+    feastsEaten: [],
+    perilIndex: 0,
+    triviaIndex: 0,
+    deckIds: freshDeckIds(),
+    archive,
+    updatedAt: Date.now(),
+  };
+}
+
+function normalizeSave(raw: AnglerSaveV1 | AnglerSaveV2 | undefined): AnglerSaveV2 | null {
+  if (!raw) return null;
+  let save: AnglerSaveV2;
+  if (raw.v === 1) save = migrateV1(raw);
+  else if (raw.v === 2) save = { ...raw, archive: [...(raw.archive ?? [])] };
+  else return null;
+  return applyCharterRollover(save);
+}
+
+function prepareSave(name: string): AnglerSaveV2 | null {
   const key = nameKey(name);
   if (!key) return null;
-  const save = readVault()[key];
-  if (!save || save.v !== SAVE_VERSION) return null;
+  const vault = readVault();
+  const raw = vault[key];
+  const rolled = normalizeSave(raw);
+  if (!rolled) return null;
+  const prevDay = raw && raw.v === 2 ? raw.charterDayId : null;
+  const needsWrite = !raw || raw.v !== SAVE_VERSION || prevDay !== rolled.charterDayId;
+  if (needsWrite) {
+    vault[key] = rolled;
+    writeVault(vault);
+  }
+  return rolled;
+}
+
+export function formatCharterArchives(archive: CharterDayArchive[]): string[] {
+  if (archive.length === 0) {
+    return [CHARTER_RESET_BLURB];
+  }
+  const lines = archive
+    .slice(0, 10)
+    .map(
+      (a) =>
+        `${formatCharterDayLabel(a.dayId)} — ★${a.renown} · ◎${a.tokens} · ${a.catalog.length} species · ${a.runCount} runs`,
+    );
+  lines.push(CHARTER_RESET_BLURB);
+  return lines;
+}
+
+export function peekAnglerSave(name: string): AnglerSavePeek | null {
+  const save = prepareSave(name);
+  if (!save) return null;
   return {
     nickname: save.nickname,
     renown: save.renown,
     tokens: save.tokens,
     catalogSize: save.catalog.length,
     titles: save.titles,
+    charterNight: formatCharterDayLabel(save.charterDayId),
+    archiveCount: save.archive.length,
     updatedAt: save.updatedAt,
   };
 }
 
+export function loadAnglerArchives(name: string): CharterDayArchive[] {
+  const save = prepareSave(name);
+  return save?.archive ?? [];
+}
+
 export function loadAnglerState(name: string): GameState | null {
-  const key = nameKey(name);
-  if (!key) return null;
-  const save = readVault()[key];
-  if (!save || save.v !== SAVE_VERSION) return null;
+  const save = prepareSave(name);
+  if (!save) return null;
 
   const base = initialState(save.nickname);
   return {
@@ -131,9 +269,26 @@ export function saveAnglerState(state: GameState): void {
   if (!key) return;
 
   const vault = readVault();
-  vault[key] = {
-    v: SAVE_VERSION,
+  const existing = normalizeSave(vault[key]) ?? migrateV1({
+    v: 1,
     nickname: state.nickname.trim().slice(0, 28),
+    season: state.season,
+    runCount: 0,
+    renown: 0,
+    tokens: DAILY_TOKEN_STIPEND,
+    titles: [],
+    catalog: [],
+    perilIndex: 0,
+    triviaIndex: 0,
+    feastsEaten: [],
+    deckIds: freshDeckIds(),
+    updatedAt: Date.now(),
+  });
+
+  vault[key] = {
+    ...existing,
+    nickname: state.nickname.trim().slice(0, 28),
+    charterDayId: charterDayId(),
     season: state.season,
     runCount: state.runCount,
     renown: state.renown,

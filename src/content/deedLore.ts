@@ -7,6 +7,7 @@ import type { FishRarity, Season } from "./lore";
 import type { ChanceGameId, ChanceOutcome } from "../minigames/chance";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 import { pickLine, seasonArcane } from "./arcaneLore";
+import { demplarWarriorChronicles, demplarWarriorSubtexts } from "./demplarKnights";
 
 export const RENOWN_MILESTONES = [8, 20, 40, 60] as const;
 export type RenownMilestone = (typeof RENOWN_MILESTONES)[number];
@@ -310,6 +311,24 @@ export function composeRenownDeed(
 
 export function crossedRenownMilestones(before: number, after: number): RenownMilestone[] {
   return RENOWN_MILESTONES.filter((m) => before < m && after >= m);
+}
+
+export function composeDemplarDeed(
+  angler: string,
+  platform: number,
+  race: number,
+  asteroids: number,
+  total: number,
+): { chronicle: string; subtext: string } {
+  const chronicle = fill(pickLine(demplarWarriorChronicles), { angler, score: total });
+  const subtext = fill(pickLine(demplarWarriorSubtexts), {
+    angler,
+    platform,
+    race,
+    asteroids,
+    score: total,
+  });
+  return { chronicle, subtext };
 }
 
 /** Rotating feed heading lines for the projector wall */

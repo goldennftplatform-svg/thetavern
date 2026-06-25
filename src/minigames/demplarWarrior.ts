@@ -1,6 +1,9 @@
 /**
- * Demplar Warrior — three speed trials: charter run, rim circuit, void shards.
+ * Demplar Warrior — three speed trials: Sargaano sprint, Corsus circuit, veil shards.
  */
+
+import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
+import { pickLine } from "../content/arcaneLore";
 
 export type DemplarStage = "brief" | "platform" | "race" | "asteroids" | "done";
 
@@ -27,7 +30,7 @@ export class DemplarWarrior {
   stage: DemplarStage = "brief";
   stageStarted = 0;
   banner = "DEMPLAR WARRIOR";
-  subBanner = "Charter trial — I: Coin & Blade Run";
+  subBanner = warriorTrialNames.platform;
   done = false;
 
   platform = {
@@ -147,15 +150,15 @@ export class DemplarWarrior {
   advanceStage(now: number, next: DemplarStage) {
     if (next === "race") {
       this.result.platform = this.platform.score;
-      this.subBanner = "Rim Circuit — II: Turbo & Treachery";
+      this.subBanner = warriorTrialNames.race;
     } else if (next === "asteroids") {
       this.result.race = this.race.score;
-      this.subBanner = "Void Shards — III: Break the dark";
+      this.subBanner = warriorTrialNames.asteroids;
     } else if (next === "done") {
       this.result.asteroids = this.asteroids.score;
       this.result.total = this.result.platform + this.result.race + this.result.asteroids;
       this.done = true;
-      this.banner = "TRIAL COMPLETE";
+      this.banner = "CHARTER TRIALS SEALED";
       this.subBanner = `Total ${this.result.total}`;
     }
     this.stage = next;
@@ -397,16 +400,23 @@ export class DemplarWarrior {
   }
 
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    ctx.fillStyle = "rgba(72, 48, 88, 0.35)";
+    ctx.fillRect(w * 0.12, h * 0.22, w * 0.76, h * 0.42);
+    ctx.strokeStyle = "#e8b050";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(w * 0.12, h * 0.22, w * 0.76, h * 0.42);
     ctx.fillStyle = "#e8b050";
     ctx.font = `${Math.max(10, w * 0.022)}px "Press Start 2P", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("DEMPLAR WARRIOR", w / 2, h * 0.38);
+    ctx.fillText("⚔ DEMPLAR WARRIOR", w / 2, h * 0.34);
     ctx.fillStyle = "#98b8e8";
     ctx.font = `${Math.max(7, w * 0.012)}px "Press Start 2P", monospace`;
-    ctx.fillText("Three charter trials — speed is renown", w / 2, h * 0.48);
+    ctx.fillText(pickLine(warriorBriefLines), w / 2, h * 0.44);
     ctx.fillStyle = "#68b8a8";
     ctx.font = `${Math.max(6, w * 0.01)}px "Press Start 2P", monospace`;
-    ctx.fillText("I Run  ·  II Circuit  ·  III Shards", w / 2, h * 0.56);
+    ctx.fillText("SARGAANO  ·  CORSUS  ·  THE VEIL", w / 2, h * 0.54);
+    ctx.fillStyle = "rgba(232, 176, 80, 0.65)";
+    ctx.fillText("KNIGHTS OF THE ANCIENT CHARTER", w / 2, h * 0.62);
     ctx.textAlign = "left";
   }
 

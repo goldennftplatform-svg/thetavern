@@ -71,9 +71,37 @@ function drawPlankFloor(ctx: CanvasRenderingContext2D, w: number, h: number) {
     ctx.fillStyle = y % 48 === 0 ? "#3d2818" : "#2e2014";
     ctx.fillRect(0, y, w, 22);
   }
+  drawKnightWallLore(ctx, w, h);
   ctx.strokeStyle = "#120808";
   ctx.lineWidth = 12;
   ctx.strokeRect(4, 4, w - 8, h - 8);
+}
+
+function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const tapestries = [
+    { x: 14, y: 48, c: "#483058" },
+    { x: w - 38, y: 52, c: "#304858" },
+    { x: 14, y: h - 88, c: "#584838" },
+    { x: w - 38, y: h - 92, c: "#385848" },
+  ];
+  for (const t of tapestries) {
+    ctx.fillStyle = t.c;
+    ctx.fillRect(t.x, t.y, 24, 36);
+    ctx.strokeStyle = "#e8b050";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(t.x, t.y, 24, 36);
+    ctx.fillStyle = "#e8b050";
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.fillText("⚔", t.x + 7, t.y + 22);
+  }
+
+  ctx.fillStyle = "rgba(232, 176, 80, 0.18)";
+  ctx.font = '5px "Press Start 2P", monospace';
+  ctx.textAlign = "center";
+  ctx.fillText("KNIGHTS OF THE ANCIENT CHARTER", w / 2, 14);
+  ctx.fillStyle = "rgba(152, 144, 200, 0.35)";
+  ctx.fillText("SARGAANO · DEMPLARVERSE", w / 2, h - 10);
+  ctx.textAlign = "left";
 }
 
 function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
@@ -141,6 +169,9 @@ function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tic
   ctx.font = `${Math.max(8, w * 0.012)}px "Press Start 2P", monospace`;
   ctx.textAlign = "center";
   ctx.fillText("MOONWELL", cx, cy - mry - 14);
+  ctx.fillStyle = "rgba(232, 176, 80, 0.55)";
+  ctx.font = `${Math.max(5, w * 0.007)}px "Press Start 2P", monospace`;
+  ctx.fillText("⚔ CHARTER TABLE", cx, cy - mry - 4);
   ctx.textAlign = "left";
 
   ctx.fillStyle = "rgba(248, 216, 32, 0.08)";

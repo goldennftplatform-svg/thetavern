@@ -7,11 +7,20 @@ import { connectTrail } from "../net/trailClient";
 import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
 import { enterPrologues, pickLine } from "../content/arcaneLore";
+import { knightHallWhispers } from "../content/demplarKnights";
+import { formatCharterDayLabel } from "../game/charterDay";
 import { chronicleHeadings } from "../content/deedLore";
 import { tonightUtc } from "../content/tavernNights";
 import { bbIconForKind } from "./bbIcons";
 import { createChronicleDirector, type HallMood } from "./chronicleDirector";
 import type { Deed } from "./chronicleDirector.types";
+import {
+  initHallCharter,
+  persistHallTally,
+  formatHallArchiveLine,
+  type HallTally,
+  type HallNightArchive,
+} from "./hallCharter";
 import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
@@ -56,27 +65,14 @@ const DEMO_PATRONS: MapPatron[] = [{ name: "Example" }, { name: "Angler" }, { na
 
 const director = createChronicleDirector(deedLines, flashForDeed);
 
-type HallTally = {
-  catches: number;
-  gambles: number;
-  wins: number;
-  feasts: number;
-  mythics: number;
-  renown: number;
-  wisdom: number;
-  milestones: number;
-};
+const charterBoot = initHallCharter();
+let hallTally: HallTally = charterBoot.tally;
+let hallArchive: HallNightArchive[] = charterBoot.archive;
+let hallDayId = charterBoot.dayId;
 
-let hallTally: HallTally = {
-  catches: 0,
-  gambles: 0,
-  wins: 0,
-  feasts: 0,
-  mythics: 0,
-  renown: 0,
-  wisdom: 0,
-  milestones: 0,
-};
+function syncHallStore(): void {
+  persistHallTally(hallTally, hallDayId, hallArchive);
+}
 
 let liveAnglers = 0;
 let liveFishers = 0;
@@ -141,6 +137,11 @@ function lineForDeed(d: Deed): string {
   if (d.kind === "feast" && d.text) {
     return `${who} ${d.text}`;
   }
+  if (d.kind === "demplar") {
+    const tail = d.renown ? ` ★${d.renown}` : "";
+    if (d.chronicle) return `${d.chronicle}${tail}`;
+    return `${who} cleared the charter trials${tail}`;
+  }
   if (d.text) return `${who}: ${d.text}`;
   return `${who} did a deed worth telling.`;
 }
@@ -165,6 +166,7 @@ function deedClass(d: Deed): string {
     if (d.correct) cls += " bb-deed--win";
   }
   if (kind === "renown") cls += " bb-deed--renown";
+  if (kind === "demplar") cls += " bb-deed--demplar bb-deed--catch";
   return cls;
 }
 
@@ -182,6 +184,7 @@ function bumpTally(d: Deed) {
   if (d.kind === "renown") hallTally.milestones += 1;
   if (d.renown) hallTally.renown += d.renown;
   refreshStats();
+  syncHallStore();
 }
 
 function refreshStats() {
@@ -208,8 +211,8 @@ function refreshStats() {
 
   dockTally.textContent =
     hallTally.catches + hallTally.gambles + hallTally.feasts + hallTally.wisdom > 0
-      ? `${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ${hallTally.wisdom} beats · ${hallTally.milestones} milestones · ★${hallTally.renown}`
-      : "Quiet hall — first cast or wager sets the tone.";
+      ? `Charter ${formatCharterDayLabel(hallDayId)} · ${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ★${hallTally.renown}${hallArchive.length > 0 ? ` · ${hallArchive.length} archived` : ""}`
+      : `Charter ${formatCharterDayLabel(hallDayId)} — quiet hall. Scores reset 4am PT.`;
 }
 
 function countLiveActivity() {
@@ -246,6 +249,10 @@ function handleDeedEffects(d: Deed) {
   }
   if (d.kind === "catch" && d.demplar) {
     showCallout(`CHARTER — ${flashForDeed(d)}`);
+  }
+  if (d.kind === "demplar") {
+    showCallout(`WARRIOR — ${flashForDeed(d)}`);
+    catchBurstUntil = performance.now() + 1800;
   }
   if (d.kind === "renown" && d.milestone) {
     showCallout(`★${d.milestone} — ${flashForDeed(d)}`);
@@ -459,7 +466,12 @@ function addCatchToTable(d: Deed) {
 const dockFacts = [
   ...heraldLines,
   ...tavernTeasers,
+  ...knightHallWhispers,
   () => `${tonightUtc().title}: ${tonightUtc().herald}`,
+  () =>
+    hallArchive.length > 0
+      ? `Prior charter: ${formatHallArchiveLine(hallArchive[0]!)}`
+      : "Scores seal at 4am Pacific — the archive keeps every charter night.",
   "Fifty-two cards — even pips only, doubled faces at the chance table.",
   "The Great Table seats every angler who binds a name at the rim.",
 ];

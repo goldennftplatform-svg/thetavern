@@ -545,6 +545,23 @@ html.play-active .play-menu {
   margin-bottom: 8px;
 }
 
+.studio-charter-night {
+  margin: 0 0 10px;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1rem;
+  color: #e8b050;
+  letter-spacing: 0.04em;
+}
+
+.studio-charter-night small {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.studio-ledger-list--archive .studio-archive-line {
+  color: #c8b8e8;
+}
+
 .chance-outcome-badge {
   margin: 0;
   font-family: var(--font-display, "Pixelify Sans", sans-serif);

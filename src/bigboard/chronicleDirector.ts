@@ -24,6 +24,7 @@ const HOLD_MS: Record<string, number> = {
   peril: 11_000,
   trivia: 11_000,
   renown: 14_000,
+  demplar: 13_000,
 };
 const QUIET_MS = 8_000;
 const HERALD_BEAT_MS = 1_800;
@@ -38,7 +39,7 @@ function holdFor(deed: Deed): number {
 
 function moodFor(deed: Deed): HallMood {
   if (deed.kind === "catch" && (deed.rarity === "mythic" || deed.demplar)) return "celebration";
-  if (deed.kind === "renown") return "celebration";
+  if (deed.kind === "renown" || deed.kind === "demplar") return "celebration";
   return "chronicle";
 }
 

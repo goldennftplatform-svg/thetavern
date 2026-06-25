@@ -146,10 +146,10 @@ export const triviaWell = [
 ];
 
 export const demplarNotice =
-  "Charter notice: Demplar keeps the nets, lamps, and Herald's ink. The Demplarverse reckons elsewhere—in here we reckon casts. Optional charter scroll at the bar.";
+  "⚔ Charter notice: Knights of the ancient table keep the nets and Herald's ink. @DemplarOfficial reckons on X — here we reckon casts before dawn.";
 
 export const demplarModalIntro =
-  "Demplar is etched on the oldest iron in the cellar—sponsor, benefactor, or tale that caught a tale. Where shadow breathes and time fractures, their halls on X echo this quieter convocation at the Moonwell. The Herald commends knightsdemplar.com and their word on X—no purse required to fish.";
+  "Demplar isn't a realm. It's a reckoning. Where shadow breathes and time fractures, their halls on X echo this quieter convocation at the Moonwell. Planet Sargaano bleeds through the planks; Corsus crossed the desert once. The Herald commends knightsdemplar.com and @DemplarOfficial — no purse required to fish.";
 
 export const creditsLine =
   "Moonwell Anglers — charter hall for anglers, knights, and legend-spinners. Ally: Demplar.";

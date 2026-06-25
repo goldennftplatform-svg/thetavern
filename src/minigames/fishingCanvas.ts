@@ -27,7 +27,42 @@ function drawEllipseFill(
   ctx.fill();
 }
 
-/** Cohesive moonlit well — no scraped banner/crest layers on the play canvas. */
+function drawKnightHeraldry(ctx2d: CanvasRenderingContext2D, w: number, h: number, pulse: number) {
+  const groundY = Math.floor(h * 0.56);
+  const shimmer = 0.35 + Math.sin(pulse * 2) * 0.1;
+
+  ctx2d.fillStyle = "#1a1410";
+  floorRect(ctx2d, w * 0.04, groundY - 42, 10, 38);
+  floorRect(ctx2d, w * 0.92, groundY - 38, 10, 34);
+  ctx2d.fillStyle = `rgba(232, 176, 80, ${shimmer})`;
+  ctx2d.font = '7px "Press Start 2P", monospace';
+  ctx2d.fillText("⚔", w * 0.045, groundY - 48);
+  ctx2d.fillText("⚔", w * 0.925, groundY - 44);
+
+  ctx2d.fillStyle = "rgba(72, 48, 88, 0.55)";
+  floorRect(ctx2d, 8, groundY - 72, 22, 52);
+  floorRect(ctx2d, w - 30, groundY - 68, 22, 48);
+  ctx2d.fillStyle = `rgba(232, 176, 80, ${0.25 + shimmer * 0.3})`;
+  floorRect(ctx2d, 12, groundY - 66, 14, 6);
+  floorRect(ctx2d, w - 26, groundY - 62, 14, 6);
+
+  ctx2d.fillStyle = `rgba(200, 160, 80, ${0.12 + shimmer * 0.08})`;
+  ctx2d.font = '6px "Press Start 2P", monospace';
+  ctx2d.textAlign = "center";
+  ctx2d.fillText("DEMPLAR CHARTER", w / 2, groundY - 52);
+  ctx2d.textAlign = "left";
+
+  ctx2d.strokeStyle = `rgba(152, 144, 200, ${0.35 + shimmer * 0.2})`;
+  ctx2d.lineWidth = 1;
+  ctx2d.beginPath();
+  ctx2d.moveTo(w * 0.18, groundY - 8);
+  ctx2d.lineTo(w * 0.42, groundY - 18);
+  ctx2d.lineTo(w * 0.58, groundY - 18);
+  ctx2d.lineTo(w * 0.82, groundY - 8);
+  ctx2d.stroke();
+}
+
+/** Cohesive moonlit well — knightly charter rim, no scraped banner layers. */
 export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: number, h: number) {
   ctx2d.imageSmoothingEnabled = false;
   ctx2d.clearRect(0, 0, w, h);
@@ -80,6 +115,8 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
   const groundY = Math.floor(h * 0.56);
   ctx2d.fillStyle = "#121820";
   floorRect(ctx2d, 0, groundY, w, h - groundY);
+
+  drawKnightHeraldry(ctx2d, w, h, pulse);
 
   for (let i = 0; i < 6; i++) {
     const px = Math.floor((w / 6) * i);

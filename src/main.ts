@@ -16,7 +16,6 @@ import {
   triviaWell,
 } from "./content/lore";
 import {
-  SUBTITLE_TAGLINES,
   pickLine,
   noticeBoardArcane,
   chanceTableIntro,
@@ -27,7 +26,7 @@ import {
   resolveFlourish,
   seasonArcane,
 } from "./content/arcaneLore";
-import { composeCatchDeed, composeFeastDeed, composeGambleDeed, composePerilDeed, composeRenownDeed, composeTriviaDeed, crossedRenownMilestones } from "./content/deedLore";
+import { composeCatchDeed, composeDemplarDeed, composeFeastDeed, composeGambleDeed, composePerilDeed, composeRenownDeed, composeTriviaDeed, crossedRenownMilestones } from "./content/deedLore";
 import type { FoodBuff } from "./game/types";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
 import { initialState } from "./game/state";
@@ -37,6 +36,8 @@ import {
   peekAnglerSave,
   rememberLastName,
   saveAnglerState,
+  loadAnglerArchives,
+  formatCharterArchives,
 } from "./game/anglerSave";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
@@ -60,7 +61,9 @@ import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
-import { bindHallMusicGestures, primeHallMusic, startHallMusic } from "./audio/hallMusic";
+import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import { demplarEpigraphs, knightNoticeBoard, warriorBriefLines } from "./content/demplarKnights";
+import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
@@ -224,7 +227,7 @@ elModal.addEventListener("click", (e) => {
 });
 
 elTitle.textContent = GAME_TITLE;
-elTag.textContent = pickLine(SUBTITLE_TAGLINES);
+elTag.textContent = pickLine(demplarEpigraphs);
 elCredits.textContent = creditsLine;
 
 let state: GameState = initialState("Traveler");
@@ -268,7 +271,9 @@ function updateGateRecall() {
   }
   const title =
     peek.titles.length > 0 ? peek.titles[peek.titles.length - 1]! : "returning angler";
-  elGateRecall.textContent = `Welcome back, ${peek.nickname} — ★${peek.renown} · ◎${peek.tokens} · ${peek.catalogSize} in the codex · ${title}`;
+  const archiveBit =
+    peek.archiveCount > 0 ? ` · ${peek.archiveCount} charter nights archived` : "";
+  elGateRecall.textContent = `Welcome back, ${peek.nickname} — charter ${peek.charterNight}: ★${peek.renown} · ◎${peek.tokens} · ${peek.catalogSize} codex · ${title}${archiveBit}`;
   elGateRecall.hidden = false;
 }
 
@@ -407,6 +412,7 @@ function noticeLines(): string[] {
   const night = tonightUtc();
   return [
     demplarNotice,
+    pickLine(knightNoticeBoard),
     pickLine(noticeBoardArcane),
     `Tonight: ${night.title} — ${night.tagline}`,
     pickLine(noticeBoardArcane),
@@ -443,7 +449,14 @@ function addRenown(delta: number) {
 
 function buildWellHubHtml(): string {
   const night = tonightUtc();
-  return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse, pickLine(hubLoreLines));
+  return hubWellHtml(
+    runSnapshot(),
+    night.title,
+    night.tagline,
+    hubVerse,
+    pickLine(hubLoreLines),
+    formatCharterDayLabel(charterDayId()),
+  );
 }
 
 function handleTriviaChoice(index: number) {
@@ -559,7 +572,8 @@ function handleHubAction(action: string) {
     return;
   }
   if (action === "ledger") {
-    openMenu(ledgerStudioHtml(runSnapshot(), noticeLines()));
+    const archiveLines = formatCharterArchives(loadAnglerArchives(state.nickname));
+    openMenu(ledgerStudioHtml(runSnapshot(), noticeLines(), archiveLines));
     elPrimary.hidden = true;
     return;
   }
@@ -735,13 +749,14 @@ function finishDemplarRun() {
   if (result.total >= 2500 && !state.titles.includes("Demplar Warrior")) {
     state.titles.push("Demplar Warrior");
   }
-  announceDeed(
-    "demplar",
-    `${state.nickname} cleared the charter trials — ${result.total} speed`,
-    `Run ${result.platform} · Circuit ${result.race} · Shards ${result.asteroids}`,
-    demplarLastRewards.renown,
-    { score: result.total },
+  const { chronicle, subtext } = composeDemplarDeed(
+    state.nickname,
+    result.platform,
+    result.race,
+    result.asteroids,
+    result.total,
   );
+  announceDeed("demplar", chronicle, subtext, demplarLastRewards.renown, { score: result.total });
   hud();
   setPhase("demplar_result");
 }
@@ -825,7 +840,6 @@ function setPhase(next: GamePhase) {
       state.castPower = 0;
       showToast("");
       elPrimary.textContent = "HOLD TO CAST";
-      void startHallMusic();
       requestAnimationFrame(() => {
         resizeCanvas();
         startCastLoop();
@@ -853,6 +867,7 @@ function setPhase(next: GamePhase) {
       const c = state.lastCatch!;
       state.runCount++;
       juicePlay("catch");
+      void playCatchFanfare();
       stageBanner = `${c.name.toUpperCase()}  +${c.renown}`;
       openMenu(catchResolveHtml(c, pickLine(resolveFlourish[c.rarity]), fishBlurb(c.fishId)));
       elPrimary.hidden = true;
@@ -915,9 +930,8 @@ function setPhase(next: GamePhase) {
     }
     case "demplar_warrior":
       closeMenu();
-      showToast("Demplar Warrior — three trials of speed");
+      showToast(`⚔ ${pickLine(warriorBriefLines)}`);
       elPrimary.hidden = true;
-      void startHallMusic();
       requestAnimationFrame(() => {
         resizeCanvas();
         drawDemplar();
@@ -1123,6 +1137,7 @@ function fillNotices() {
   elNotices.innerHTML = "";
   const items = [
     demplarNotice,
+    pickLine(knightNoticeBoard),
     pickLine(noticeBoardArcane),
     `Tonight: ${tonightUtc().title} — ${tonightUtc().tagline}`,
     pickLine(noticeBoardArcane),
@@ -1184,21 +1199,22 @@ async function startGameFromGate() {
     resizeCanvas();
     setPhase("well");
     if (peek) {
-      showToast(`The well remembers thee — ★${state.renown} renown · ◎${state.tokens} tokens`, 5200);
+      showToast(
+        `Charter ${formatCharterDayLabel(charterDayId())} — ★${state.renown} renown · ◎${state.tokens} tokens`,
+        5200,
+      );
     }
   });
 }
 
 $("btn-enter-name").addEventListener("click", () => {
   primeHallMusic();
-  void startHallMusic();
   void startGameFromGate();
 });
 elBtnSkipGate.addEventListener("click", () => {
   elNick.value = "";
   updateGateRecall();
   primeHallMusic();
-  void startHallMusic();
   void startGameFromGate();
 });
 

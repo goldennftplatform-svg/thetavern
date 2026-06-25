@@ -1,3 +1,5 @@
+import { warriorCompleteLines } from "../content/demplarKnights";
+import { pickLine } from "../content/arcaneLore";
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { ChanceResult } from "../minigames/chance";
@@ -53,10 +55,12 @@ export function hubWellHtml(
   nightTagline: string,
   hubVerse: string,
   extraLore: string,
+  charterNight: string,
 ): string {
   return studioStageHtml(
     "The Moonwell",
     `${scoreboardHtml(s)}
+    <p class="studio-charter-night">Charter night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
     <p class="studio-night">${escapeHtml(nightTitle)}</p>
     <p class="studio-lore-line">${escapeHtml(nightTagline)}</p>
     <p class="studio-lore-line studio-lore-line--verse">${escapeHtml(s.seasonVerse)}</p>
@@ -163,7 +167,8 @@ export function demplarResultStudioHtml(
       : "";
   return studioStageHtml(
     "Demplar Warrior",
-    `<p class="studio-flourish">Three trials complete — the hall marks thy speed.</p>
+    `<p class="studio-flourish">${escapeHtml(pickLine(warriorCompleteLines))}</p>
+    <p class="studio-lore-line studio-lore-line--hint">Knights of the ancient charter — three trials sealed.</p>
     <div class="studio-scoreboard studio-scoreboard--demplar">
       <span class="studio-stat"><em>I</em> ${r.platform} <small>Run</small></span>
       <span class="studio-stat"><em>II</em> ${r.race} <small>Circuit</small></span>
@@ -198,11 +203,15 @@ export function feastStudioHtml(intro: string, nightTitle: string, specials: Foo
   );
 }
 
-export function ledgerStudioHtml(s: RunSnapshot, notices: string[]): string {
+export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines: string[]): string {
   const noticeLis = notices.map((n) => `<li>${escapeHtml(n)}</li>`).join("");
+  const archiveLis = archiveLines.map((n) => `<li class="studio-archive-line">${escapeHtml(n)}</li>`).join("");
   return studioStageHtml(
     "Ledger &amp; notices",
     `${scoreboardHtml(s)}
+    <p class="studio-stage-lead">Charter archive</p>
+    <ul class="studio-ledger-list studio-ledger-list--archive">${archiveLis}</ul>
+    <p class="studio-stage-lead">Hall notices</p>
     <ul class="studio-ledger-list">${noticeLis}</ul>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );

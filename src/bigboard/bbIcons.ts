@@ -28,8 +28,13 @@ export function bbIconDefault(): string {
   return `<svg class="bb-feed-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
 }
 
+export function bbIconWarrior(): string {
+  return `<svg class="bb-feed-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 14l6-12 6 12H2zm3-2h6l-3-6-3 6z"/><rect x="7" y="1" width="2" height="3" fill="#e8b050"/></svg>`;
+}
+
 export function bbIconForKind(kind?: string): string {
   if (kind === "catch") return bbIconCatch();
+  if (kind === "demplar") return bbIconWarrior();
   if (kind === "gamble") return bbIconGamble();
   if (kind === "feast") return bbIconFeast();
   if (kind === "peril") return bbIconPeril();
