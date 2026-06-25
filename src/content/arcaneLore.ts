@@ -12,22 +12,26 @@ export const SUBTITLE_TAGLINES = [
   "Patrons, knights, and things that should not surface.",
 ];
 
-export const seasonArcane: Record<Season, { name: string; verse: string }> = {
+export const seasonArcane: Record<Season, { name: string; verse: string; anglerNote: string }> = {
   frost: {
     name: "Frostveil Term",
     verse: "Breath ghosts the water; the deep answers slow, as if grading your patience.",
+    anglerNote: "Steam crowns the well—fish rise wise and stingy. Wrap your fingers; do not wrap your ego.",
   },
   bloom: {
     name: "Bloomtide Revel",
     verse: "Pollen and prophecy—quick bites, quicker lies, skirts of green fire.",
+    anglerNote: "Bright fry, brash omens. The hall smells of pollen and bad decisions.",
   },
   ember: {
     name: "Emberfall Vigil",
     verse: "Coals ring the well like runes; honesty rises from the dark.",
+    anglerNote: "Coals mirror the rings. The deep grows honest—so should your boast.",
   },
   void: {
     name: "Starveil Convocation",
     verse: "Constellations drink the surface. Some blink back. Some bite.",
+    anglerNote: "The surface holds constellations that blink back. Strike when a star winks.",
   },
 };
 
@@ -45,6 +49,8 @@ export const castWhispers = [
   "Channel the cast like a cantrip—<strong>hold</strong> to draw the sigil-gauge gold, <strong>release</strong> to send the hook through the veil.",
   "The well watches wrist and will. Fill the golden band, then let the line fly.",
   "A tutor once said: power without release is just posture. Hold, breathe, cast.",
+  "The moonwell remembers every cast—moonlight rings on the water like graded gold leaf.",
+  "Tonight the tide hums a lesson no professor would dare assign. Listen with your wrist.",
 ];
 
 export const waitWhispers = [
@@ -81,6 +87,14 @@ export const noticeBoardArcane = [
 
 export const hubVerse =
   "Three paths from the rim: cast the well, read the cards, sup at the enchanted board. All roads return here.";
+
+export const hubLoreLines = [
+  "The Rim Academy adjourns at dusk; the charter hall does not. Patrons wager in riddles—the true coin is the tale inscribed at dawn.",
+  "Knights, degens, and third-year fools share one table. Only the fish know your house.",
+  "Somewhere a bell tower sleeps. The Moonwell keeps convocation by candle and mist.",
+  "Even pips only at the divination table. No odd numbers in the deck—house superstition, house law.",
+  "When shadow breathes at the rim, legends ignite. The Herald tolls thrice: a catch, an omen, a name the Codex will misspell anyway.",
+];
 
 export const chanceTableIntro =
   "The Divination Table — Moonwell deck only. Even pips, doubled faces, four Moonwell Aces. The mist favors ties.";

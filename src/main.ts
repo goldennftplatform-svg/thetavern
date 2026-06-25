@@ -22,6 +22,7 @@ import {
   chanceTableIntro,
   feastIntro,
   hubVerse,
+  hubLoreLines,
   renownTitleHint,
   resolveFlourish,
   seasonArcane,
@@ -45,6 +46,7 @@ import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
+import { primeHallMusic, startHallMusic } from "./audio/hallMusic";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
@@ -280,6 +282,7 @@ function runSnapshot(): RunSnapshot {
     season: state.season,
     seasonName: arc.name,
     seasonVerse: arc.verse,
+    seasonNote: arc.anglerNote,
   };
 }
 
@@ -299,7 +302,7 @@ function fishBlurb(fishId: string): string {
 
 function buildWellHubHtml(): string {
   const night = tonightUtc();
-  return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse);
+  return hubWellHtml(runSnapshot(), night.title, night.tagline, hubVerse, pickLine(hubLoreLines));
 }
 
 function handleTriviaChoice(index: number) {
@@ -507,10 +510,24 @@ function hud() {
   }
 }
 
+function syncCanvasBuffer(): { w: number; h: number } {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.floor(rect.width) || 520);
+  const h = Math.max(48, Math.floor(rect.height) || Math.floor(w * (420 / 520)));
+  const bufW = Math.floor(w * dpr);
+  const bufH = Math.floor(h * dpr);
+  if (canvas.width !== bufW || canvas.height !== bufH) {
+    canvas.width = bufW;
+    canvas.height = bufH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  return { w, h };
+}
+
 function drawWell(phaseOverride?: GamePhase) {
+  const { w, h } = syncCanvasBuffer();
   const phase = phaseOverride ?? state.phase;
-  const w = canvas.clientWidth || 520;
-  const h = canvas.clientHeight || 420;
   drawMoonwell(
     ctx,
     {
@@ -554,7 +571,7 @@ function setPhase(next: GamePhase) {
     case "fish_cast":
       closeMenu();
       state.castPower = 0;
-      showToast(PLAY_HINT.cast);
+      showToast("");
       elPrimary.textContent = "HOLD TO CAST";
       startCastLoop();
       break;
@@ -783,15 +800,12 @@ window.addEventListener("keyup", (e) => {
 
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
   const logicalW = rect.width || 520;
   const logicalH = rect.height > 48 ? rect.height : logicalW * (420 / 520);
   canvas.style.height = document.documentElement.classList.contains("play-active")
     ? "100%"
     : `${logicalH}px`;
-  canvas.width = Math.floor(logicalW * dpr);
-  canvas.height = Math.floor(logicalH * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  syncCanvasBuffer();
   drawWell();
 }
 
@@ -858,21 +872,20 @@ async function startGameFromGate() {
 }
 
 $("btn-enter-name").addEventListener("click", () => {
+  primeHallMusic();
+  void startHallMusic();
   void startGameFromGate();
 });
 elBtnSkipGate.addEventListener("click", () => {
   elNick.value = "";
+  primeHallMusic();
+  void startHallMusic();
   void startGameFromGate();
 });
 
 requestAnimationFrame(function tick(now: number) {
   waitPulse = now / 1000;
-  if (
-    state.phase === "fish_wait" ||
-    state.phase === "fish_cast" ||
-    state.phase === "resolve" ||
-    state.phase === "chance_result"
-  ) {
+  if (state.phase === "fish_wait") {
     drawWell();
   }
   requestAnimationFrame(tick);

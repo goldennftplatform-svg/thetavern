@@ -128,6 +128,7 @@ html.play-active canvas#well {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: cover;
 }
 
 /* Floating toast — one line, no scroll box */
@@ -168,6 +169,12 @@ html.play-active canvas#well {
 /* Bottom menu sheet — hub tiles only (full overlay handled in studio-cards.css) */
 .play-menu:not([hidden]) {
   /* base: hidden by default via [hidden] */
+}
+
+.play-shell[data-phase="fish_cast"] .play-toast,
+.play-shell[data-phase="fish_wait"] .play-toast,
+.play-shell[data-phase="fish_reel"] .play-toast {
+  display: none !important;
 }
 
 .play-shell[data-phase="fish_cast"] .play-menu,

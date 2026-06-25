@@ -38,11 +38,15 @@ html.play-active .play-shell {
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   grid-template-areas:
     "hud"
     "stage"
     "dock";
   gap: 6px;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 html.play-active .play-hud {
@@ -315,29 +319,4 @@ html.play-active #btn-strike:not([hidden]) {
   animation: juice-flash 0.9s ease-in-out infinite;
 }
 
-@media (min-width: 800px) {
-  html.play-active #app {
-    max-width: 920px !important;
-    margin: 0 auto;
-  }
-
-  html.play-active .play-shell {
-    grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      "hud hud"
-      "stage dock"
-      "stage dock";
-  }
-
-  html.play-active .play-dock {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-
-  html.play-active .stage-panel {
-    max-height: min(42vh, 280px);
-  }
-}
+/* play-active stays single-column arcade shell at all widths — see arcade-ui.css */

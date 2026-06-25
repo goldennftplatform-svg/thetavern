@@ -21,6 +21,7 @@ export type RunSnapshot = {
   season: Season;
   seasonName: string;
   seasonVerse: string;
+  seasonNote: string;
 };
 
 export function scoreboardHtml(s: RunSnapshot): string {
@@ -50,6 +51,7 @@ export function hubWellHtml(
   nightTitle: string,
   nightTagline: string,
   hubVerse: string,
+  extraLore: string,
 ): string {
   return studioStageHtml(
     "The Moonwell",
@@ -57,12 +59,14 @@ export function hubWellHtml(
     <p class="studio-night">${escapeHtml(nightTitle)}</p>
     <p class="studio-lore-line">${escapeHtml(nightTagline)}</p>
     <p class="studio-lore-line studio-lore-line--verse">${escapeHtml(s.seasonVerse)}</p>
+    <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(s.seasonNote)}</p>
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("🎣", "Cast", "fish", "gold")}
       ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
       ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
     </div>
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(hubVerse)}</p>
+    <p class="studio-lore-line">${escapeHtml(extraLore)}</p>
     <div class="studio-hub-footer">
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Charter scroll</button>
