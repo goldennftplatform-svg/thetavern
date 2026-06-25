@@ -64,6 +64,7 @@ import { initMobileShellClass } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
 import { demplarEpigraphs, knightNoticeBoard, warriorBriefLines } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
+import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
@@ -76,6 +77,7 @@ import {
   demplarResultStudioHtml,
   feastStudioHtml,
   hubWellHtml,
+  heraldScrollStudioHtml,
   ledgerStudioHtml,
   perilStudioHtml,
   renownStudioHtml,
@@ -408,10 +410,22 @@ function runSnapshot(): RunSnapshot {
   };
 }
 
-function noticeLines(): string[] {
+const xFeedReady = loadXLoreFeed();
+
+function hallNoticeItems(): string[] {
   const night = tonightUtc();
+  const feed = getXLoreFeed();
+  const xSnippets = (feed?.posts ?? [])
+    .slice()
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3)
+    .map((p) => {
+      const t = p.text.length > 110 ? `${p.text.slice(0, 108)}…` : p.text;
+      return `Herald @${p.handle.replace(/^@/, "")}: ${t}`;
+    });
   return [
     demplarNotice,
+    ...xSnippets,
     pickLine(knightNoticeBoard),
     pickLine(noticeBoardArcane),
     `Tonight: ${night.title} — ${night.tagline}`,
@@ -573,8 +587,15 @@ function handleHubAction(action: string) {
   }
   if (action === "ledger") {
     const archiveLines = formatCharterArchives(loadAnglerArchives(state.nickname));
-    openMenu(ledgerStudioHtml(runSnapshot(), noticeLines(), archiveLines));
+    openMenu(ledgerStudioHtml(runSnapshot(), hallNoticeItems(), archiveLines));
     elPrimary.hidden = true;
+    return;
+  }
+  if (action === "herald_scroll") {
+    void xFeedReady.then((feed) => {
+      openMenu(heraldScrollStudioHtml(runSnapshot(), feed));
+      elPrimary.hidden = true;
+    });
     return;
   }
   if (action === "charter") {
@@ -1156,14 +1177,7 @@ window.addEventListener("resize", resizeCanvas);
 
 function fillNotices() {
   elNotices.innerHTML = "";
-  const items = [
-    demplarNotice,
-    pickLine(knightNoticeBoard),
-    pickLine(noticeBoardArcane),
-    `Tonight: ${tonightUtc().title} — ${tonightUtc().tagline}`,
-    pickLine(noticeBoardArcane),
-  ];
-  items.forEach((t) => {
+  hallNoticeItems().forEach((t) => {
     const li = document.createElement("li");
     li.textContent = t;
     elNotices.appendChild(li);
@@ -1238,6 +1252,7 @@ async function startGameFromGate() {
   document.documentElement.classList.remove("gate-open");
   document.documentElement.classList.add("play-active");
   closeDemplarModal();
+  await xFeedReady;
   fillNotices();
   await ensurePixelFonts();
   loadedTheme = await loadDailyMediaTheme();

@@ -7,6 +7,8 @@ import type { DemplarRunResult } from "../minigames/demplarWarrior";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 import type { FoodId } from "../content/tavernNights";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
+import type { XLoreFeed } from "../lore/xFeed";
+import { formatXPostAge } from "../lore/xFeed";
 import {
   feastButtonHtml,
   hubBackHtml,
@@ -75,6 +77,7 @@ export function hubWellHtml(
     <p class="studio-lore-line">${escapeHtml(extraLore)}</p>
     <div class="studio-hub-footer">
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Herald's X ↓</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Charter scroll</button>
     </div>`,
   );
@@ -213,7 +216,49 @@ export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines
     <ul class="studio-ledger-list studio-ledger-list--archive">${archiveLis}</ul>
     <p class="studio-stage-lead">Hall notices</p>
     <ul class="studio-ledger-list">${noticeLis}</ul>
+    <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Herald's X — doom scroll ↓</button>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+  );
+}
+
+export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string {
+  const ally = feed.accounts
+    .map((a) => `@${escapeHtml(a.handle)}${a.site ? ` · ${escapeHtml(a.site)}` : ""}`)
+    .join(" — ");
+  const synced =
+    feed.syncedAt && Date.parse(feed.syncedAt) > 0
+      ? new Date(feed.syncedAt).toLocaleString()
+      : "charter seed";
+
+  const cards = feed.posts
+    .map(
+      (p) => `<article class="studio-x-post" role="article">
+      <header class="studio-x-post-head">
+        <span class="studio-x-avatar" aria-hidden="true">⚔</span>
+        <div class="studio-x-meta">
+          <strong class="studio-x-name">${escapeHtml(p.label)}</strong>
+          <span class="studio-x-handle">@${escapeHtml(p.handle.replace(/^@/, ""))}</span>
+        </div>
+        <time class="studio-x-age" datetime="${escapeHtml(p.createdAt)}">${formatXPostAge(p.createdAt)}</time>
+      </header>
+      <p class="studio-x-text">${escapeHtml(p.text)}</p>
+      <footer class="studio-x-foot">
+        <a class="studio-x-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">Open on X ↗</a>
+      </footer>
+    </article>`,
+    )
+    .join("");
+
+  return studioStageHtml(
+    "Herald's frequency",
+    `${scoreboardHtml(s)}
+    <p class="studio-stage-lead">Doom scroll the charter ally — ${ally}</p>
+    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · ${feed.posts.length} missives</p>
+    <div class="studio-x-scroll" role="feed" aria-label="Charter posts from X">${cards}</div>
+    <div class="studio-hub-footer studio-hub-footer--scroll">
+      <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>
+      <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>
+    </div>`,
   );
 }
 

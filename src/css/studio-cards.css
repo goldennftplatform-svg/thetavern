@@ -562,6 +562,110 @@ html.play-active .play-menu {
   color: #c8b8e8;
 }
 
+.studio-hub-footer--scroll {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.studio-x-scroll {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 8px;
+  margin: 0 -2px;
+  border-top: 1px solid rgba(152, 144, 200, 0.22);
+  border-bottom: 1px solid rgba(152, 144, 200, 0.15);
+  scroll-snap-type: y proximity;
+}
+
+.studio-x-post {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(72, 48, 88, 0.35), rgba(12, 8, 20, 0.55));
+  border: 1px solid rgba(232, 176, 80, 0.22);
+  scroll-snap-align: start;
+}
+
+.studio-x-post-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.studio-x-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(72, 48, 88, 0.8);
+  border: 1px solid rgba(232, 176, 80, 0.35);
+  font-size: 0.75rem;
+}
+
+.studio-x-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studio-x-name {
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.82rem;
+  color: #f0e8ff;
+  font-weight: 600;
+}
+
+.studio-x-handle {
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 0.9rem;
+  color: #9890c8;
+}
+
+.studio-x-age {
+  flex-shrink: 0;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.studio-x-text {
+  margin: 0 0 8px;
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: #f8f0ff;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.studio-x-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.studio-x-link {
+  font-family: var(--font-body, "VT323", sans-serif);
+  font-size: 0.9rem;
+  color: #e8b050;
+  text-decoration: none;
+}
+
+.studio-x-link:hover {
+  text-decoration: underline;
+}
+
 .chance-outcome-badge {
   margin: 0;
   font-family: var(--font-display, "Pixelify Sans", sans-serif);

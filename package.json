@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "media:scan": "node scripts/media-scan.mjs",
-    "prebuild": "npm run media:scan",
+    "x:sync": "node scripts/sync-x-lore.mjs",
+    "prebuild": "npm run media:scan && npm run x:sync",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

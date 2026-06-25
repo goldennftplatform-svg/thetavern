@@ -16,6 +16,7 @@ import {
   knightHallWhispers,
 } from "../content/demplarKnights";
 import { formatCharterDayLabel } from "../game/charterDay";
+import { loadXLoreFeed, pickXPost, pickXPostText } from "../lore/xFeed";
 import { tonightUtc } from "../content/tavernNights";
 import { loadDailyMediaTheme } from "../media/loadTheme";
 import type { LoadedMediaTheme } from "../media/types";
@@ -495,6 +496,12 @@ const dockFacts = [
 ];
 
 function pickDockFact(): string {
+  const xPost = pickXPost(getXLoreFeed());
+  if (xPost && Math.random() < 0.38) {
+    const t = xPost.text.length > 120 ? `${xPost.text.slice(0, 118)}…` : xPost.text;
+    factIndex += 1;
+    return `@${xPost.handle} · ${t}`;
+  }
   const item = dockFacts[factIndex % dockFacts.length]!;
   factIndex += 1;
   return typeof item === "function" ? item() : item;
@@ -727,6 +734,7 @@ async function main() {
   playLink.href = import.meta.env.BASE_URL || "/";
 
   await initCharterChrome();
+  await loadXLoreFeed();
 
   director.bind({
     onMood: setMood,
@@ -737,13 +745,14 @@ async function main() {
     onAppendFeed: appendDeed,
     onEffects: handleDeedEffects,
     onQuietWhisper: (line) => {
-      setWhisper(line || pickLine(heraldLines));
+      const x = pickXPostText();
+      setWhisper(line || x || pickLine(heraldLines));
     },
   });
 
   const night = tonightUtc();
   setMood("gathering");
-  setWhisper(pickLine(knightHallWhispers));
+  setWhisper(pickXPostText() || pickLine(knightHallWhispers));
   refreshDockPatrons();
   rotateDockFact();
   refreshStats();
