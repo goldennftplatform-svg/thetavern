@@ -82,7 +82,9 @@ html.play-active .play-shell {
   width: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 4px;
+  position: relative;
 }
 
 html.play-active .play-hud {
@@ -158,28 +160,19 @@ html.play-active canvas#well {
   }
 }
 
-/* Bottom menu sheet — icons only, no essay */
-.play-menu {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9;
-  padding: 10px 10px max(10px, env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, transparent 0%, rgba(6, 10, 16, 0.92) 28%, rgba(6, 10, 16, 0.98) 100%);
-  border-radius: 16px 16px 0 0;
-  animation: menu-up 0.22s ease-out;
+/* Bottom menu sheet — hub tiles only (full overlay handled in studio-cards.css) */
+.play-menu:not([hidden]) {
+  /* base: hidden by default via [hidden] */
 }
 
-@keyframes menu-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.play-shell[data-phase="fish_cast"] .play-menu,
+.play-shell[data-phase="fish_wait"] .play-menu,
+.play-shell[data-phase="fish_reel"] .play-menu,
+.play-shell[data-phase="resolve"] .play-menu,
+.play-shell[data-phase="chance_result"] .play-menu,
+.play-shell[data-phase="enter"] .play-menu,
+.play-shell[data-phase="herald"] .play-menu {
+  display: none !important;
 }
 
 .play-menu-body {
