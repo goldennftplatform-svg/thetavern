@@ -62,3 +62,33 @@ export const knightNoticeBoard = [
   "The Rim Academy adjourns; Knights Demplar convocate by candle and mist.",
   "Land claims are elsewhere — tonight claim only the strike window.",
 ];
+
+export const bigboardHeadlines = [
+  "Demplar Chronicle",
+  "Charter Hall Ledger",
+  "Knights' Moonwell Convocation",
+  "The Herald's Misspelled Codex",
+];
+
+export const bigboardMoodLines: Record<string, string> = {
+  quiet: "Shadow breathes — the hall waits for Sargaano",
+  gathering: "Knights pull up chairs · charter candles steady",
+  live: "⚔ Someone trials the well",
+  chronicle: "The Herald tolls — Demplar reckons",
+  celebration: "Legends ignite — the Codex blushes",
+};
+
+export const bigboardSpotlightKickers = [
+  "The Herald inscribes for @DemplarOfficial…",
+  "Charter ink flows — Knights Demplar adjacency",
+  "Planet Sargaano listens…",
+  "Where time fractures, the hall remembers",
+];
+
+export const bigboardFeedHints: Record<string, string> = {
+  quiet: "Pull up a chair — the Demplarverse echoes here.",
+  gathering: "Tales arrive one at a time — ancient charter rules.",
+  live: "Watch the Great Table — a knight is playing.",
+  chronicle: "Hold — the Herald tells this one slow.",
+  celebration: "Tonight the charter hall will remember.",
+};

@@ -1,12 +1,211 @@
-/* Hall of the Angler — projector / TV wall (EzraMOTA-style shell, tavern table map) */
+/* Hall of the Angler — Knights Demplar charter projector wall */
+
+.bb-charter-skin {
+  --bb-charter-purple: #483058;
+  --bb-charter-purple-lit: #6a4888;
+  --bb-charter-gold: #e8b050;
+  --bb-charter-veil: #9890c8;
+}
 
 .bb-root {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg0);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(106, 72, 136, 0.22), transparent 55%),
+    radial-gradient(ellipse 80% 50% at 100% 100%, rgba(232, 176, 80, 0.08), transparent 50%),
+    linear-gradient(180deg, #0a0814 0%, var(--bg0) 38%, #080c12 100%);
   color: var(--ink);
+}
+
+.bb-header--charter {
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid rgba(152, 144, 200, 0.2);
+  background: linear-gradient(180deg, rgba(72, 48, 88, 0.35), transparent);
+}
+
+.bb-charter-brand {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.bb-charter-crest-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 2px solid rgba(232, 176, 80, 0.45);
+  border-radius: 8px;
+  background: rgba(72, 48, 88, 0.55);
+  box-shadow: 0 0 20px rgba(152, 144, 200, 0.15);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.bb-charter-crest {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.bb-charter-crest-fallback {
+  font-size: 1.6rem;
+  color: var(--bb-charter-gold);
+  filter: drop-shadow(0 0 8px rgba(232, 176, 80, 0.35));
+}
+
+.bb-charter-crest-wrap:has(.bb-charter-crest:not([hidden])) .bb-charter-crest-fallback {
+  display: none;
+}
+
+.bb-charter-kicker {
+  margin: 0 0 6px;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.34rem, 1.1vw, 0.42rem);
+  color: var(--bb-charter-veil);
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+}
+
+.bb-header--charter h1 {
+  margin: 0 0 6px;
+  color: var(--bb-charter-gold);
+  text-shadow: 0 0 24px rgba(232, 176, 80, 0.2);
+}
+
+.bb-charter-tag {
+  margin: 0;
+  font-size: 1.05rem;
+  font-style: italic;
+  max-width: 52ch;
+}
+
+.bb-charter-night-pill {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.36rem;
+  color: var(--bb-charter-gold);
+  padding: 8px 10px;
+  border: 1px solid rgba(232, 176, 80, 0.35);
+  border-radius: 8px;
+  background: rgba(72, 48, 88, 0.4);
+  letter-spacing: 0.04em;
+}
+
+.bb-map-charter-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(18, 8, 28, 0.92), rgba(18, 8, 28, 0.55));
+  border-bottom: 1px solid rgba(232, 176, 80, 0.25);
+  pointer-events: none;
+}
+
+.bb-map-charter-rail-title {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.34rem, 1vw, 0.42rem);
+  color: var(--bb-charter-gold);
+  letter-spacing: 0.08em;
+}
+
+.bb-map-charter-rail-night {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.3rem, 0.9vw, 0.36rem);
+  color: var(--bb-charter-veil);
+}
+
+.bb-vignette--charter {
+  background:
+    radial-gradient(ellipse at center, transparent 42%, rgba(18, 8, 28, 0.5) 100%),
+    linear-gradient(180deg, rgba(72, 48, 88, 0.12), transparent 30%);
+}
+
+.bb-feed-col--charter {
+  border-left: 1px solid rgba(152, 144, 200, 0.15);
+  padding-left: 4px;
+}
+
+.bb-feed-col-head {
+  margin-bottom: 4px;
+}
+
+.bb-feed-ally {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.bb-feed-heading {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.48rem;
+  color: var(--bb-charter-gold);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bb-spotlight--charter {
+  border-color: rgba(152, 144, 200, 0.45);
+  background: linear-gradient(180deg, rgba(18, 8, 28, 0.92), rgba(8, 6, 14, 0.88));
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.55),
+    0 0 32px rgba(106, 72, 136, 0.2);
+}
+
+.bb-spotlight-kicker {
+  color: var(--bb-charter-veil) !important;
+}
+
+.bb-callout--charter {
+  border-color: var(--bb-charter-veil);
+  color: var(--bb-charter-gold);
+  box-shadow: 0 0 28px rgba(106, 72, 136, 0.25);
+}
+
+.bb-deed--demplar {
+  border-color: rgba(152, 144, 200, 0.55) !important;
+  background: linear-gradient(135deg, rgba(72, 48, 88, 0.35), rgba(232, 176, 80, 0.1)) !important;
+  box-shadow: 0 0 18px rgba(152, 144, 200, 0.18);
+}
+
+.bb-deed--demplar .bb-feed-icon {
+  color: var(--bb-charter-veil);
+}
+
+.bb-deed--demplar .bb-deed-text {
+  color: #f0e8ff;
+}
+
+.bb-dock--charter {
+  border-top-color: rgba(152, 144, 200, 0.18);
+  background: linear-gradient(0deg, rgba(18, 8, 28, 0.96), rgba(10, 14, 20, 0.92));
+}
+
+.bb-dock--charter .bb-dock-panel strong {
+  color: var(--bb-charter-veil);
+}
+
+.bb-map-frame {
+  border-color: rgba(152, 144, 200, 0.32);
+}
+
+.bb-map-frame.bb-mood--celebration {
+  border-color: rgba(232, 176, 80, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(106, 72, 136, 0.22),
+    0 0 24px rgba(232, 176, 80, 0.12);
 }
 
 .bb-header {
@@ -311,6 +510,8 @@
   text-transform: uppercase;
 }
 
+/* duplicate selector kept for wall mode override below — charter skin sets gold in .bb-feed-col--charter */
+
 .bb-feed {
   flex: 1;
   overflow-y: auto;
@@ -523,7 +724,7 @@
 }
 
 /* ——— Wall / projector mode (?wall=1 or large viewport) ——— */
-html.bb-wall .bb-header {
+html.bb-wall .bb-header--charter {
   display: none;
 }
 

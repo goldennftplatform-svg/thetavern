@@ -29,7 +29,7 @@ export function bbIconDefault(): string {
 }
 
 export function bbIconWarrior(): string {
-  return `<svg class="bb-feed-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 14l6-12 6 12H2zm3-2h6l-3-6-3 6z"/><rect x="7" y="1" width="2" height="3" fill="#e8b050"/></svg>`;
+  return `<svg class="bb-feed-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 13l5-10 5 10H2zm2-2h6L8 5 4 11z"/><path fill="#e8b050" d="M7 1h2v4H7z"/></svg>`;
 }
 
 export function bbIconForKind(kind?: string): string {

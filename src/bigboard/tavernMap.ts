@@ -33,6 +33,11 @@ export type MapFx = {
   chanceFlashUntil: number;
 };
 
+export type MapDrawTheme = {
+  crest?: HTMLImageElement | null;
+  charterNight?: string;
+};
+
 function hashName(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -66,45 +71,117 @@ export function computeSeatRing(w: number, h: number, count = 20): SeatSlot[] {
   return seats;
 }
 
-function drawPlankFloor(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function drawPlankFloor(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
   for (let y = 0; y < h; y += 24) {
     ctx.fillStyle = y % 48 === 0 ? "#3d2818" : "#2e2014";
     ctx.fillRect(0, y, w, 22);
   }
-  drawKnightWallLore(ctx, w, h);
+  drawKnightWallLore(ctx, w, h, tick);
   ctx.strokeStyle = "#120808";
   ctx.lineWidth = 12;
   ctx.strokeRect(4, 4, w - 8, h - 8);
 }
 
-function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const tapestries = [
-    { x: 14, y: 48, c: "#483058" },
-    { x: w - 38, y: 52, c: "#304858" },
-    { x: 14, y: h - 88, c: "#584838" },
-    { x: w - 38, y: h - 92, c: "#385848" },
+function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
+  drawCornerPillar(ctx, 0, 0, h, tick, true);
+  drawCornerPillar(ctx, w - 44, 0, h, tick, false);
+
+  const banners = [
+    { x: 8, y: 56, c: "#483058", label: "SARGAANO" },
+    { x: w - 56, y: 60, c: "#304858", label: "CORSUS" },
+    { x: 8, y: h - 108, c: "#584838", label: "VEIL" },
+    { x: w - 56, y: h - 112, c: "#385848", label: "CODEX" },
   ];
-  for (const t of tapestries) {
-    ctx.fillStyle = t.c;
-    ctx.fillRect(t.x, t.y, 24, 36);
+  for (const b of banners) {
+    ctx.fillStyle = b.c;
+    ctx.fillRect(b.x, b.y, 48, 64);
     ctx.strokeStyle = "#e8b050";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(t.x, t.y, 24, 36);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(b.x, b.y, 48, 64);
     ctx.fillStyle = "#e8b050";
-    ctx.font = '8px "Press Start 2P", monospace';
-    ctx.fillText("⚔", t.x + 7, t.y + 22);
+    ctx.font = '14px "Press Start 2P", monospace';
+    ctx.fillText("⚔", b.x + 16, b.y + 28);
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = "center";
+    ctx.fillText(b.label, b.x + 24, b.y + 52);
+    ctx.textAlign = "left";
   }
 
-  ctx.fillStyle = "rgba(232, 176, 80, 0.18)";
-  ctx.font = '5px "Press Start 2P", monospace';
+  ctx.fillStyle = "rgba(232, 176, 80, 0.28)";
+  ctx.font = '7px "Press Start 2P", monospace';
   ctx.textAlign = "center";
-  ctx.fillText("KNIGHTS OF THE ANCIENT CHARTER", w / 2, 14);
-  ctx.fillStyle = "rgba(152, 144, 200, 0.35)";
-  ctx.fillText("SARGAANO · DEMPLARVERSE", w / 2, h - 10);
+  ctx.fillText("⚔ KNIGHTS OF THE ANCIENT CHARTER ⚔", w / 2, 22);
+  ctx.fillStyle = "rgba(152, 144, 200, 0.5)";
+  ctx.fillText("DEMPLARVERSE · MOONWELL CONVOCATION", w / 2, h - 14);
   ctx.textAlign = "left";
 }
 
-function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
+function drawCornerPillar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  h: number,
+  tick: number,
+  left: boolean,
+) {
+  const pw = 44;
+  const ph = Math.min(h * 0.55, 220);
+  ctx.fillStyle = "#2a1810";
+  ctx.fillRect(x, y + 28, pw, ph);
+  ctx.fillStyle = "#3d2818";
+  ctx.fillRect(x + 4, y + 32, pw - 8, ph - 8);
+  ctx.strokeStyle = "#e8b050";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y + 28, pw, ph);
+
+  const flicker = 0.65 + Math.sin(tick * 0.08 + (left ? 0 : 2)) * 0.25;
+  const tx = x + (left ? pw - 10 : 10);
+  ctx.fillStyle = `rgba(232, 140, 60, ${flicker})`;
+  ctx.beginPath();
+  ctx.arc(tx, y + 22, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255, 220, 140, ${flicker * 0.8})`;
+  ctx.beginPath();
+  ctx.arc(tx, y + 22, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCharterSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, crest?: HTMLImageElement | null) {
+  if (crest) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(crest, cx - r, cy - r, r * 2, r * 2);
+    ctx.restore();
+    ctx.strokeStyle = "#e8b050";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = "rgba(72, 48, 88, 0.55)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#e8b050";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#e8b050";
+  ctx.font = `${Math.max(10, r * 0.9)}px "Press Start 2P", monospace`;
+  ctx.textAlign = "center";
+  ctx.fillText("D", cx, cy + r * 0.28);
+  ctx.textAlign = "left";
+}
+
+function drawGiantTable(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  tick: number,
+  theme?: MapDrawTheme,
+) {
   const cx = w / 2;
   const cy = h / 2 + 4;
   const tw = Math.min(w * 0.78, w - 48);
@@ -165,6 +242,8 @@ function drawGiantTable(ctx: CanvasRenderingContext2D, w: number, h: number, tic
   const wave = Math.sin(tick * 0.06) * 4;
   ctx.fillRect(cx - mrx + 8, cy - 6 + wave, (mrx - 8) * 2, 10);
 
+  drawCharterSeal(ctx, cx, cy, Math.min(mrx * 0.42, 36), theme?.crest);
+
   ctx.fillStyle = "#f8f0ff";
   ctx.font = `${Math.max(8, w * 0.012)}px "Press Start 2P", monospace`;
   ctx.textAlign = "center";
@@ -224,25 +303,30 @@ function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
 }
 
 function drawSideTables(ctx: CanvasRenderingContext2D, w: number, h: number, chanceActive: boolean) {
-  const zones: Array<{ x: number; y: number; label: string; color: string; hot?: boolean }> = [
-    { x: 24, y: 24, label: "CHANCE", color: "#e8b050", hot: chanceActive },
-    { x: w - 108, y: 24, label: "KITCHEN", color: "#68b8a8" },
-    { x: 24, y: h - 52, label: "BAR", color: "#c89898" },
-    { x: w - 100, y: h - 52, label: "HERALD", color: "#8cb8d8" },
+  const zones: Array<{ x: number; y: number; label: string; sub?: string; color: string; hot?: boolean }> = [
+    { x: 52, y: 52, label: "CHANCE", sub: "DIVINE", color: "#e8b050", hot: chanceActive },
+    { x: w - 120, y: 52, label: "WARRIOR", sub: "TRIALS", color: "#9890c8" },
+    { x: 52, y: h - 68, label: "BAR", sub: "CHARTER", color: "#c89898" },
+    { x: w - 120, y: h - 68, label: "CODEX", sub: "DEMPLAR", color: "#8cb8d8" },
   ];
   for (const z of zones) {
     if (z.hot) {
-      ctx.fillStyle = "rgba(232, 176, 80, 0.12)";
-      ctx.fillRect(z.x - 3, z.y - 3, 58, 38);
+      ctx.fillStyle = "rgba(232, 176, 80, 0.14)";
+      ctx.fillRect(z.x - 4, z.y - 4, 68, 48);
     }
     ctx.fillStyle = "#4a3020";
-    ctx.fillRect(z.x, z.y, 52, 32);
-    ctx.strokeStyle = z.hot ? "#e8b050" : "#000";
+    ctx.fillRect(z.x, z.y, 60, 40);
+    ctx.strokeStyle = z.hot ? "#e8b050" : "#e8b050";
     ctx.lineWidth = z.hot ? 3 : 2;
-    ctx.strokeRect(z.x, z.y, 52, 32);
+    ctx.strokeRect(z.x, z.y, 60, 40);
     ctx.fillStyle = z.color;
     ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillText(z.label, z.x + 4, z.y + 20);
+    ctx.fillText(z.label, z.x + 5, z.y + 16);
+    if (z.sub) {
+      ctx.fillStyle = "rgba(248, 240, 255, 0.55)";
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.fillText(z.sub, z.x + 5, z.y + 30);
+    }
   }
 }
 
@@ -389,6 +473,7 @@ export function drawTavernMap(
   tick = 0,
   fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0, chanceFlashUntil: 0 },
   whisperLine = "",
+  theme?: MapDrawTheme,
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -411,9 +496,9 @@ export function drawTavernMap(
       updatedAt: p.chance!.updatedAt,
     }));
 
-  drawPlankFloor(ctx, w, h);
+  drawPlankFloor(ctx, w, h, tick);
   drawSideTables(ctx, w, h, chancePatrons.length > 0);
-  const well = drawGiantTable(ctx, w, h, tick);
+  const well = drawGiantTable(ctx, w, h, tick, theme);
 
   drawChanceCorner(ctx, w, h, chanceSessions, tick, fx.chanceFlashUntil, now);
   drawCatchBurst(ctx, well.cx, well.cy, tick, fx.catchBurstUntil, now);
@@ -466,7 +551,7 @@ export function drawTavernMap(
     ctx.fillStyle = "rgba(248, 240, 255, 0.55)";
     ctx.font = '8px "Press Start 2P", monospace';
     ctx.textAlign = "center";
-    ctx.fillText("Pull up a chair — open the game & bind thy name", w / 2, h - 18);
+    ctx.fillText("Pull up a chair — bind thy name at the Moonwell charter", w / 2, h - 18);
     ctx.textAlign = "left";
   }
 

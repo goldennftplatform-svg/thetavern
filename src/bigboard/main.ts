@@ -6,11 +6,19 @@ import { resolveTrailServerUrl } from "../net/trailResolve";
 import { connectTrail } from "../net/trailClient";
 import { initMobileShellClass } from "../mobile-detect";
 import { heraldLines, tavernTeasers } from "../content/lore";
-import { enterPrologues, pickLine } from "../content/arcaneLore";
-import { knightHallWhispers } from "../content/demplarKnights";
+import { pickLine } from "../content/arcaneLore";
+import {
+  bigboardFeedHints,
+  bigboardHeadlines,
+  bigboardMoodLines,
+  bigboardSpotlightKickers,
+  demplarEpigraphs,
+  knightHallWhispers,
+} from "../content/demplarKnights";
 import { formatCharterDayLabel } from "../game/charterDay";
-import { chronicleHeadings } from "../content/deedLore";
 import { tonightUtc } from "../content/tavernNights";
+import { loadDailyMediaTheme } from "../media/loadTheme";
+import type { LoadedMediaTheme } from "../media/types";
 import { bbIconForKind } from "./bbIcons";
 import { createChronicleDirector, type HallMood } from "./chronicleDirector";
 import type { Deed } from "./chronicleDirector.types";
@@ -21,7 +29,7 @@ import {
   type HallTally,
   type HallNightArchive,
 } from "./hallCharter";
-import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx } from "./tavernMap";
+import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx, type MapDrawTheme } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
 
@@ -44,7 +52,15 @@ const moodEl = document.getElementById("bb-mood")!;
 const spotlightEl = document.getElementById("bb-spotlight") as HTMLDivElement;
 const spotlightMain = document.getElementById("bb-spotlight-main")!;
 const spotlightSub = document.getElementById("bb-spotlight-sub")!;
+const spotlightKicker = document.getElementById("bb-spotlight-kicker")!;
 const mapCanvas = document.getElementById("tavern-map") as HTMLCanvasElement;
+const elTagline = document.getElementById("bb-tagline")!;
+const elCrest = document.getElementById("bb-crest") as HTMLImageElement;
+const elCharterNight = document.getElementById("bb-charter-night")!;
+const elMapCharterNight = document.getElementById("bb-map-charter-night")!;
+
+let loadedTheme: LoadedMediaTheme | null = null;
+let mapTheme: MapDrawTheme = {};
 
 const FEED_MAX = 16;
 const CALLOUT_MS = 7_500;
@@ -53,11 +69,11 @@ const FACT_ROTATE_MS = 48_000;
 const WHISPER_MS = 14_000;
 
 const MOOD_LABEL: Record<HallMood, string> = {
-  quiet: "The hall breathes…",
-  gathering: "Pull up a chair · candles steady",
-  live: "Someone is playing the well",
-  chronicle: "The Herald tolls once",
-  celebration: "Tonight will remember this",
+  quiet: bigboardMoodLines.quiet!,
+  gathering: bigboardMoodLines.gathering!,
+  live: bigboardMoodLines.live!,
+  chronicle: bigboardMoodLines.chronicle!,
+  celebration: bigboardMoodLines.celebration!,
 };
 
 /** Preview anglers when the hall server is offline — keeps the table alive. */
@@ -166,7 +182,7 @@ function deedClass(d: Deed): string {
     if (d.correct) cls += " bb-deed--win";
   }
   if (kind === "renown") cls += " bb-deed--renown";
-  if (kind === "demplar") cls += " bb-deed--demplar bb-deed--catch";
+  if (kind === "demplar") cls += " bb-deed--demplar";
   return cls;
 }
 
@@ -182,6 +198,7 @@ function bumpTally(d: Deed) {
   if (d.kind === "feast") hallTally.feasts += 1;
   if (d.kind === "peril" || d.kind === "trivia") hallTally.wisdom += 1;
   if (d.kind === "renown") hallTally.milestones += 1;
+  if (d.kind === "demplar") hallTally.milestones += 1;
   if (d.renown) hallTally.renown += d.renown;
   refreshStats();
   syncHallStore();
@@ -274,11 +291,7 @@ function setMood(mood: HallMood) {
     mapFrame.classList.add(`bb-mood--${mood}`);
   }
   feedHint.textContent =
-    mood === "chronicle" || mood === "celebration"
-      ? "Hold — the hall is telling this one…"
-      : mood === "live"
-        ? "Watch the table — a tale is unfolding…"
-        : "Pull up a chair — tales arrive one at a time.";
+    bigboardFeedHints[mood] ?? bigboardFeedHints.gathering ?? "Pull up a chair — tales arrive one at a time.";
   feedEl.classList.toggle("bb-feed--waiting", mood === "chronicle" || mood === "celebration");
 }
 
@@ -287,6 +300,7 @@ function showSpotlight(deed: Deed | null, lines: { main: string; sub?: string })
     spotlightEl.hidden = true;
     return;
   }
+  spotlightKicker.textContent = pickLine(bigboardSpotlightKickers);
   spotlightMain.textContent = lines.main;
   spotlightSub.textContent = lines.sub ?? "";
   spotlightSub.hidden = !lines.sub;
@@ -545,7 +559,7 @@ function redrawMap() {
     frame.style.transform = "";
   }
   expirePatronFishing();
-  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx(), whisperLine);
+  drawTavernMap(mapCanvas, patronList, flashLine, animTick, mapFx(), whisperLine, mapTheme);
 }
 
 async function demoBeat(ms: number): Promise<void> {
@@ -582,6 +596,13 @@ async function startDemoEvening() {
       text: "What does renown purchase at the Moonwell?",
       correct: true,
       renown: 4,
+    },
+    {
+      kind: "demplar",
+      from: "Guest",
+      chronicle: "⚔ Guest runs Sargaano, races Corsus, shatters the veil — 2840 total.",
+      text: "Run 920 · Circuit 1100 · Shards 820",
+      renown: 6,
     },
   ];
   let deedIdx = 0;
@@ -668,6 +689,27 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   redrawMap();
 }
 
+function refreshCharterChrome() {
+  const nightLabel = formatCharterDayLabel(hallDayId);
+  const charterText = `Charter ${nightLabel} · resets 4am PT`;
+  elCharterNight.textContent = charterText;
+  elMapCharterNight.textContent = charterText;
+  mapTheme = { ...mapTheme, charterNight: nightLabel, crest: loadedTheme?.images.crest ?? null };
+}
+
+async function initCharterChrome() {
+  elTagline.textContent = pickLine(demplarEpigraphs);
+  loadedTheme = await loadDailyMediaTheme();
+  const crest = loadedTheme?.images.crest;
+  if (crest && elCrest) {
+    elCrest.src = crest.src;
+    elCrest.hidden = false;
+  }
+  const feedHeading = document.querySelector(".bb-feed-heading");
+  if (feedHeading) feedHeading.textContent = pickLine(bigboardHeadlines);
+  refreshCharterChrome();
+}
+
 async function main() {
   try {
     await document.fonts.load('400 10px "Press Start 2P"');
@@ -679,6 +721,8 @@ async function main() {
   }
 
   playLink.href = import.meta.env.BASE_URL || "/";
+
+  await initCharterChrome();
 
   director.bind({
     onMood: setMood,
@@ -694,10 +738,8 @@ async function main() {
   });
 
   const night = tonightUtc();
-  const feedHeading = document.querySelector(".bb-feed-heading");
-  if (feedHeading) feedHeading.textContent = pickLine(chronicleHeadings);
   setMood("gathering");
-  setWhisper(pickLine(enterPrologues));
+  setWhisper(pickLine(knightHallWhispers));
   refreshDockPatrons();
   rotateDockFact();
   refreshStats();
@@ -712,7 +754,7 @@ async function main() {
   window.addEventListener("resize", resize);
   startAnimLoop();
 
-  setLive(false, "Moonwell hall");
+  setLive(false, "Demplar charter hall");
   const { url } = await resolveTrailServerUrl();
 
   if (!url) {
@@ -728,7 +770,7 @@ async function main() {
   let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
   try {
     client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true });
-    setLive(true, `Live · ${night.title}`);
+    setLive(true, `Live charter · ${night.title}`);
   } catch {
     showDemoHall(
       "Preview seats — run npm run live (or npm run server + game) then refresh for live patrons.",

@@ -6,9 +6,9 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#080c12" />
+    <meta name="theme-color" content="#12081c" />
     <meta name="color-scheme" content="dark" />
-    <title>Dashboard — Hall of the Angler (Moonwell)</title>
+    <title>Knights Charter Hall — Moonwell Bigboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,67 +17,84 @@
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body class="bigboard-body crt-skin">
+  <body class="bigboard-body crt-skin bb-charter-skin">
     <div id="bb-app" class="bb-root">
-      <header class="bb-header">
-        <h1>Hall of the Angler</h1>
-        <p class="muted">The Great Table — sit around the Moonwell, watch catches &amp; wagers live</p>
+      <header class="bb-header bb-header--charter">
+        <div class="bb-charter-brand">
+          <div class="bb-charter-crest-wrap">
+            <img id="bb-crest" class="bb-charter-crest" alt="" hidden />
+            <div class="bb-charter-crest-fallback" aria-hidden="true">⚔</div>
+          </div>
+          <div class="bb-charter-titles">
+            <p class="bb-charter-kicker">Knights of the Ancient Charter · Demplar Adjacency</p>
+            <h1>Moonwell Convocation</h1>
+            <p id="bb-tagline" class="bb-charter-tag muted"></p>
+          </div>
+        </div>
         <div class="bb-status-row">
+          <span id="bb-charter-night" class="bb-charter-night-pill"></span>
           <span id="bb-live" class="bb-live-chip">
             <span id="bb-live-dot" class="bb-live-dot bb-live-dot--off"></span>
             <span id="status">Connecting…</span>
           </span>
-          <div id="bb-stats" class="bb-stats" aria-label="Hall tally tonight"></div>
+          <div id="bb-stats" class="bb-stats" aria-label="Charter hall tally"></div>
         </div>
       </header>
 
       <main class="bb-main">
-        <section class="bb-map-stage" aria-label="Giant tavern table">
+        <section class="bb-map-stage" aria-label="Charter hall table">
           <div class="bb-map-frame">
+            <div class="bb-map-charter-rail" aria-hidden="true">
+              <span class="bb-map-charter-rail-title">⚔ DEMPLAR CHARTER HALL</span>
+              <span id="bb-map-charter-night" class="bb-map-charter-rail-night"></span>
+            </div>
             <canvas
               id="tavern-map"
               width="960"
               height="520"
-              aria-label="Top-down view of the Great Table and Moonwell"
+              aria-label="Top-down Knights charter table and Moonwell"
             ></canvas>
-            <div class="bb-vignette" aria-hidden="true"></div>
+            <div class="bb-vignette bb-vignette--charter" aria-hidden="true"></div>
             <div id="bb-mood" class="bb-mood" aria-live="polite"></div>
-            <div id="bb-spotlight" class="bb-spotlight" hidden>
-              <p class="bb-spotlight-kicker">The Herald inscribes…</p>
+            <div id="bb-spotlight" class="bb-spotlight bb-spotlight--charter" hidden>
+              <p id="bb-spotlight-kicker" class="bb-spotlight-kicker">The Herald inscribes…</p>
               <p id="bb-spotlight-main" class="bb-spotlight-main"></p>
               <p id="bb-spotlight-sub" class="bb-spotlight-sub"></p>
             </div>
-            <div id="bb-callout" class="bb-callout" hidden></div>
+            <div id="bb-callout" class="bb-callout bb-callout--charter" hidden></div>
           </div>
           <p id="patrons" class="bb-patrons-line"></p>
         </section>
 
-        <aside class="bb-feed-col">
-          <h2 class="bb-feed-heading">Chronicle of the Hall</h2>
-          <p id="bb-feed-hint" class="bb-feed-hint">Pull up a chair — tales arrive one at a time.</p>
+        <aside class="bb-feed-col bb-feed-col--charter">
+          <div class="bb-feed-col-head">
+            <h2 class="bb-feed-heading">Demplar Chronicle</h2>
+            <p class="bb-feed-ally muted">@DemplarOfficial · knightsdemplar.com</p>
+          </div>
+          <p id="bb-feed-hint" class="bb-feed-hint">Pull up a chair — charter tales arrive one at a time.</p>
           <div id="feed" class="bb-feed"></div>
         </aside>
       </main>
 
-      <footer class="bb-dock" id="bb-dock">
+      <footer class="bb-dock bb-dock--charter" id="bb-dock">
         <div class="bb-dock-panel">
-          <strong>Tonight</strong>
+          <strong>Charter night</strong>
           <span id="bb-dock-night">—</span>
         </div>
         <div class="bb-dock-panel">
-          <strong>At the table</strong>
-          <span id="bb-dock-patrons">Waiting for anglers…</span>
+          <strong>At the Great Table</strong>
+          <span id="bb-dock-patrons">Waiting for knights…</span>
         </div>
         <div class="bb-dock-panel bb-dock-tally">
           <strong>Hall pulse</strong>
           <span id="bb-dock-tally" class="bb-dock-tally">—</span>
         </div>
         <div class="bb-dock-panel bb-dock-fact-wrap">
-          <strong>Herald's whisper</strong>
+          <strong>Demplar whisper</strong>
           <span id="bb-dock-fact" class="bb-dock-fact">—</span>
         </div>
         <div class="bb-dock-panel">
-          <strong>Join the hall</strong>
+          <strong>Join the convocation</strong>
           <a id="bb-play-link" class="bb-play-link" href="../index.html">Open Moonwell Anglers</a>
         </div>
       </footer>
