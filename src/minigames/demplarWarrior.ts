@@ -9,7 +9,7 @@ import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights"
 import { pickLine } from "../content/arcaneLore";
 import { playWarriorImpact } from "../audio/warriorSfx";
 import { drawKnightFlyer, drawKnightPlatformer, drawKnightPortrait } from "../sprites/knightSprite";
-import { drawCorsusChaseRace, trackCurvature } from "./raceChaseCam";
+import { drawCorsusChaseRace, trackCurvature, type ChaseCamFx } from "./raceChaseCam";
 import {
   drawRaceBoostPad,
   drawRaceSteeringWheel,
@@ -19,7 +19,7 @@ import {
   raceWheelLayout,
   steerFromWheelPointer,
 } from "./raceSteeringWheel";
-import { buildTrack, trackAt } from "./raceTrack";
+import { buildTrack, racingLineOffset, trackAt } from "./raceTrack";
 
 export type DemplarStage = "brief" | "platform" | "race" | "asteroids" | "done";
 
@@ -45,6 +45,7 @@ type Racer = {
   finished: boolean;
   finishMs: number;
   boost: number;
+  drifting?: boolean;
 };
 
 type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
@@ -123,6 +124,9 @@ function wrapBriefLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
 }
 
 const LAP_COUNT = 2;
+const RACE_LAUNCH_MS = 3200;
+const RACE_BASE_PACE = 0.000178;
+const RACE_MAX_PACE = 0.00031;
 const PLAYER_SCREEN_X = 148;
 const RUN_SPEED = 4.85;
 const GRAVITY = 0.58;
@@ -461,11 +465,11 @@ function drawCharterGate(ctx: CanvasRenderingContext2D, gx: number, groundY: num
 }
 
 /** Closed circuit — Corsus desert loop (normalized 0–1). */
-const AI_RIVALS: Array<{ name: string; color: string; pace: number }> = [
-  { name: "Corsus", color: "#c87878", pace: 0.000102 },
-  { name: "Sparrow", color: "#98b8e8", pace: 0.000108 },
-  { name: "Veil", color: "#b898c8", pace: 0.000096 },
-  { name: "Scribe", color: "#e8b050", pace: 0.000112 },
+const AI_RIVALS: Array<{ name: string; color: string; pace: number; aggression: number }> = [
+  { name: "Corsus", color: "#c87878", pace: 0.000128, aggression: 0.92 },
+  { name: "Sparrow", color: "#98b8e8", pace: 0.000134, aggression: 1.05 },
+  { name: "Veil", color: "#b898c8", pace: 0.000122, aggression: 0.88 },
+  { name: "Scribe", color: "#e8b050", pace: 0.000138, aggression: 1.1 },
 ];
 
 function racerRank(racers: Racer[]): Racer[] {
@@ -514,6 +518,9 @@ export class DemplarWarrior {
     score: 0,
     raceOver: false,
     playerPlace: 5,
+    launchUntil: 0,
+    shakeUntil: 0,
+    launched: false,
   };
 
   asteroids = {
@@ -625,7 +632,7 @@ export class DemplarWarrior {
     this.coyoteUntil = 0;
   }
 
-  private resetRace() {
+  private resetRace(now = performance.now()) {
     const racers: Racer[] = [
       {
         name: "You",
@@ -634,24 +641,26 @@ export class DemplarWarrior {
         lapProgress: 0,
         lateral: 0,
         lateralVel: 0,
-        speed: 0.0001,
+        speed: 0,
         steerHeld: 0,
         finished: false,
         finishMs: 0,
-        boost: 0,
+        boost: 1,
+        drifting: false,
       },
       ...AI_RIVALS.map((r) => ({
         name: r.name,
         color: r.color,
         isPlayer: false,
-        lapProgress: -0.02 - Math.random() * 0.04,
-        lateral: (Math.random() - 0.5) * 0.3,
+        lapProgress: -0.03 - Math.random() * 0.05,
+        lateral: (Math.random() - 0.5) * 0.2,
         lateralVel: 0,
-        speed: r.pace,
+        speed: r.pace * 0.85,
         steerHeld: 0,
         finished: false,
         finishMs: 0,
-        boost: 0,
+        boost: 1,
+        drifting: false,
       })),
     ];
 
@@ -672,6 +681,9 @@ export class DemplarWarrior {
       score: 0,
       raceOver: false,
       playerPlace: 5,
+      launchUntil: now + RACE_LAUNCH_MS,
+      shakeUntil: 0,
+      launched: false,
     };
     this.raceControls = { wheelAngle: 0, wheelDragging: false, boostHeld: false };
     this.pointerSteer = 0;
@@ -723,6 +735,7 @@ export class DemplarWarrior {
     if (next === "race") {
       this.result.platform = this.platform.score;
       this.subBanner = warriorTrialNames.race;
+      this.resetRace(now);
     } else if (next === "asteroids") {
       this.result.race = this.race.score;
       this.subBanner = warriorTrialNames.asteroids;
@@ -791,7 +804,12 @@ export class DemplarWarrior {
   boost(on: boolean) {
     if (this.stage !== "race") return;
     const player = this.race.racers.find((r) => r.isPlayer);
-    if (player && on) player.boost = 1.35;
+    if (!player || !on) return;
+    if (player.boost <= 1.12) {
+      player.boost = 2.35;
+      player.speed = Math.min(RACE_MAX_PACE, player.speed + 0.000055);
+      this.race.shakeUntil = performance.now() + 180;
+    }
   }
 
   pointerDown(nx: number, ny: number, w: number, h: number) {
@@ -985,7 +1003,7 @@ export class DemplarWarrior {
     }
   }
 
-  private tickRacer(r: Racer, dt: number, elapsed: number, _now: number, isPlayer: boolean) {
+  private tickRacer(r: Racer, dt: number, elapsed: number, now: number, isPlayer: boolean) {
     if (r.finished) return;
 
     const frac = ((r.lapProgress % 1) + 1) % 1;
@@ -997,60 +1015,78 @@ export class DemplarWarrior {
 
     if (isPlayer) {
       const steer = r.steerHeld;
-      r.lateralVel += steer * dt * 0.00115;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.00005;
-      r.lateralVel *= Math.pow(0.38, dt / 260);
+      r.lateralVel += turnSign * curv * r.speed * dt * 0.00028;
+      r.lateralVel += steer * dt * 0.00285;
+      r.drifting = Math.abs(steer) > 0.55 && r.speed > RACE_BASE_PACE * 0.7 && curv > 0.07;
+      const gripPow = r.drifting ? 0.74 : 0.5;
+      r.lateralVel *= Math.pow(gripPow, dt / 210);
       r.lateral += r.lateralVel * dt;
-      r.lateral += steer * dt * 0.00062;
-      r.lateral = Math.max(-0.88, Math.min(0.88, r.lateral));
+      r.lateral += steer * dt * 0.00108;
+      r.lateral = Math.max(-0.9, Math.min(0.9, r.lateral));
 
-      const offTrack = Math.abs(r.lateral) > 0.58;
-      const onCurb = Math.abs(r.lateral) > 0.74;
+      const offTrack = Math.abs(r.lateral) > 0.5;
+      const onCurb = Math.abs(r.lateral) > 0.72;
       if (onCurb) {
-        r.lateralVel *= -0.42;
-        r.lateral = Math.sign(r.lateral) * 0.74;
+        r.lateralVel *= -0.58;
+        r.lateral = Math.sign(r.lateral) * 0.72;
+        r.speed *= 0.76;
+        this.race.shakeUntil = now + 240;
       } else if (offTrack) {
-        r.lateralVel *= 0.88;
+        r.speed *= 0.965;
       }
 
-      const boostMul = r.boost > 1 ? 1.34 : 1;
-      r.boost = Math.max(1, r.boost - dt * 0.00062);
-      const turnPen = 1 - Math.min(0.32, curv * 2.4 + Math.abs(steer) * 0.08);
-      const target = 0.000118 * boostMul * turnPen * (offTrack ? 0.66 : 1);
-      r.speed = r.speed * 0.93 + target * 0.07;
-      if (this.raceControls.boostHeld && r.boost <= 1.05) r.speed *= 1.06;
+      const boostMul = r.boost > 1.12 ? 1.58 + (r.boost - 1) * 0.1 : 1;
+      r.boost = Math.max(1, r.boost - dt * 0.0012);
+      const turnPen = 1 - Math.min(0.36, curv * 2.05 + Math.abs(steer) * 0.11);
+      let target = RACE_BASE_PACE * boostMul * turnPen * (offTrack ? 0.7 : 1);
+      if (r.drifting) target *= 1.08;
+      if (this.raceControls.boostHeld && r.boost <= 1.12) target *= 1.05;
+      target = Math.min(RACE_MAX_PACE, target);
+      r.speed = r.speed * 0.82 + target * 0.18;
 
       for (const item of this.race.items) {
         if (item.taken) continue;
         const dist = Math.abs(frac - item.t);
-        if (dist < 0.018 && Math.abs(r.lateral - item.lateral) < 0.12) {
+        if (dist < 0.02 && Math.abs(r.lateral - item.lateral) < 0.14) {
           item.taken = true;
           if (item.kind === "turbo") {
-            r.boost = 1.52;
+            r.boost = 2.5;
+            r.speed = Math.min(RACE_MAX_PACE, r.speed + 0.00004);
             this.race.score += 80;
+            this.race.shakeUntil = now + 160;
           } else if (item.kind === "boot") {
             this.race.score += 60;
-            r.speed *= 1.18;
+            r.speed = Math.min(RACE_MAX_PACE, r.speed * 1.22);
           } else {
-            r.speed *= 0.52;
-            r.lateralVel *= 1.35;
+            r.speed *= 0.48;
+            r.lateralVel *= 1.45;
             this.race.score = Math.max(0, this.race.score - 25);
+            this.race.shakeUntil = now + 200;
           }
         }
       }
     } else {
       const ai = AI_RIVALS.find((a) => a.name === r.name)!;
-      const targetLat = Math.sin(elapsed * 0.00085 + r.lapProgress * 9) * 0.1;
-      r.lateralVel += (targetLat - r.lateral) * dt * 0.00007;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.00008;
-      r.lateralVel *= Math.pow(0.14, dt / 210);
+      const player = this.race.racers.find((x) => x.isPlayer)!;
+      const gap = player.lapProgress - r.lapProgress;
+      const rubber = gap > 0.1 ? 1.08 : gap < -0.06 ? 0.92 : 1;
+      const line = racingLineOffset(this.race.track, frac);
+      const targetLat = line + Math.sin(elapsed * 0.0011 + r.lapProgress * 12) * 0.035;
+      r.lateralVel += (targetLat - r.lateral) * dt * 0.00016;
+      r.lateralVel += turnSign * curv * r.speed * dt * 0.00014;
+      r.lateralVel *= Math.pow(0.24, dt / 195);
       r.lateral += r.lateralVel * dt;
-      const turnPen = 1 - Math.min(0.28, curv * 2.4);
-      r.speed = r.speed * 0.94 + ai.pace * turnPen * 0.06;
-      if (Math.abs(r.lateral) > 0.56) r.speed *= 0.87;
+      r.lateral = Math.max(-0.82, Math.min(0.82, r.lateral));
+      const turnPen = 1 - Math.min(0.34, curv * 2.15);
+      const aiTarget = Math.min(RACE_MAX_PACE * 1.04, ai.pace * ai.aggression * rubber * turnPen);
+      r.speed = r.speed * 0.88 + aiTarget * 0.12;
+      if (curv < 0.05 && frac > 0.05 && Math.random() < dt * 0.001) {
+        r.speed = Math.min(RACE_MAX_PACE * 1.06, r.speed * 1.025);
+      }
+      if (Math.abs(r.lateral) > 0.58) r.speed *= 0.88;
     }
 
-    r.lapProgress += r.speed * dt * (1 - Math.abs(r.lateral) * 0.06);
+    r.lapProgress += r.speed * dt * (1 - Math.abs(r.lateral) * 0.055);
     if (r.lapProgress >= LAP_COUNT) {
       r.finished = true;
       r.finishMs = elapsed;
@@ -1058,14 +1094,45 @@ export class DemplarWarrior {
     }
   }
 
+  private raceCountdownLabel(now: number): string | undefined {
+    const left = this.race.launchUntil - now;
+    if (left > 0) {
+      if (left > 2200) return "3";
+      if (left > 1400) return "2";
+      if (left > 600) return "1";
+      return "GO!";
+    }
+    if (left > -500) return "GO!";
+    return undefined;
+  }
+
   private tickRace(dt: number, elapsed: number, now: number) {
     if (this.race.raceOver) return;
 
     const player = this.race.racers.find((r) => r.isPlayer)!;
+
+    if (now < this.race.launchUntil) {
+      if (!this.raceControls.wheelDragging && this.pointerSteer === 0) {
+        player.steerHeld *= Math.pow(0.2, dt / 180);
+        this.raceControls.wheelAngle = player.steerHeld * MAX_TURN;
+      }
+      return;
+    }
+
+    if (!this.race.launched) {
+      this.race.launched = true;
+      player.speed = RACE_BASE_PACE * 0.82;
+      for (const r of this.race.racers) {
+        if (r.isPlayer) continue;
+        const ai = AI_RIVALS.find((a) => a.name === r.name)!;
+        r.speed = ai.pace * 0.78;
+      }
+    }
+
     if (!this.raceControls.wheelDragging && this.pointerSteer === 0 && this.raceTouchSteer === 0) {
-      const decay = Math.pow(0.04, dt / 220);
+      const decay = Math.pow(0.08, dt / 200);
       player.steerHeld *= decay;
-      if (Math.abs(player.steerHeld) < 0.03) player.steerHeld = 0;
+      if (Math.abs(player.steerHeld) < 0.04) player.steerHeld = 0;
       this.raceControls.wheelAngle = player.steerHeld * MAX_TURN;
     }
 
@@ -1445,7 +1512,16 @@ export class DemplarWarrior {
     const playTop = WARRIOR_HUD_H;
     const playH = h - playTop - RACE_PLAY_BOTTOM_PAD;
     const player = this.race.racers.find((r) => r.isPlayer)!;
-    const speedMph = Math.round(46 + player.speed * 520_000 * (player.boost > 1.05 ? 1.24 : 1));
+    const speedNorm = Math.min(1, player.speed / RACE_MAX_PACE);
+    const speedMph = Math.round(54 + player.speed * 470_000 * (player.boost > 1.12 ? 1.38 : 1));
+    const shake = now < this.race.shakeUntil ? Math.sin(now * 0.09) * 6 : 0;
+    const fx: ChaseCamFx = {
+      speedNorm,
+      bank: (player.steerHeld ?? 0) * 0.07 + player.lateral * 0.045,
+      shake,
+      countdown: this.raceCountdownLabel(now),
+      boosting: player.boost > 1.12 || this.raceControls.boostHeld,
+    };
 
     drawCorsusChaseRace(
       ctx,
@@ -1457,6 +1533,7 @@ export class DemplarWarrior {
       this.race.items,
       now * 0.001,
       speedMph,
+      fx,
     );
 
     const layout = raceWheelLayout(w, h);
@@ -1471,7 +1548,7 @@ export class DemplarWarrior {
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("TAP LEFT/RIGHT · DRAG WHEEL · ⚡ BOOST · 2 LAPS", w / 2, h - 12);
+    ctx.fillText("TAP LEFT/RIGHT · DRAG WHEEL · ⚡ NITRO · 2 LAPS", w / 2, h - 12);
     ctx.textAlign = "left";
   }
 
