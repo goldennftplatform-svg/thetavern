@@ -67,7 +67,6 @@ import { primeWarriorSfx } from "./audio/warriorSfx";
 import { demplarEpigraphs, knightNoticeBoard } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
-import { mountPlayLiveFeed, renderPlayLiveFeed } from "./ui/playLiveFeed";
 import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
 import {
   chanceHighLowHtml,
@@ -205,8 +204,6 @@ const elCredits = $("credits-text");
 const elModal = $("modal-demplar") as HTMLDialogElement;
 const elModalBody = $("modal-body");
 const elBtnCharter = $("btn-charter");
-const elBtnHallView = $("btn-hall-view");
-const elBtnCharterFoot = $("btn-charter-foot");
 const elBtnCloseModal = $("btn-close-modal");
 const elBtnModalX = $("btn-modal-x");
 const elBtnSkipGate = $("btn-skip-gate");
@@ -231,19 +228,6 @@ function closeDemplarModal() {
 
 elBtnCharter.addEventListener("click", () => {
   openDemplarModal();
-});
-elBtnCharterFoot?.addEventListener("click", () => {
-  openDemplarModal();
-});
-elBtnHallView?.addEventListener("click", () => {
-  if (elGame.hidden) return;
-  setPhase("well");
-  openHallView();
-});
-document.getElementById("btn-hall-view-feed")?.addEventListener("click", () => {
-  if (elGame.hidden) return;
-  setPhase("well");
-  openHallView();
 });
 elBtnCloseModal.addEventListener("click", (e) => {
   e.preventDefault();
@@ -278,16 +262,8 @@ function hallBoardHref(): string {
   return new URL(path, window.location.href).href;
 }
 
-let prevLiveFeedKey = "";
-
 const mobileHall = createMobileHall({
   onUpdate: () => {
-    const snap = mobileHall.snapshot();
-    const top = snap.deeds[0];
-    const topKey = top ? `${top.ts ?? 0}|${top.from ?? ""}|${top.chronicle ?? ""}|${top.text ?? ""}|${top.kind ?? ""}` : "";
-    const fresh = topKey && topKey !== prevLiveFeedKey ? topKey : undefined;
-    prevLiveFeedKey = topKey;
-    renderPlayLiveFeed(snap, fresh);
     if (hallViewOpen) openHallView();
   },
 });
@@ -1458,10 +1434,8 @@ async function startGameFromGate() {
   await xFeedReady;
   fillNotices();
   await ensurePixelFonts();
-  mountPlayLiveFeed(hallBoardHref());
   loadedTheme = await loadDailyMediaTheme();
   await bootTrail();
-  renderPlayLiveFeed(mobileHall.snapshot());
   requestAnimationFrame(() => {
     resizeCanvas();
     setPhase("well");

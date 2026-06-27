@@ -885,10 +885,8 @@ function goLiveHall(label: string) {
   trailLive = true;
   stopDemoEvening();
   director.reset();
-  patronList = [];
   hallHasLivePatrons = false;
-  feedEl.innerHTML = "";
-  feedEl.classList.add("bb-feed--waiting");
+  if (feedEl.childElementCount === 0) feedEl.classList.add("bb-feed--waiting");
   feedHint.textContent = "Live hall — deeds chalk here as patrons play.";
   setLive(true, label);
   patronsEl.textContent = "Live hall connected — waiting for anglers at the Moonwell.";
@@ -985,6 +983,7 @@ async function main() {
       onSocket: bindTrailSocket,
     });
     goLiveHall(`Live hall · ${night.title}`);
+    patronList = [];
     client.socket.emit("hall:deed:request");
     setWhisper("Live hall online — cast in Play to light up the map.");
   } catch {
