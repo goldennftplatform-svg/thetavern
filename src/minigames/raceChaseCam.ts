@@ -13,6 +13,7 @@ export type ChaseRacer = {
   lapProgress: number;
   lateral: number;
   boost: number;
+  steerHeld?: number;
 };
 
 export type ChaseItem = {
@@ -47,10 +48,12 @@ function buildRoadSegments(
   track: Track,
   playerFrac: number,
   playerLat: number,
+  steerHeld: number,
   w: number,
   playTop: number,
   playH: number,
 ): RoadSeg[] {
+  const camLat = playerLat * 0.92 + steerHeld * 0.14;
   const player = trackAt(playerFrac, track);
   const cosA = Math.cos(player.angle);
   const sinA = Math.sin(player.angle);
@@ -70,7 +73,7 @@ function buildRoadSegments(
     const ahead = dx * cosA + dy * sinA;
     const right = dx * -sinA + dy * cosA;
     const persp = 1 / (1 + Math.max(0, ahead) * 9);
-    const sx = w / 2 + right * w * 2.1 * persp + playerLat * w * 0.14 * persp;
+    const sx = w / 2 + right * w * 2.1 * persp + camLat * w * 0.44 * persp;
     const sy = baseY - ahead * depth * 5.2 * persp;
     const hw = Math.max(8, w * 0.22 * persp);
 
@@ -250,7 +253,15 @@ export function drawCorsusChaseRace(
   const playerFrac = ((player.lapProgress % 1) + 1) % 1;
 
   drawDesertSky(ctx, w, playTop, playH, tick);
-  const segs = buildRoadSegments(track, playerFrac, player.lateral, w, playTop, playH);
+  const segs = buildRoadSegments(
+    track,
+    playerFrac,
+    player.lateral,
+    player.steerHeld ?? 0,
+    w,
+    playTop,
+    playH,
+  );
   drawRoadStrip(ctx, segs);
 
   for (const item of items) {
@@ -286,7 +297,7 @@ export function drawCorsusChaseRace(
     const scale = r.isPlayer ? 1.15 : 0.95;
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle + Math.PI / 2);
+    ctx.rotate(p.angle + Math.PI / 2 + (r.isPlayer ? (r.steerHeld ?? 0) * 0.42 : 0));
     ctx.scale(scale, scale);
     if (r.isPlayer) {
       drawKnightRacer(ctx, 0, 0, 0, true);

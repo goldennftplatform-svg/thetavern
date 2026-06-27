@@ -48,8 +48,8 @@ export function steerFromWheelPointer(
   const dx = nx - layout.wheelCx;
   const dy = ny - layout.wheelCy;
   const dist = Math.hypot(dx, dy) || 1;
-  const horiz = dx / (layout.wheelR * 0.92);
-  const rim = Math.max(0.35, Math.min(1, dist / layout.wheelR));
+  const horiz = dx / (layout.wheelR * 0.72);
+  const rim = Math.max(0.62, Math.min(1, dist / layout.wheelR));
   return Math.max(-1, Math.min(1, horiz * rim));
 }
 

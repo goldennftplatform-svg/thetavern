@@ -9,6 +9,8 @@ import type { FoodId } from "../content/tavernNights";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
 import type { XLoreFeed } from "../lore/xFeed";
 import { formatXPostAge } from "../lore/xFeed";
+import type { MobileHallSnapshot } from "../hall/mobileHall";
+import { mobileHallFeedHtml, mobileHallLeaderboardHtml } from "../hall/mobileHall";
 import {
   feastButtonHtml,
   hubBackHtml,
@@ -76,6 +78,7 @@ export function hubWellHtml(
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(hubVerse)}</p>
     <p class="studio-lore-line">${escapeHtml(extraLore)}</p>
     <div class="studio-hub-footer">
+      <button type="button" class="btn ghost studio-link-btn studio-link-btn--hall" data-hub-action="hall_view">📺 Hall view</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X ↓</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Rim notice</button>
@@ -216,9 +219,38 @@ export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines
     <ul class="studio-ledger-list studio-ledger-list--archive">${archiveLis}</ul>
     <p class="studio-stage-lead">Hall notices</p>
     <ul class="studio-ledger-list">${noticeLis}</ul>
+    <button type="button" class="btn ghost studio-link-btn" data-hub-action="hall_view">📺 Hall view</button>
     <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
     "studio-stage--ledger",
+  );
+}
+
+export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: string): string {
+  const liveCls = hall.live ? "mobile-hall-live" : "mobile-hall-live mobile-hall-live--off";
+  const liveLabel = hall.live ? "Live hall connected" : "Solo / preview — run npm run live for a shared hall";
+  const patrons = hall.patrons.length
+    ? escapeHtml(hall.patrons.join(" · "))
+    : "Empty chairs — enter a name and cast to appear at the Great Table";
+
+  return studioStageHtml(
+    "Charter hall",
+    `<p class="${liveCls}" role="status"><span class="mobile-hall-live-dot" aria-hidden="true"></span> ${liveLabel}</p>
+    <p class="studio-charter-night">Charter ${escapeHtml(hall.charterNight)} <small>· resets 4am PT</small></p>
+    <p class="mobile-hall-patrons"><strong>At the table</strong> ${patrons}</p>
+    <section class="mobile-hall-block" aria-labelledby="mobile-hall-lb-title">
+      <h3 id="mobile-hall-lb-title" class="mobile-hall-block-title">Leaderboard</h3>
+      ${mobileHallLeaderboardHtml(hall.leaderboard)}
+    </section>
+    <section class="mobile-hall-block mobile-hall-block--feed" aria-labelledby="mobile-hall-feed-title">
+      <h3 id="mobile-hall-feed-title" class="mobile-hall-block-title">Live chronicle</h3>
+      <div class="mobile-hall-feed">${mobileHallFeedHtml(hall.deeds)}</div>
+    </section>
+    <div class="studio-hub-footer studio-hub-footer--scroll">
+      <a class="btn ghost studio-link-btn" href="${escapeHtml(bigboardHref)}">Projector wall ↗</a>
+      <button type="button" class="btn primary big studio-continue" data-hub-action="back:well">← Back to games</button>
+    </div>`,
+    "studio-stage--hall",
   );
 }
 

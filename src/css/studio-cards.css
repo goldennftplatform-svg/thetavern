@@ -851,7 +851,8 @@ html.play-active .play-menu {
     max-width: min(520px, 100%);
   }
 
-  .play-menu-body:has(.studio-stage--ledger) {
+  .play-menu-body:has(.studio-stage--ledger),
+  .play-menu-body:has(.studio-stage--hall) {
     max-width: min(720px, 92vw) !important;
     padding-left: 8px;
     padding-right: 8px;
@@ -872,4 +873,189 @@ html.play-active .play-menu {
   .play-menu .playing-card--hero {
     animation: none;
   }
+}
+
+/* ——— In-play mobile hall view (bigboard-lite) ——— */
+.studio-stage--hall .studio-stage-body {
+  gap: 12px;
+}
+
+.mobile-hall-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(104, 232, 168, 0.45);
+  background: rgba(104, 232, 168, 0.1);
+  font-family: var(--font-label, "Silkscreen", sans-serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #68e8a8;
+}
+
+.mobile-hall-live--off {
+  border-color: rgba(152, 144, 200, 0.35);
+  background: rgba(72, 48, 88, 0.25);
+  color: rgba(248, 240, 255, 0.72);
+}
+
+.mobile-hall-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.mobile-hall-patrons {
+  margin: 0;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.15rem;
+  line-height: 1.35;
+  color: var(--ink);
+  opacity: 0.9;
+}
+
+.mobile-hall-block {
+  width: 100%;
+  text-align: left;
+}
+
+.mobile-hall-block-title {
+  margin: 0 0 8px;
+  font-family: var(--font-label, "Silkscreen", sans-serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.mobile-hall-lb {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-hall-lb-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(152, 144, 200, 0.22);
+  border-radius: 8px;
+  background: rgba(8, 12, 18, 0.55);
+}
+
+.mobile-hall-lb-row--top {
+  border-color: rgba(232, 176, 80, 0.5);
+  background: linear-gradient(135deg, rgba(232, 176, 80, 0.12), rgba(72, 48, 88, 0.28));
+}
+
+.mobile-hall-lb-rank {
+  font-family: var(--font-micro, "Press Start 2P", monospace);
+  font-size: 0.42rem;
+  color: var(--gold-dim);
+  text-align: center;
+}
+
+.mobile-hall-lb-name {
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-hall-lb-score {
+  font-family: var(--font-micro, "Press Start 2P", monospace);
+  font-size: 0.42rem;
+  color: #68e8a8;
+}
+
+.mobile-hall-feed {
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-hall-deed {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.mobile-hall-deed--win {
+  border-color: rgba(104, 232, 168, 0.45);
+}
+
+.mobile-hall-deed--lose {
+  border-color: rgba(200, 120, 120, 0.4);
+}
+
+.mobile-hall-deed--demplar {
+  border-color: rgba(152, 184, 232, 0.45);
+}
+
+.mobile-hall-deed .bb-feed-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--gold);
+}
+
+.mobile-hall-deed-main {
+  margin: 0;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.12rem;
+  line-height: 1.35;
+}
+
+.mobile-hall-deed-sub {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  opacity: 0.75;
+}
+
+.mobile-hall-empty {
+  margin: 0;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.08rem;
+  line-height: 1.35;
+  opacity: 0.78;
+}
+
+.studio-stage--hall .bb-deed-cards {
+  margin-top: 6px;
+}
+
+.studio-stage--hall .bb-mini-card {
+  min-width: 30px;
+  min-height: 40px;
+}
+
+.studio-link-btn--hall {
+  border-color: rgba(232, 176, 80, 0.45);
+}
+
+html.tavern-mobile .studio-stage--hall .mobile-hall-feed {
+  max-height: min(38vh, 280px);
+}
+
+html.tavern-mobile .play-credits .btn.linkish {
+  min-height: 44px;
+  padding: 8px 12px;
 }

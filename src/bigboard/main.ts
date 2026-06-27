@@ -293,10 +293,10 @@ function countLiveActivity() {
   refreshStats();
 }
 
-function appendDeed(d: Deed) {
+function appendDeed(d: Deed, fresh = true) {
   const { main, sub } = deedLines(d);
   const row = document.createElement("div");
-  row.className = `${deedClass(d)} bb-deed--fresh`;
+  row.className = `${deedClass(d)}${fresh ? " bb-deed--fresh" : ""}`;
   const subHtml = sub
     ? `<span class="bb-deed-sub">${escapeHtml(sub)}</span>`
     : "";
@@ -305,11 +305,45 @@ function appendDeed(d: Deed) {
   row.innerHTML = `${bbIconForKind(d.kind)}<div class="bb-deed-body"><span class="bb-deed-text">${escapeHtml(main)}</span>${subHtml}${cardsHtml}</div>`;
   feedEl.prepend(row);
   feedEl.classList.remove("bb-feed--waiting");
-  window.setTimeout(() => row.classList.remove("bb-deed--fresh"), 4000);
+  if (fresh) window.setTimeout(() => row.classList.remove("bb-deed--fresh"), 4000);
   while (feedEl.children.length > FEED_MAX) feedEl.removeChild(feedEl.lastChild!);
+}
+
+function applyDeedStats(d: Deed) {
   bumpTally(d);
   bumpLeaderboard(d);
+}
+
+function appendDeedLive(d: Deed) {
+  appendDeed(d, true);
+  applyDeedStats(d);
   feedHint.textContent = "Inscribed in the chronicle.";
+}
+
+function hydrateHallFromSync(list: Deed[]) {
+  if (!Array.isArray(list) || list.length === 0) return;
+
+  director.reset();
+  hallTally = {
+    catches: 0,
+    gambles: 0,
+    wins: 0,
+    feasts: 0,
+    mythics: 0,
+    renown: 0,
+    wisdom: 0,
+    milestones: 0,
+  };
+  leaderboardRows = [];
+  feedEl.innerHTML = "";
+
+  for (const d of [...list].reverse()) applyDeedStats(d);
+  for (const d of list) appendDeed(d, false);
+
+  feedEl.classList.remove("bb-feed--waiting");
+  feedHint.textContent = "Inscribed in the chronicle.";
+  refreshStats();
+  refreshLeaderboard();
 }
 
 function handleDeedEffects(d: Deed) {
@@ -847,12 +881,37 @@ async function initCharterChrome() {
   refreshCharterChrome();
 }
 
+function goLiveHall(label: string) {
+  trailLive = true;
+  stopDemoEvening();
+  director.reset();
+  patronList = [];
+  hallHasLivePatrons = false;
+  feedEl.innerHTML = "";
+  feedEl.classList.add("bb-feed--waiting");
+  feedHint.textContent = "Live hall — deeds chalk here as patrons play.";
+  setLive(true, label);
+  patronsEl.textContent = "Live hall connected — waiting for anglers at the Moonwell.";
+  refreshDock();
+  countLiveActivity();
+  redrawMap();
+}
+
 function bindTrailSocket(socket: import("socket.io-client").Socket) {
   socket.on("moonwell:patrons", onPatrons);
   socket.on("moonwell:fishing", onFishingUpdate);
   socket.on("moonwell:chance", onChanceUpdate);
+  socket.on("hall:deed:sync", (list: Deed[]) => {
+    stopDemoEvening();
+    hydrateHallFromSync(list);
+  });
+  socket.on("hall:deed", (d: Deed) => {
+    if (!trailLive) goLiveHall(`Live hall · ${tonightUtc().title}`);
+    stopDemoEvening();
+    director.enqueue(d);
+  });
   socket.on("connect", () => {
-    window.setTimeout(ensurePreviewPatrons, 400);
+    socket.emit("hall:deed:request");
   });
 }
 
@@ -869,7 +928,6 @@ async function main() {
   resize();
   window.addEventListener("resize", resize);
   startAnimLoop();
-  bootPreviewHall();
   requestAnimationFrame(() => resize());
   const mapStack = mapCanvas.parentElement;
   if (mapStack && typeof ResizeObserver !== "undefined") {
@@ -896,7 +954,7 @@ async function main() {
     onFlash: (_line, from) => {
       if (from) pulsePatron(from);
     },
-    onAppendFeed: appendDeed,
+    onAppendFeed: appendDeedLive,
     onEffects: handleDeedEffects,
     onQuietWhisper: (line) => {
       const x = pickXPostText();
@@ -919,18 +977,16 @@ async function main() {
   }
 
   setLive(false, "Joining live hall…");
+  patronsEl.textContent = "Connecting to Moonwell trail…";
 
   let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
   try {
     client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true }, {
       onSocket: bindTrailSocket,
     });
-    trailLive = true;
-    stopDemoEvening();
-    patronList = [];
-    setLive(true, `Live hall · ${night.title}`);
-    patronsEl.textContent = "Live hall connected — waiting for anglers at the Moonwell.";
-    redrawMap();
+    goLiveHall(`Live hall · ${night.title}`);
+    client.socket.emit("hall:deed:request");
+    setWhisper("Live hall online — cast in Play to light up the map.");
   } catch {
     bootPreviewHall(
       "Preview seats — run npm run live (trail :3847 + Vite :5174) then refresh both tabs.",
@@ -938,16 +994,7 @@ async function main() {
     return;
   }
 
-  const socket = client?.socket;
-  if (socket) {
-    socket.on("hall:deed", (d: Deed) => {
-      stopDemoEvening();
-      director.enqueue(d);
-    });
-    if (patronList.length === 0) {
-      setWhisper("Live hall online — cast in Play to light up the map.");
-    }
-  } else {
+  if (!client?.socket) {
     bootPreviewHall("Preview seats at the Great Table.");
   }
 }

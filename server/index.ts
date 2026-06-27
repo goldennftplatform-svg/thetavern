@@ -21,6 +21,8 @@ const io = new IOServer(httpServer, {
 type Patron = { id: string; name: string; atWell: boolean };
 
 const patrons = new Map<string, Patron>();
+const DEED_FEED_MAX = 120;
+const deedFeed: Record<string, unknown>[] = [];
 
 function patronSnapshot() {
   return [...patrons.values()].filter((p) => p.atWell);
@@ -35,8 +37,24 @@ function sendPatronsTo(socket: import("socket.io").Socket) {
   socket.emit("moonwell:patrons", { patrons: patronSnapshot() });
 }
 
+function recordDeed(deed: Record<string, unknown>): Record<string, unknown> {
+  const ev = {
+    id: `${deed.ts ?? Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...deed,
+    ts: deed.ts ?? Date.now(),
+  };
+  deedFeed.unshift(ev);
+  if (deedFeed.length > DEED_FEED_MAX) deedFeed.length = DEED_FEED_MAX;
+  return ev;
+}
+
 function pushDeed(room: string, deed: Record<string, unknown>) {
-  io.to(room).emit("hall:deed", deed);
+  const ev = recordDeed(deed);
+  io.to(room).emit("hall:deed", ev);
+}
+
+function sendDeedSync(socket: import("socket.io").Socket) {
+  socket.emit("hall:deed:sync", deedFeed);
 }
 
 io.on("connection", (socket) => {
@@ -48,8 +66,13 @@ io.on("connection", (socket) => {
     patrons.set(socket.id, { id: socket.id, name, atWell });
     await socket.join(defaultRoom);
     sendPatronsTo(socket);
+    sendDeedSync(socket);
     socket.to(defaultRoom).emit("moonwell:patrons", { patrons: patronSnapshot() });
     socket.emit("tavern:welcome", { room: defaultRoom, name });
+  });
+
+  socket.on("hall:deed:request", () => {
+    sendDeedSync(socket);
   });
 
   socket.on("moonwell:presence", (payload: { atWell: boolean }) => {
@@ -62,10 +85,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("hall:announce_deed", (deed: Record<string, unknown>) => {
+    const patron = patrons.get(socket.id);
     pushDeed(defaultRoom, {
       ts: Date.now(),
       ...deed,
-      from: patrons.get(socket.id)?.name,
+      from: patron?.name ?? (typeof deed.from === "string" ? deed.from : undefined) ?? "A patron",
     });
   });
 

@@ -79,7 +79,15 @@ export function createChronicleDirector(
   function enqueue(deed: Deed) {
     queue.push(deed);
     clearQuietTimer();
+    handlers?.onAppendFeed(deed);
     if (!playing) void playNext();
+  }
+
+  function reset() {
+    queue.length = 0;
+    playing = false;
+    clearQuietTimer();
+    handlers?.onSpotlight(null, { main: "" });
   }
 
   async function playNext() {
@@ -106,7 +114,6 @@ export function createChronicleDirector(
 
     await pause(holdFor(deed));
 
-    handlers.onAppendFeed(deed);
     handlers.onSpotlight(null, { main: "" });
     lastPlayedAt = Date.now();
 
@@ -139,6 +146,7 @@ export function createChronicleDirector(
   return {
     bind,
     enqueue,
+    reset,
     setLiveActivity,
     whisper,
     isPlaying: () => playing,

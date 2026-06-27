@@ -66,6 +66,8 @@ import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio
 import { primeWarriorSfx } from "./audio/warriorSfx";
 import { demplarEpigraphs, knightNoticeBoard } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
+import { createMobileHall } from "./hall/mobileHall";
+import { mountPlayLiveFeed, renderPlayLiveFeed } from "./ui/playLiveFeed";
 import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
 import {
   chanceHighLowHtml,
@@ -81,6 +83,7 @@ import {
   hubWellHtml,
   heraldScrollStudioHtml,
   ledgerStudioHtml,
+  mobileHallStudioHtml,
   perilStudioHtml,
   renownStudioHtml,
   triviaStudioHtml,
@@ -202,6 +205,8 @@ const elCredits = $("credits-text");
 const elModal = $("modal-demplar") as HTMLDialogElement;
 const elModalBody = $("modal-body");
 const elBtnCharter = $("btn-charter");
+const elBtnHallView = $("btn-hall-view");
+const elBtnCharterFoot = $("btn-charter-foot");
 const elBtnCloseModal = $("btn-close-modal");
 const elBtnModalX = $("btn-modal-x");
 const elBtnSkipGate = $("btn-skip-gate");
@@ -226,6 +231,19 @@ function closeDemplarModal() {
 
 elBtnCharter.addEventListener("click", () => {
   openDemplarModal();
+});
+elBtnCharterFoot?.addEventListener("click", () => {
+  openDemplarModal();
+});
+elBtnHallView?.addEventListener("click", () => {
+  if (elGame.hidden) return;
+  setPhase("well");
+  openHallView();
+});
+document.getElementById("btn-hall-view-feed")?.addEventListener("click", () => {
+  if (elGame.hidden) return;
+  setPhase("well");
+  openHallView();
 });
 elBtnCloseModal.addEventListener("click", (e) => {
   e.preventDefault();
@@ -252,6 +270,37 @@ elCredits.textContent = creditsLine;
 
 let state: GameState = initialState("Traveler");
 let socket: Socket | null = null;
+let hallViewOpen = false;
+
+function hallBoardHref(): string {
+  const base = import.meta.env.BASE_URL || "/";
+  const path = `${base.endsWith("/") ? base : `${base}/`}bigboard.html`;
+  return new URL(path, window.location.href).href;
+}
+
+let prevLiveFeedKey = "";
+
+const mobileHall = createMobileHall({
+  onUpdate: () => {
+    const snap = mobileHall.snapshot();
+    const top = snap.deeds[0];
+    const topKey = top ? `${top.ts ?? 0}|${top.from ?? ""}|${top.chronicle ?? ""}|${top.text ?? ""}|${top.kind ?? ""}` : "";
+    const fresh = topKey && topKey !== prevLiveFeedKey ? topKey : undefined;
+    prevLiveFeedKey = topKey;
+    renderPlayLiveFeed(snap, fresh);
+    if (hallViewOpen) openHallView();
+  },
+});
+
+function openHallView() {
+  hallViewOpen = true;
+  openMenu(mobileHallStudioHtml(mobileHall.snapshot(), hallBoardHref()));
+  elPrimary.hidden = true;
+}
+
+function closeHallView() {
+  hallViewOpen = false;
+}
 let loadedTheme: LoadedMediaTheme | null = null;
 
 /** Fishing tempo — lower = slower cast/reel (0.5 = half speed). */
@@ -474,7 +523,19 @@ function announceDeed(
   renown?: number,
   extra?: Record<string, unknown>,
 ) {
-  socket?.emit("hall:announce_deed", { kind, chronicle, text: subtext, renown, ...extra });
+  const payload = {
+    kind,
+    chronicle,
+    text: subtext,
+    renown,
+    from: state.nickname,
+    ts: Date.now(),
+    ...extra,
+  };
+  socket?.emit("hall:announce_deed", payload);
+  if (!socket?.connected) {
+    mobileHall.pushLocalDeed(payload);
+  }
 }
 
 function addRenown(delta: number) {
@@ -544,7 +605,10 @@ function ensureMenuClickDelegation() {
     if (cont) {
       if (cont === "renown") setPhase("renown");
       else if (cont === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
-      else if (cont === "well") setPhase("well");
+      else if (cont === "well") {
+        closeHallView();
+        setPhase("well");
+      }
       return;
     }
 
@@ -608,7 +672,12 @@ function handleHubAction(action: string) {
     return;
   }
   if (action === "back:well") {
+    closeHallView();
     setPhase("well");
+    return;
+  }
+  if (action === "hall_view") {
+    openHallView();
     return;
   }
   if (action === "ledger") {
@@ -1319,15 +1388,29 @@ async function bootTrail() {
   const { url } = await resolveTrailServerUrl();
   if (!url) {
     elTrail.textContent = "Solo at the Moonwell — no trail URL (GitHub Pages needs a tunnel).";
+    mobileHall.bindSocket(null);
     return;
   }
   elTrail.textContent = "Joining the live hall…";
   try {
     const c = await connectTrail(url, "trailJson", { name: state.nickname });
     socket = c.socket;
-    elTrail.textContent = "Live hall — bigboard reflects your casts and deeds.";
+    mobileHall.bindSocket(socket);
+    const syncLive = () => {
+      mobileHall.bindSocket(socket);
+      if (state.phase !== "enter" && state.phase !== "herald") {
+        setPresence(true);
+        broadcastFishing(true);
+        broadcastChance();
+      }
+    };
+    socket.on("connect", syncLive);
+    syncLive();
+    elTrail.textContent = "Live hall — your deeds sync to the bigboard chronicle.";
   } catch {
-    elTrail.textContent = "Live hall offline — run npm run live, then refresh Play + bigboard.";
+    socket = null;
+    mobileHall.bindSocket(null);
+    elTrail.textContent = "Live hall offline — run npm run live, then hard-refresh Play + bigboard.";
   }
 }
 
@@ -1375,8 +1458,10 @@ async function startGameFromGate() {
   await xFeedReady;
   fillNotices();
   await ensurePixelFonts();
+  mountPlayLiveFeed(hallBoardHref());
   loadedTheme = await loadDailyMediaTheme();
   await bootTrail();
+  renderPlayLiveFeed(mobileHall.snapshot());
   requestAnimationFrame(() => {
     resizeCanvas();
     setPhase("well");

@@ -130,10 +130,10 @@ const JUMP_VEL = -12.8;
 const COYOTE_MS = 110;
 const RACE_PLAY_BOTTOM_PAD = 72;
 
-const ASTEROID_WAVE_MS = 9000;
-const ASTEROID_SPAWN_GAP_START = 1700;
-const ASTEROID_SPAWN_GAP_MIN = 1000;
-const ASTEROID_FIRST_SPAWN_MS = 900;
+const ASTEROID_WAVE_MS = 7500;
+const ASTEROID_SPAWN_GAP_START = 850;
+const ASTEROID_SPAWN_GAP_MIN = 420;
+const ASTEROID_FIRST_SPAWN_MS = 280;
 
 /** Hand-built platform course — gaps are intentional pits. */
 const PLATFORM_PLATS: Plat[] = [
@@ -695,20 +695,24 @@ export class DemplarWarrior {
   }
 
   private maxRocksOnScreen(wave: number): number {
-    return Math.min(2 + wave, 7);
+    return Math.min(3 + wave, 9);
   }
 
   private spawnOneRock(wave: number) {
     this.asteroids.rocks.push({
       x: 0.1 + Math.random() * 0.8,
-      y: -0.08 - Math.random() * 0.22,
+      y: -0.04 - Math.random() * 0.12,
       r: wave >= 5 ? 36 : wave >= 3 ? 34 : 32,
       tier: 0,
-      vx: (Math.random() - 0.5) * 0.00009,
-      vy: 0.00009 + Math.random() * 0.000055 + wave * 0.000007,
+      vx: (Math.random() - 0.5) * 0.00018,
+      vy: 0.00024 + Math.random() * 0.00014 + wave * 0.000018,
       hp: wave >= 5 ? 4 : 3,
       rot: Math.random() * Math.PI,
     });
+  }
+
+  private spawnAsteroidBurst(count: number) {
+    for (let i = 0; i < count; i++) this.spawnOneRock(this.asteroids.wave);
   }
 
   private stageElapsed(now: number): number {
@@ -722,6 +726,7 @@ export class DemplarWarrior {
     } else if (next === "asteroids") {
       this.result.race = this.race.score;
       this.subBanner = warriorTrialNames.asteroids;
+      this.spawnAsteroidBurst(3);
     } else if (next === "done") {
       this.result.asteroids = this.asteroids.score;
       this.result.total = this.result.platform + this.result.race + this.result.asteroids;
@@ -992,11 +997,12 @@ export class DemplarWarrior {
 
     if (isPlayer) {
       const steer = r.steerHeld;
-      r.lateralVel += steer * dt * 0.00042;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.00012;
-      r.lateralVel *= Math.pow(0.1, dt / 190);
+      r.lateralVel += steer * dt * 0.00115;
+      r.lateralVel += turnSign * curv * r.speed * dt * 0.00005;
+      r.lateralVel *= Math.pow(0.38, dt / 260);
       r.lateral += r.lateralVel * dt;
-      r.lateral = Math.max(-0.85, Math.min(0.85, r.lateral));
+      r.lateral += steer * dt * 0.00062;
+      r.lateral = Math.max(-0.88, Math.min(0.88, r.lateral));
 
       const offTrack = Math.abs(r.lateral) > 0.58;
       const onCurb = Math.abs(r.lateral) > 0.74;
@@ -1009,7 +1015,7 @@ export class DemplarWarrior {
 
       const boostMul = r.boost > 1 ? 1.34 : 1;
       r.boost = Math.max(1, r.boost - dt * 0.00062);
-      const turnPen = 1 - Math.min(0.4, curv * 3.1 + Math.abs(steer) * 0.14);
+      const turnPen = 1 - Math.min(0.32, curv * 2.4 + Math.abs(steer) * 0.08);
       const target = 0.000118 * boostMul * turnPen * (offTrack ? 0.66 : 1);
       r.speed = r.speed * 0.93 + target * 0.07;
       if (this.raceControls.boostHeld && r.boost <= 1.05) r.speed *= 1.06;
@@ -1154,8 +1160,9 @@ export class DemplarWarrior {
       a.lastSpawnElapsed = elapsed;
       a.spawnGap = Math.max(
         ASTEROID_SPAWN_GAP_MIN,
-        ASTEROID_SPAWN_GAP_START - a.wave * 110 + (Math.random() - 0.5) * 380,
+        ASTEROID_SPAWN_GAP_START - a.wave * 90 + (Math.random() - 0.5) * 220,
       );
+      if (a.wave >= 2 && Math.random() < 0.38) this.spawnOneRock(a.wave);
     }
 
     a.bullets = a.bullets.filter((b) => {
@@ -1168,7 +1175,7 @@ export class DemplarWarrior {
     for (const s of a.rocks) {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
-      s.rot += dt * 0.0004;
+      s.rot += dt * 0.00085;
       if (s.x < 0.04 || s.x > 0.96) s.vx *= -1;
     }
 

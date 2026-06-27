@@ -68,6 +68,28 @@
             <div id="phase-text" class="play-menu-body"></div>
           </div>
 
+          <section id="play-live-feed" class="play-live-feed" hidden aria-label="Live hall chronicle">
+            <button type="button" class="play-live-feed__head" aria-expanded="true">
+              <span class="play-live-feed__dot" aria-hidden="true"></span>
+              <span class="play-live-feed__title">Live chronicle</span>
+              <span id="play-live-feed-meta" class="play-live-feed__meta"></span>
+              <span class="play-live-feed__caret" aria-hidden="true">▼</span>
+            </button>
+            <div id="play-live-feed-body" class="play-live-feed__body">
+              <p id="play-live-feed-patrons" class="play-live-feed__patrons"></p>
+              <div id="play-live-feed-list" class="play-live-feed__list" aria-live="polite"></div>
+              <footer class="play-live-feed__foot">
+                <button type="button" id="btn-hall-view-feed" class="btn ghost">Hall view</button>
+                <a id="play-live-feed-board" class="btn linkish" target="_blank" rel="noopener">Bigboard</a>
+              </footer>
+            </div>
+          </section>
+
+          <button type="button" id="play-live-chip" class="play-live-chip" hidden aria-label="Live hall patrons">
+            <span class="play-live-chip__dot" aria-hidden="true"></span>
+            <span class="play-live-chip__count">○</span>
+          </button>
+
           <footer class="play-dock" aria-label="Actions">
             <div class="actions" id="actions">
               <button type="button" id="btn-primary" class="btn primary big"></button>
@@ -87,7 +109,8 @@
           </details>
           <footer class="play-credits credits">
             <span id="credits-text"></span>
-            <a href="bigboard.html" target="_blank" rel="noopener">Live table</a>
+            <button type="button" id="btn-hall-view" class="btn linkish">Hall view</button>
+            <button type="button" id="btn-charter-foot" class="btn linkish">Rim notice</button>
           </footer>
         </div>
       </main>
