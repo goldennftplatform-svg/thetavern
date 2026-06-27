@@ -18,9 +18,9 @@ export const TRACK_POINTS: Array<[number, number]> = [
 ];
 
 /** Ideal lateral offset for a corner — negative = inside line on left-hand bend. */
-export function racingLineOffset(track: Track, t: number, look = 0.028): number {
+export function racingLineOffset(track: Track, t: number): number {
   const wrapped = ((t % 1) + 1) % 1;
-  const eps = 0.01;
+  const eps = 0.012;
   const a = trackAt(((wrapped - eps) % 1 + 1) % 1, track).angle;
   const b = trackAt(((wrapped + eps) % 1 + 1) % 1, track).angle;
   let da = b - a;
@@ -28,11 +28,7 @@ export function racingLineOffset(track: Track, t: number, look = 0.028): number 
   while (da < -Math.PI) da += Math.PI * 2;
   const turnSign = Math.sign(da) || 1;
   const curv = Math.abs(da) / (eps * 2);
-  const ahead = trackAt((wrapped + look) % 1, track);
-  const ahead2 = trackAt((wrapped + look * 2) % 1, track);
-  const bendAhead = Math.abs(Math.atan2(ahead2.y - ahead.y, ahead2.x - ahead.x));
-  const line = -turnSign * Math.min(0.48, (curv * 14 + bendAhead * 2.2));
-  return line;
+  return -turnSign * Math.min(0.38, curv * 11);
 }
 
 export function buildTrack(pts: Array<[number, number]> = TRACK_POINTS): Track {

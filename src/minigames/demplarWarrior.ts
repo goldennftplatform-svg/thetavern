@@ -472,6 +472,12 @@ const AI_RIVALS: Array<{ name: string; color: string; pace: number; aggression: 
   { name: "Scribe", color: "#e8b050", pace: 0.000138, aggression: 1.1 },
 ];
 
+function paramDist(a: number, b: number): number {
+  let d = Math.abs(a - b);
+  if (d > 0.5) d = 1 - d;
+  return d;
+}
+
 function racerRank(racers: Racer[]): Racer[] {
   return [...racers].sort((a, b) => {
     if (a.finished && b.finished) return a.finishMs - b.finishMs;
@@ -521,6 +527,8 @@ export class DemplarWarrior {
     launchUntil: 0,
     shakeUntil: 0,
     launched: false,
+    curbUntil: 0,
+    smoothedLat: 0,
   };
 
   asteroids = {
@@ -684,6 +692,8 @@ export class DemplarWarrior {
       launchUntil: now + RACE_LAUNCH_MS,
       shakeUntil: 0,
       launched: false,
+      curbUntil: 0,
+      smoothedLat: 0,
     };
     this.raceControls = { wheelAngle: 0, wheelDragging: false, boostHeld: false };
     this.pointerSteer = 0;
@@ -806,9 +816,9 @@ export class DemplarWarrior {
     const player = this.race.racers.find((r) => r.isPlayer);
     if (!player || !on) return;
     if (player.boost <= 1.12) {
-      player.boost = 2.35;
-      player.speed = Math.min(RACE_MAX_PACE, player.speed + 0.000055);
-      this.race.shakeUntil = performance.now() + 180;
+      player.boost = 2.1;
+      player.speed = Math.min(RACE_MAX_PACE, player.speed + 0.00004);
+      this.race.shakeUntil = performance.now() + 100;
     }
   }
 
@@ -897,6 +907,7 @@ export class DemplarWarrior {
   }
 
   update(dt: number, now: number) {
+    dt = Math.min(Math.max(dt, 0), 48);
     const elapsed = this.stageElapsed(now);
 
     if (this.stage === "brief") {
@@ -1015,53 +1026,57 @@ export class DemplarWarrior {
 
     if (isPlayer) {
       const steer = r.steerHeld;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.00028;
-      r.lateralVel += steer * dt * 0.00285;
-      r.drifting = Math.abs(steer) > 0.55 && r.speed > RACE_BASE_PACE * 0.7 && curv > 0.07;
-      const gripPow = r.drifting ? 0.74 : 0.5;
-      r.lateralVel *= Math.pow(gripPow, dt / 210);
+      r.lateralVel += turnSign * curv * r.speed * dt * 0.0002;
+      r.lateralVel += steer * dt * 0.0022;
+      r.drifting = Math.abs(steer) > 0.6 && r.speed > RACE_BASE_PACE * 0.75 && curv > 0.08;
+      const gripPow = r.drifting ? 0.78 : 0.55;
+      r.lateralVel *= Math.pow(gripPow, dt / 220);
+      r.lateralVel = Math.max(-0.001, Math.min(0.001, r.lateralVel));
       r.lateral += r.lateralVel * dt;
-      r.lateral += steer * dt * 0.00108;
-      r.lateral = Math.max(-0.9, Math.min(0.9, r.lateral));
+      r.lateral += steer * dt * 0.0005;
+      r.lateral = Math.max(-0.68, Math.min(0.68, r.lateral));
 
-      const offTrack = Math.abs(r.lateral) > 0.5;
-      const onCurb = Math.abs(r.lateral) > 0.72;
+      const offTrack = Math.abs(r.lateral) > 0.48;
+      const onCurb = Math.abs(r.lateral) > 0.62;
       if (onCurb) {
-        r.lateralVel *= -0.58;
-        r.lateral = Math.sign(r.lateral) * 0.72;
-        r.speed *= 0.76;
-        this.race.shakeUntil = now + 240;
+        r.lateral = Math.sign(r.lateral) * 0.62;
+        r.lateralVel *= 0.2;
+        if (now > this.race.curbUntil) {
+          r.speed *= 0.9;
+          this.race.shakeUntil = now + 90;
+          this.race.curbUntil = now + 420;
+        }
       } else if (offTrack) {
-        r.speed *= 0.965;
+        r.lateralVel -= Math.sign(r.lateral) * dt * 0.00032;
+        r.speed *= 0.997;
       }
 
-      const boostMul = r.boost > 1.12 ? 1.58 + (r.boost - 1) * 0.1 : 1;
+      const boostMul = r.boost > 1.12 ? 1.52 + (r.boost - 1) * 0.08 : 1;
       r.boost = Math.max(1, r.boost - dt * 0.0012);
-      const turnPen = 1 - Math.min(0.36, curv * 2.05 + Math.abs(steer) * 0.11);
-      let target = RACE_BASE_PACE * boostMul * turnPen * (offTrack ? 0.7 : 1);
-      if (r.drifting) target *= 1.08;
-      if (this.raceControls.boostHeld && r.boost <= 1.12) target *= 1.05;
+      const turnPen = 1 - Math.min(0.34, curv * 2 + Math.abs(steer) * 0.1);
+      let target = RACE_BASE_PACE * boostMul * turnPen * (offTrack ? 0.78 : 1);
+      if (r.drifting) target *= 1.05;
+      if (this.raceControls.boostHeld && r.boost <= 1.12) target *= 1.04;
       target = Math.min(RACE_MAX_PACE, target);
-      r.speed = r.speed * 0.82 + target * 0.18;
+      r.speed = r.speed * 0.84 + target * 0.16;
 
       for (const item of this.race.items) {
         if (item.taken) continue;
-        const dist = Math.abs(frac - item.t);
-        if (dist < 0.02 && Math.abs(r.lateral - item.lateral) < 0.14) {
+        const dist = paramDist(frac, item.t);
+        if (dist < 0.022 && Math.abs(r.lateral - item.lateral) < 0.14) {
           item.taken = true;
           if (item.kind === "turbo") {
-            r.boost = 2.5;
-            r.speed = Math.min(RACE_MAX_PACE, r.speed + 0.00004);
+            r.boost = 2.2;
+            r.speed = Math.min(RACE_MAX_PACE, r.speed + 0.000035);
             this.race.score += 80;
-            this.race.shakeUntil = now + 160;
+            this.race.shakeUntil = now + 100;
           } else if (item.kind === "boot") {
             this.race.score += 60;
-            r.speed = Math.min(RACE_MAX_PACE, r.speed * 1.22);
+            r.speed = Math.min(RACE_MAX_PACE, r.speed * 1.18);
           } else {
-            r.speed *= 0.48;
-            r.lateralVel *= 1.45;
+            r.speed *= 0.55;
+            r.lateralVel *= 1.2;
             this.race.score = Math.max(0, this.race.score - 25);
-            this.race.shakeUntil = now + 200;
           }
         }
       }
@@ -1139,6 +1154,8 @@ export class DemplarWarrior {
     for (const r of this.race.racers) {
       this.tickRacer(r, dt, elapsed, now, r.isPlayer);
     }
+
+    this.race.smoothedLat += (player.lateral - this.race.smoothedLat) * Math.min(1, dt * 0.014);
 
     const ranked = racerRank(this.race.racers);
     this.race.playerPlace = ranked.indexOf(player) + 1;
@@ -1514,10 +1531,9 @@ export class DemplarWarrior {
     const player = this.race.racers.find((r) => r.isPlayer)!;
     const speedNorm = Math.min(1, player.speed / RACE_MAX_PACE);
     const speedMph = Math.round(54 + player.speed * 470_000 * (player.boost > 1.12 ? 1.38 : 1));
-    const shake = now < this.race.shakeUntil ? Math.sin(now * 0.09) * 6 : 0;
+    const shake = now < this.race.shakeUntil ? Math.sin(now * 0.05) * 2 : 0;
     const fx: ChaseCamFx = {
       speedNorm,
-      bank: (player.steerHeld ?? 0) * 0.07 + player.lateral * 0.045,
       shake,
       countdown: this.raceCountdownLabel(now),
       boosting: player.boost > 1.12 || this.raceControls.boostHeld,
@@ -1534,6 +1550,7 @@ export class DemplarWarrior {
       now * 0.001,
       speedMph,
       fx,
+      this.race.smoothedLat,
     );
 
     const layout = raceWheelLayout(w, h);

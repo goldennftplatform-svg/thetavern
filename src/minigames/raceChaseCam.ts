@@ -1,5 +1,6 @@
 /**
  * Corsus Circuit — pseudo-3D chase cam + desert road rendering.
+ * Road mesh uses parametric track integration (no world-space wrap glitches).
  */
 
 import type { Track } from "./raceTrack";
@@ -26,14 +27,13 @@ export type ChaseItem = {
 
 export type ChaseCamFx = {
   speedNorm: number;
-  bank: number;
   shake: number;
   countdown?: string;
   boosting: boolean;
 };
 
-const SEGMENTS = 84;
-const LOOK_AHEAD = 0.42;
+const SEGMENTS = 72;
+const LOOK_AHEAD = 0.38;
 
 export function trackCurvature(track: Track, t: number): number {
   const eps = 0.006;
@@ -45,6 +45,22 @@ export function trackCurvature(track: Track, t: number): number {
   return Math.abs(da) / (eps * 2);
 }
 
+function angleDelta(track: Track, t0: number, t1: number): number {
+  const a0 = trackAt(t0, track).angle;
+  const a1 = trackAt(t1, track).angle;
+  let da = a1 - a0;
+  while (da > Math.PI) da -= Math.PI * 2;
+  while (da < -Math.PI) da += Math.PI * 2;
+  return da;
+}
+
+/** Forward distance along track parameter (0–1 wrap). */
+export function trackAheadDelta(from: number, to: number): number {
+  let d = to - from;
+  if (d < 0) d += 1;
+  return d;
+}
+
 type RoadSeg = {
   sx: number;
   sy: number;
@@ -53,44 +69,80 @@ type RoadSeg = {
   ahead: number;
 };
 
+function perspFor(ahead: number): number {
+  return 1 / (1 + Math.max(0, ahead) * 9.5);
+}
+
 function buildRoadSegments(
   track: Track,
   playerFrac: number,
   playerLat: number,
-  steerHeld: number,
-  speedNorm: number,
   w: number,
   playTop: number,
   playH: number,
 ): RoadSeg[] {
-  const camLat = playerLat * 0.88 + steerHeld * 0.22;
-  const player = trackAt(playerFrac, track);
-  const cosA = Math.cos(player.angle);
-  const sinA = Math.sin(player.angle);
   const baseY = playTop + playH * 0.9;
-  const depth = playH * 0.78;
-  const fovBoost = 1 + speedNorm * 0.18;
+  const depth = playH * 0.76;
+  let centerX = w / 2 + playerLat * w * 0.4;
+  let prevT = playerFrac;
   const out: RoadSeg[] = [];
 
   for (let i = 0; i <= SEGMENTS; i++) {
-    const aheadNorm = (i / SEGMENTS) * LOOK_AHEAD * fovBoost;
-    const t = (playerFrac + aheadNorm) % 1;
-    const pos = trackAt(t, track);
-    let dx = pos.x - player.x;
-    let dy = pos.y - player.y;
-    if (dx > 0.5) dx -= 1;
-    if (dx < -0.5) dx += 1;
-
-    const ahead = dx * cosA + dy * sinA;
-    const right = dx * -sinA + dy * cosA;
-    const persp = 1 / (1 + Math.max(0, ahead) * (8.2 - speedNorm * 1.8));
-    const sx = w / 2 + right * w * 2.35 * persp + camLat * w * 0.52 * persp;
-    const sy = baseY - ahead * depth * 5.6 * persp;
-    const hw = Math.max(10, w * (0.24 + speedNorm * 0.02) * persp);
-
-    out.push({ sx, sy, hw, t, ahead });
+    const ahead = (i / SEGMENTS) * LOOK_AHEAD;
+    const t = playerFrac + ahead;
+    if (i > 0) {
+      const da = angleDelta(track, prevT, t);
+      centerX += da * w * 2.35 * perspFor(ahead);
+    }
+    prevT = t;
+    const p = perspFor(ahead);
+    const latFade = playerLat * (1 - ahead / LOOK_AHEAD) * w * 0.12 * p;
+    const sx = centerX + latFade;
+    const sy = baseY - ahead * depth * 5.6;
+    const hw = Math.max(10, w * 0.24 * p);
+    out.push({ sx, sy, hw, t: ((t % 1) + 1) % 1, ahead });
   }
   return out;
+}
+
+function projectOnRoad(
+  track: Track,
+  playerFrac: number,
+  playerLat: number,
+  targetT: number,
+  targetLat: number,
+  w: number,
+  playTop: number,
+  playH: number,
+): { x: number; y: number; angle: number } | null {
+  const ahead = trackAheadDelta(playerFrac, targetT);
+  if (ahead > 0.48) return null;
+
+  const baseY = playTop + playH * 0.9;
+  const depth = playH * 0.76;
+  let centerX = w / 2 + playerLat * w * 0.4;
+  let prevT = playerFrac;
+  const steps = Math.max(1, Math.round((ahead / LOOK_AHEAD) * SEGMENTS));
+
+  for (let i = 1; i <= steps; i++) {
+    const a = ahead * (i / steps);
+    const t = playerFrac + a;
+    const da = angleDelta(track, prevT, t);
+    centerX += da * w * 2.35 * perspFor(a);
+    prevT = t;
+  }
+
+  const p = perspFor(ahead);
+  const latFade = playerLat * (1 - ahead / LOOK_AHEAD) * w * 0.12 * p;
+  const latOff = (targetLat - playerLat) * w * 0.32 * p;
+  const pos = trackAt(playerFrac + ahead, track);
+  const playerAng = trackAt(playerFrac, track).angle;
+
+  return {
+    x: centerX + latFade + latOff,
+    y: baseY - ahead * depth * 5.6,
+    angle: pos.angle - playerAng,
+  };
 }
 
 function drawDesertSky(
@@ -109,22 +161,22 @@ function drawDesertSky(
   ctx.fillStyle = grad;
   ctx.fillRect(0, playTop, w, playH);
 
-  const sunX = w * 0.68 + Math.sin(tick * 0.08) * 6;
+  const sunX = w * 0.68;
   const sunY = playTop + playH * 0.2;
-  ctx.fillStyle = "rgba(232, 176, 80, 0.22)";
+  ctx.fillStyle = "rgba(232, 176, 80, 0.2)";
   ctx.beginPath();
-  ctx.arc(sunX, sunY, 56 + speedNorm * 12, 0, Math.PI * 2);
+  ctx.arc(sunX, sunY, 52, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#f0d878";
   ctx.beginPath();
   ctx.arc(sunX, sunY, 20, 0, Math.PI * 2);
   ctx.fill();
 
-  for (let i = 0; i < 8; i++) {
-    const mx = ((i * 151 + tick * (18 + speedNorm * 40)) % (w + 120)) - 60;
-    const my = playTop + playH * (0.48 + (i % 4) * 0.08);
-    ctx.fillStyle = `rgba(70, 45, 35, ${0.28 + (i % 2) * 0.12})`;
-    ctx.fillRect(mx, my, 28 + (i % 3) * 16, 10 + (i % 2) * 8);
+  for (let i = 0; i < 6; i++) {
+    const mx = ((i * 151 + tick * (14 + speedNorm * 24)) % (w + 100)) - 50;
+    const my = playTop + playH * (0.5 + (i % 3) * 0.1);
+    ctx.fillStyle = "rgba(70, 45, 35, 0.3)";
+    ctx.fillRect(mx, my, 24 + (i % 2) * 12, 8);
   }
 }
 
@@ -136,48 +188,38 @@ function drawSpeedLines(
   speedNorm: number,
   tick: number,
 ) {
-  if (speedNorm < 0.35) return;
-  const n = Math.floor(6 + speedNorm * 18);
+  if (speedNorm < 0.4) return;
+  const n = Math.floor(4 + speedNorm * 10);
   ctx.save();
-  ctx.globalAlpha = 0.08 + speedNorm * 0.22;
+  ctx.globalAlpha = 0.06 + speedNorm * 0.14;
   ctx.strokeStyle = "#f8f0ff";
   ctx.lineWidth = 2;
   for (let i = 0; i < n; i++) {
-    const x = (i * 97 + tick * (80 + speedNorm * 120)) % (w + 40) - 20;
-    const y0 = playTop + playH * (0.22 + (i % 5) * 0.12);
-    const len = 16 + speedNorm * 48;
+    const x = (i * 97 + tick * (60 + speedNorm * 80)) % (w + 40) - 20;
+    const y0 = playTop + playH * (0.25 + (i % 4) * 0.1);
+    const len = 12 + speedNorm * 32;
     ctx.beginPath();
     ctx.moveTo(x, y0);
-    ctx.lineTo(x - 8, y0 + len);
+    ctx.lineTo(x - 6, y0 + len);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawSideScenery(ctx: CanvasRenderingContext2D, segs: RoadSeg[], tick: number, speedNorm: number) {
-  for (let i = 8; i < segs.length - 4; i += 7) {
+function drawSideScenery(ctx: CanvasRenderingContext2D, segs: RoadSeg[]) {
+  for (let i = 10; i < segs.length - 4; i += 8) {
     const s = segs[i]!;
-    if (s.hw < 16 || s.sy > segs[0]!.sy - 20) continue;
-    const h = 12 + (i % 3) * 10;
-    const sway = Math.sin(tick * 0.15 + i) * 2;
+    if (s.hw < 14) continue;
+    const h = 10 + (i % 3) * 8;
     for (const side of [-1, 1]) {
-      const bx = s.sx + side * (s.hw + 14 + (i % 4) * 6) + sway;
-      const by = s.sy;
-      ctx.fillStyle = side < 0 ? "rgba(40, 28, 22, 0.75)" : "rgba(52, 36, 28, 0.7)";
+      const bx = s.sx + side * (s.hw + 16);
+      ctx.fillStyle = "rgba(45, 30, 24, 0.7)";
       ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx + side * 8, by - h);
-      ctx.lineTo(bx + side * 16, by);
+      ctx.moveTo(bx, s.sy);
+      ctx.lineTo(bx + side * 7, s.sy - h);
+      ctx.lineTo(bx + side * 14, s.sy);
       ctx.closePath();
       ctx.fill();
-    }
-  }
-  if (speedNorm > 0.55) {
-    ctx.fillStyle = `rgba(200, 140, 80, ${0.06 + speedNorm * 0.08})`;
-    for (let i = 0; i < 5; i++) {
-      const s = segs[12 + i * 5];
-      if (!s) continue;
-      ctx.fillRect(s.sx - s.hw - 20, s.sy - 4, s.hw * 2 + 40, 3);
     }
   }
 }
@@ -190,15 +232,14 @@ function drawRoadStrip(ctx: CanvasRenderingContext2D, segs: RoadSeg[], speedNorm
 
     ctx.fillStyle = "#2a1810";
     ctx.beginPath();
-    ctx.moveTo(a.sx - a.hw - 6, a.sy);
-    ctx.lineTo(b.sx - b.hw - 6, b.sy);
-    ctx.lineTo(b.sx + b.hw + 6, b.sy);
-    ctx.lineTo(a.sx + a.hw + 6, a.sy);
+    ctx.moveTo(a.sx - a.hw - 5, a.sy);
+    ctx.lineTo(b.sx - b.hw - 5, b.sy);
+    ctx.lineTo(b.sx + b.hw + 5, b.sy);
+    ctx.lineTo(a.sx + a.hw + 5, a.sy);
     ctx.closePath();
     ctx.fill();
 
-    const stripe = i % (speedNorm > 0.6 ? 3 : 4) === 0;
-    ctx.fillStyle = stripe ? "#6a5038" : "#4a3828";
+    ctx.fillStyle = i % 2 === 0 ? "#5a4838" : "#4a3828";
     ctx.beginPath();
     ctx.moveTo(a.sx - a.hw, a.sy);
     ctx.lineTo(b.sx - b.hw, b.sy);
@@ -207,8 +248,8 @@ function drawRoadStrip(ctx: CanvasRenderingContext2D, segs: RoadSeg[], speedNorm
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = i % 2 === 0 ? "#f0c868" : "#e8b050";
-    ctx.lineWidth = 2 + speedNorm;
+    ctx.strokeStyle = "#e8b050";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(a.sx - a.hw, a.sy);
     ctx.lineTo(b.sx - b.hw, b.sy);
@@ -219,51 +260,11 @@ function drawRoadStrip(ctx: CanvasRenderingContext2D, segs: RoadSeg[], speedNorm
     ctx.stroke();
 
     if (i % 4 === 0 && a.hw > 10) {
-      ctx.fillStyle = "rgba(248, 240, 255, 0.85)";
-      const dashH = Math.max(5, (a.sy - b.sy) * (0.42 + speedNorm * 0.2));
+      ctx.fillStyle = "rgba(248, 240, 255, 0.8)";
+      const dashH = Math.max(4, (a.sy - b.sy) * (0.4 + speedNorm * 0.15));
       ctx.fillRect(a.sx - 2, a.sy - dashH, 4, dashH);
     }
-
-    if (a.hw > 16 && i % 2 === 0) {
-      ctx.fillStyle = "rgba(220, 70, 60, 0.65)";
-      ctx.fillRect(a.sx - a.hw + 2, a.sy - 4, 6, 4);
-      ctx.fillRect(a.sx + a.hw - 8, a.sy - 4, 6, 4);
-    }
   }
-}
-
-function placeOnRoad(
-  track: Track,
-  playerFrac: number,
-  playerLat: number,
-  targetT: number,
-  targetLat: number,
-  w: number,
-  playTop: number,
-  playH: number,
-): { x: number; y: number; angle: number; visible: boolean } | null {
-  const player = trackAt(playerFrac, track);
-  const cosA = Math.cos(player.angle);
-  const sinA = Math.sin(player.angle);
-  const pos = trackAt(targetT, track);
-  let dx = pos.x - player.x;
-  let dy = pos.y - player.y;
-  if (dx > 0.5) dx -= 1;
-  if (dx < -0.5) dx += 1;
-
-  const ahead = dx * cosA + dy * sinA;
-  if (ahead < -0.015) return null;
-  const right = dx * -sinA + dy * cosA + (targetLat - playerLat) * 0.26;
-  const persp = 1 / (1 + ahead * 8.2);
-  const baseY = playTop + playH * 0.9;
-  const depth = playH * 0.78;
-
-  return {
-    x: w / 2 + right * w * 2.35 * persp,
-    y: baseY - ahead * depth * 5.6 * persp,
-    angle: pos.angle - player.angle,
-    visible: true,
-  };
 }
 
 function drawMiniMap(
@@ -352,97 +353,63 @@ export function drawCorsusChaseRace(
   tick: number,
   speedMph: number,
   fx: ChaseCamFx,
+  displayLat: number,
 ) {
   const player = racers.find((r) => r.isPlayer)!;
   const playerFrac = ((player.lapProgress % 1) + 1) % 1;
-  const cx = w / 2;
-  const cy = playTop + playH * 0.55;
 
   drawDesertSky(ctx, w, playTop, playH, tick, fx.speedNorm);
   drawSpeedLines(ctx, w, playTop, playH, fx.speedNorm, tick);
 
   ctx.save();
-  ctx.translate(cx + fx.shake, cy);
-  ctx.rotate(fx.bank);
-  ctx.translate(-cx, -cy);
+  ctx.translate(fx.shake, 0);
 
-  const segs = buildRoadSegments(
-    track,
-    playerFrac,
-    player.lateral,
-    player.steerHeld ?? 0,
-    fx.speedNorm,
-    w,
-    playTop,
-    playH,
-  );
-  drawSideScenery(ctx, segs, tick, fx.speedNorm);
+  const segs = buildRoadSegments(track, playerFrac, displayLat, w, playTop, playH);
+  drawSideScenery(ctx, segs);
   drawRoadStrip(ctx, segs, fx.speedNorm);
 
   for (const item of items) {
     if (item.taken) continue;
-    const p = placeOnRoad(track, playerFrac, player.lateral, item.t, item.lateral, w, playTop, playH);
+    const p = projectOnRoad(track, playerFrac, displayLat, item.t, item.lateral, w, playTop, playH);
     if (!p || p.y > playTop + playH - 40) continue;
     ctx.fillStyle = item.kind === "turbo" ? "#e87850" : item.kind === "boot" ? "#98b8e8" : "#2a1810";
     ctx.beginPath();
     ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
     ctx.fill();
-    if (item.kind === "turbo") {
-      ctx.strokeStyle = "rgba(248, 240, 255, 0.7)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 11 + Math.sin(tick * 0.25) * 3, 0, Math.PI * 2);
-      ctx.stroke();
-    }
   }
 
   const sorted = [...racers].sort((a, b) => {
-    const fa = ((a.lapProgress % 1) + 1) % 1;
-    const fb = ((b.lapProgress % 1) + 1) % 1;
-    let da = fb - fa;
-    if (da > 0.5) da -= 1;
-    if (da < -0.5) da += 1;
-    return da;
+    const da = trackAheadDelta(
+      ((a.lapProgress % 1) + 1) % 1,
+      ((b.lapProgress % 1) + 1) % 1,
+    );
+    const db = trackAheadDelta(
+      ((b.lapProgress % 1) + 1) % 1,
+      ((a.lapProgress % 1) + 1) % 1,
+    );
+    return da - db;
   });
 
   for (const r of sorted) {
     const frac = ((r.lapProgress % 1) + 1) % 1;
-    const p = placeOnRoad(track, playerFrac, player.lateral, frac, r.lateral, w, playTop, playH);
+    const p = projectOnRoad(track, playerFrac, displayLat, frac, r.lateral, w, playTop, playH);
     if (!p) continue;
-    const scale = r.isPlayer ? 1.2 : 0.92;
+    const scale = r.isPlayer ? 1.18 : 0.92;
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle + Math.PI / 2 + (r.isPlayer ? (r.steerHeld ?? 0) * 0.55 : 0));
+    ctx.rotate(p.angle + Math.PI / 2 + (r.isPlayer ? (r.steerHeld ?? 0) * 0.35 : 0));
     ctx.scale(scale, scale);
     if (r.isPlayer) {
       drawKnightRacer(ctx, 0, 0, 0, true);
       if (r.boost > 1.05 || fx.boosting) {
-        ctx.fillStyle = "rgba(232, 120, 80, 0.55)";
-        ctx.fillRect(-20, 10, 40, 8);
-        ctx.fillStyle = "rgba(248, 240, 255, 0.35)";
-        for (let i = 0; i < 4; i++) {
-          ctx.fillRect(-22 - i * 5, 12 + (i % 2) * 2, 4, 3);
-        }
-      }
-      if (r.drifting) {
-        ctx.strokeStyle = "rgba(248, 240, 255, 0.35)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-14, 12);
-        ctx.lineTo(-28, 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(14, 12);
-        ctx.lineTo(28, 18);
-        ctx.stroke();
+        ctx.fillStyle = "rgba(232, 120, 80, 0.5)";
+        ctx.fillRect(-18, 10, 36, 7);
       }
     } else {
       ctx.fillStyle = r.color;
       ctx.fillRect(-13, -8, 26, 16);
       ctx.fillStyle = "#1a1810";
       ctx.fillRect(5, -6, 9, 12);
-      ctx.fillStyle = "rgba(248,240,255,0.5)";
-      ctx.fillRect(-10, -2, 6, 4);
     }
     ctx.restore();
   }
@@ -451,22 +418,6 @@ export function drawCorsusChaseRace(
 
   drawMiniMap(ctx, track, racers, w, playTop);
   drawSpeedHud(ctx, playTop, playH, speedMph, fx.speedNorm, fx.boosting);
-
-  const startP = placeOnRoad(track, playerFrac, player.lateral, 0, 0, w, playTop, playH);
-  if (startP && startP.y > playTop + 24 && startP.y < playTop + playH - 20) {
-    ctx.fillStyle = "rgba(248, 240, 255, 0.9)";
-    ctx.font = '7px "Press Start 2P", monospace';
-    ctx.fillText("START", startP.x - 18, startP.y - 10);
-  }
-
-  if (fx.boosting) {
-    ctx.fillStyle = "rgba(232, 120, 80, 0.2)";
-    for (let i = 0; i < 10; i++) {
-      const lx = w / 2 + Math.sin(tick * 0.35 + i * 0.8) * (50 + i * 4);
-      const ly = playTop + playH * 0.78 + (i % 4) * 5;
-      ctx.fillRect(lx, ly, 4, 10 + (i % 3) * 4);
-    }
-  }
 
   if (fx.countdown) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
