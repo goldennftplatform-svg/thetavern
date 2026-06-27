@@ -174,6 +174,164 @@ body.bigboard-body {
   color: #fff;
 }
 
+/* ——— Charter leaderboard (under Herald ticker) ——— */
+.bb-lb {
+  flex-shrink: 0;
+  padding: 6px 16px 8px;
+  border-bottom: 1px solid rgba(232, 176, 80, 0.28);
+  background: linear-gradient(180deg, rgba(72, 48, 88, 0.42), rgba(12, 8, 20, 0.88));
+}
+
+.bb-lb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+
+.bb-lb__title {
+  margin: 0;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.34rem, 0.95vw, 0.44rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bb-charter-gold);
+}
+
+.bb-lb__night {
+  font-family: "VT323", monospace;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  color: rgba(248, 240, 255, 0.55);
+}
+
+.bb-lb__body {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bb-lb__empty {
+  margin: 0;
+  font-family: "VT323", monospace;
+  font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+  color: rgba(248, 240, 255, 0.62);
+  line-height: 1.35;
+}
+
+.bb-lb__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr));
+  gap: 6px 8px;
+}
+
+.bb-lb__item {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid rgba(152, 144, 200, 0.22);
+  border-radius: 6px;
+  background: rgba(8, 12, 18, 0.72);
+}
+
+.bb-lb__item--top,
+.bb-lb__item:first-child {
+  border-color: rgba(232, 176, 80, 0.55);
+  background: linear-gradient(135deg, rgba(232, 176, 80, 0.14), rgba(72, 48, 88, 0.35));
+  box-shadow: 0 0 16px rgba(232, 176, 80, 0.1);
+}
+
+.bb-lb__rank {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.34rem, 0.9vw, 0.42rem);
+  color: var(--bb-charter-veil);
+  text-align: center;
+}
+
+.bb-lb__item--top .bb-lb__rank {
+  color: var(--bb-charter-gold);
+}
+
+.bb-lb__name {
+  font-family: "VT323", monospace;
+  font-size: clamp(1.05rem, 1.7vw, 1.28rem);
+  color: #f8f0ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bb-lb__score {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(0.34rem, 0.85vw, 0.42rem);
+  color: #68e8a8;
+  text-align: right;
+}
+
+/* Moonwell deck chips in chronicle feed */
+.bb-deed-cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bb-mini-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 2px solid #1a1018;
+  border-radius: 4px;
+  background: #f4ece0;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.bb-mini-card__rank {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.42rem;
+  line-height: 1.1;
+  color: var(--bb-card-accent, #e8b050);
+}
+
+.bb-mini-card__suit {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.38rem;
+  line-height: 1.1;
+  color: var(--bb-card-accent, #e8b050);
+}
+
+.bb-deed-cards__verdict {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.34rem;
+  letter-spacing: 0.08em;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(248, 240, 255, 0.2);
+  color: rgba(248, 240, 255, 0.75);
+}
+
+.bb-deed-cards__verdict--win {
+  border-color: #68e8a8;
+  color: #68e8a8;
+  background: rgba(104, 232, 168, 0.1);
+}
+
+.bb-deed-cards__verdict--lose {
+  border-color: #c87878;
+  color: #c87878;
+  background: rgba(200, 120, 120, 0.08);
+}
+
 .bb-root {
   flex: 1;
   display: flex;
@@ -1064,6 +1222,19 @@ html.bb-wall .bb-header--charter {
 
 html.bb-wall .bb-ticker-mount--top {
   display: none;
+}
+
+html.bb-wall .bb-lb {
+  padding: 4px 8px 6px;
+}
+
+html.bb-wall .bb-lb__list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: 4px 6px;
+}
+
+html.bb-wall .bb-lb__item {
+  padding: 4px 6px;
 }
 
 html.bb-wall .bb-ticker-mount--bottom {

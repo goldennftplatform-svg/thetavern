@@ -16,4 +16,5 @@ export type Deed = {
   correct?: boolean;
   milestone?: number;
   bold?: boolean;
+  score?: number;
 };

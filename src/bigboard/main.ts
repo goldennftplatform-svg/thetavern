@@ -21,6 +21,7 @@ import { tonightUtc } from "../content/tavernNights";
 import { loadDailyMediaTheme } from "../media/loadTheme";
 import type { LoadedMediaTheme } from "../media/types";
 import { bbIconForKind } from "./bbIcons";
+import { renderFeedCardsHtml } from "./bbFeedCards";
 import { bbTickerShell, mountBbTicker } from "./bbTicker";
 import { createChronicleDirector, type HallMood } from "./chronicleDirector";
 import type { Deed } from "./chronicleDirector.types";
@@ -31,6 +32,13 @@ import {
   type HallTally,
   type HallNightArchive,
 } from "./hallCharter";
+import {
+  bumpLeaderboardRow,
+  initHallLeaderboard,
+  persistHallLeaderboard,
+  topLeaderboard,
+  type LeaderboardRow,
+} from "./hallLeaderboard";
 import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx, type MapDrawTheme } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
 import "./bigboard.css";
@@ -62,6 +70,11 @@ const elTagline = document.getElementById("bb-tagline")!;
 const elCrest = document.getElementById("bb-crest") as HTMLImageElement;
 const elCharterNight = document.getElementById("bb-charter-night")!;
 const elMapCharterNight = document.getElementById("bb-map-charter-night")!;
+const elLeaderboard = document.getElementById("bb-leaderboard")!;
+const elLbNight = document.getElementById("bb-lb-night")!;
+
+const LB_DEFAULT = 8;
+const LB_WALL = 6;
 
 let loadedTheme: LoadedMediaTheme | null = null;
 let mapTheme: MapDrawTheme = {};
@@ -89,6 +102,13 @@ const charterBoot = initHallCharter();
 let hallTally: HallTally = charterBoot.tally;
 let hallArchive: HallNightArchive[] = charterBoot.archive;
 let hallDayId = charterBoot.dayId;
+
+const lbBoot = initHallLeaderboard();
+let leaderboardRows: LeaderboardRow[] =
+  lbBoot.dayId === hallDayId ? lbBoot.rows : [];
+if (lbBoot.dayId !== hallDayId) {
+  persistHallLeaderboard(hallDayId, leaderboardRows);
+}
 
 function syncHallStore(): void {
   persistHallTally(hallTally, hallDayId, hallArchive);
@@ -207,6 +227,36 @@ function bumpTally(d: Deed) {
   syncHallStore();
 }
 
+function refreshLeaderboard() {
+  const cap = isWallMode() ? LB_WALL : LB_DEFAULT;
+  const rows = topLeaderboard(leaderboardRows, cap);
+  elLbNight.textContent = `Charter ${formatCharterDayLabel(hallDayId)} · resets 4am PT`;
+
+  if (rows.length === 0) {
+    elLeaderboard.innerHTML =
+      `<p class="bb-lb__empty">★ scores appear as patrons fish, wager, and trial the Warrior track.</p>`;
+    return;
+  }
+
+  elLeaderboard.innerHTML = `<ol class="bb-lb__list" aria-label="Top patrons tonight">
+    ${rows
+      .map(
+        (r, i) => `<li class="bb-lb__item${i === 0 ? " bb-lb__item--top" : ""}">
+          <span class="bb-lb__rank" aria-hidden="true">${i + 1}</span>
+          <span class="bb-lb__name">${escapeHtml(r.name)}</span>
+          <span class="bb-lb__score">★${r.renown}</span>
+        </li>`,
+      )
+      .join("")}
+  </ol>`;
+}
+
+function bumpLeaderboard(d: Deed) {
+  leaderboardRows = bumpLeaderboardRow(leaderboardRows, d);
+  persistHallLeaderboard(hallDayId, leaderboardRows);
+  refreshLeaderboard();
+}
+
 function refreshStats() {
   const bits: string[] = [];
   if (liveAnglers > 0) bits.push(`${liveAnglers} seated`);
@@ -250,12 +300,15 @@ function appendDeed(d: Deed) {
   const subHtml = sub
     ? `<span class="bb-deed-sub">${escapeHtml(sub)}</span>`
     : "";
-  row.innerHTML = `${bbIconForKind(d.kind)}<div class="bb-deed-body"><span class="bb-deed-text">${escapeHtml(main)}</span>${subHtml}</div>`;
+  const cardsHtml =
+    d.cards && d.cards.length > 0 ? renderFeedCardsHtml(d.cards, d.outcome) : "";
+  row.innerHTML = `${bbIconForKind(d.kind)}<div class="bb-deed-body"><span class="bb-deed-text">${escapeHtml(main)}</span>${subHtml}${cardsHtml}</div>`;
   feedEl.prepend(row);
   feedEl.classList.remove("bb-feed--waiting");
   window.setTimeout(() => row.classList.remove("bb-deed--fresh"), 4000);
   while (feedEl.children.length > FEED_MAX) feedEl.removeChild(feedEl.lastChild!);
   bumpTally(d);
+  bumpLeaderboard(d);
   feedHint.textContent = "Inscribed in the chronicle.";
 }
 
@@ -639,6 +692,10 @@ async function startDemoEvening() {
       text: "Ascendant / Descendant — the hall inscribes a win.",
       game: "high_low",
       outcome: "win",
+      cards: [
+        { label: "8 of Cups", rank: 8, suit: "cups" },
+        { label: "Q of Swords", rank: 12, suit: "swords" },
+      ],
       renown: 1,
     },
     {
@@ -655,6 +712,7 @@ async function startDemoEvening() {
       chronicle: "⚔ Guest runs Sargaano, races Corsus, shatters the veil — 2840 total.",
       text: "Run 920 · Circuit 1100 · Shards 820",
       renown: 6,
+      score: 2840,
     },
   ];
   let deedIdx = 0;
@@ -758,6 +816,7 @@ function refreshCharterChrome() {
   elCharterNight.textContent = charterText;
   elMapCharterNight.textContent = charterText;
   mapTheme = { ...mapTheme, charterNight: nightLabel, crest: loadedTheme?.images.crest ?? null };
+  refreshLeaderboard();
 }
 
 async function initHeraldTickers(feed: Awaited<ReturnType<typeof loadXLoreFeed>>) {
@@ -803,6 +862,7 @@ async function main() {
 
   const resize = () => {
     applyWallClass();
+    refreshLeaderboard();
     resizeMapCanvas(mapCanvas);
     redrawMap();
   };

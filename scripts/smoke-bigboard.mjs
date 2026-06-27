@@ -53,6 +53,9 @@ async function run() {
     throw new Error(`Unexpected dock patrons: "${dock}"`);
   }
 
+  const lb = await page.locator("#bb-leaderboard").count();
+  if (lb < 1) throw new Error("Missing #bb-leaderboard section");
+
   console.log(`smoke-bigboard: OK — no scroll, map ${map.cw}x${map.ch}, dock: ${dock.slice(0, 50)}`);
   await browser.close();
 }
