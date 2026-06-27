@@ -134,10 +134,11 @@ const JUMP_VEL = -12.8;
 const COYOTE_MS = 110;
 const RACE_PLAY_BOTTOM_PAD = 72;
 
-const ASTEROID_WAVE_MS = 7500;
-const ASTEROID_SPAWN_GAP_START = 850;
-const ASTEROID_SPAWN_GAP_MIN = 420;
-const ASTEROID_FIRST_SPAWN_MS = 280;
+const ASTEROID_WAVE_MS = 4200;
+const ASTEROID_WAVE_CLEAR_MS = 2200;
+const ASTEROID_SPAWN_GAP_START = 560;
+const ASTEROID_SPAWN_GAP_MIN = 240;
+const ASTEROID_FIRST_SPAWN_MS = 140;
 
 /** Hand-built platform course — gaps are intentional pits. */
 const PLATFORM_PLATS: Plat[] = [
@@ -749,7 +750,7 @@ export class DemplarWarrior {
     } else if (next === "asteroids") {
       this.result.race = this.race.score;
       this.subBanner = warriorTrialNames.asteroids;
-      this.spawnAsteroidBurst(3);
+      this.spawnAsteroidBurst(4);
     } else if (next === "done") {
       this.result.asteroids = this.asteroids.score;
       this.result.total = this.result.platform + this.result.race + this.result.asteroids;
@@ -1218,6 +1219,20 @@ export class DemplarWarrior {
     }
   }
 
+  private bumpAsteroidWave(elapsed: number) {
+    const a = this.asteroids;
+    a.wave += 1;
+    a.waveTimer = 0;
+    a.score += 40 + a.wave * 15;
+    this.subBanner = `Wave ${a.wave} — break the veil`;
+    this.spawnAsteroidBurst(1 + Math.min(4, a.wave));
+    a.lastSpawnElapsed = elapsed - a.spawnGap * 0.6;
+    a.spawnGap = Math.max(
+      ASTEROID_SPAWN_GAP_MIN,
+      ASTEROID_SPAWN_GAP_START - a.wave * 85,
+    );
+  }
+
   private tickAsteroids(dt: number, elapsed: number, now: number) {
     const a = this.asteroids;
 
@@ -1225,11 +1240,14 @@ export class DemplarWarrior {
     else a.combo = 0;
 
     a.waveTimer += dt;
-    if (a.waveTimer >= ASTEROID_WAVE_MS && elapsed < STAGE_MS.asteroids - 5000 && a.wave < 6) {
-      a.wave += 1;
-      a.waveTimer = 0;
-      a.score += 40 + a.wave * 15;
-      this.subBanner = `Wave ${a.wave} — break the veil`;
+    const waveByTime = a.waveTimer >= ASTEROID_WAVE_MS;
+    const waveByClear = a.rocks.length === 0 && a.waveTimer >= ASTEROID_WAVE_CLEAR_MS;
+    if (
+      (waveByTime || waveByClear) &&
+      elapsed < STAGE_MS.asteroids - 5000 &&
+      a.wave < 6
+    ) {
+      this.bumpAsteroidWave(elapsed);
     }
 
     const timeLeft = STAGE_MS.asteroids - elapsed;
@@ -1244,9 +1262,9 @@ export class DemplarWarrior {
       a.lastSpawnElapsed = elapsed;
       a.spawnGap = Math.max(
         ASTEROID_SPAWN_GAP_MIN,
-        ASTEROID_SPAWN_GAP_START - a.wave * 90 + (Math.random() - 0.5) * 220,
+        ASTEROID_SPAWN_GAP_START - a.wave * 85 + (Math.random() - 0.5) * 160,
       );
-      if (a.wave >= 2 && Math.random() < 0.38) this.spawnOneRock(a.wave);
+      if (a.wave >= 2 && Math.random() < 0.48) this.spawnOneRock(a.wave);
     }
 
     a.bullets = a.bullets.filter((b) => {
