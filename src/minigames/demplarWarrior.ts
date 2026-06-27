@@ -1,25 +1,19 @@
 /**
- * Demplar Warrior — three charter trials with real mechanics:
- * I  Sargaano Sprint — side-scroll platformer (fixed cam, gaps, variable jump)
- * II Corsus Circuit — waypoint track, 2 laps, you vs 4 rivals + clock
- * III Veil Shards — ship shooter, waves, combos, 42s survival
+ * Demplar Warrior — three charter trials:
+ * I  Sargaano Sprint — side-scroll platformer
+ * II Corsus Gallop — hold-to-gallop cart race (side view)
+ * III Veil Shards — classic knight asteroids
  */
 
 import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
 import { playWarriorImpact } from "../audio/warriorSfx";
-import { drawKnightFlyer, drawKnightPlatformer, drawKnightPortrait } from "../sprites/knightSprite";
-import { drawCorsusChaseRace, trackCurvature, type ChaseCamFx } from "./raceChaseCam";
 import {
-  drawRaceBoostPad,
-  drawRaceSteeringWheel,
-  hitRaceBoost,
-  hitRaceWheel,
-  MAX_TURN,
-  raceWheelLayout,
-  steerFromWheelPointer,
-} from "./raceSteeringWheel";
-import { buildTrack, racingLineOffset, trackAt } from "./raceTrack";
+  drawKnightAsteroidShip,
+  drawKnightCart,
+  drawKnightPlatformer,
+  drawKnightPortrait,
+} from "../sprites/knightSprite";
 
 export type DemplarStage = "brief" | "platform" | "race" | "asteroids" | "done";
 
@@ -33,20 +27,8 @@ export type DemplarRunResult = {
 type Pickup = { x: number; y: number; kind: "coin" | "blade"; taken?: boolean };
 type Plat = { x: number; y: number; w: number; h: number };
 
-type Racer = {
-  name: string;
-  color: string;
-  isPlayer: boolean;
-  lapProgress: number;
-  lateral: number;
-  lateralVel: number;
-  speed: number;
-  steerHeld: number;
-  finished: boolean;
-  finishMs: number;
-  boost: number;
-  drifting?: boolean;
-};
+type RaceObstacle = { x: number; kind: "rock" | "cactus"; hit?: boolean };
+type RaceRival = { name: string; color: string; dist: number; pace: number };
 
 type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
 type Asteroid = {
@@ -101,7 +83,7 @@ function buildBriefLines(lore: string): BriefLine[] {
   return [
     { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.18, title: true },
     { text: lore, color: "#d8e4f8", fontScale: 1.05 },
-    { text: "SPRINT · CIRCUIT · VEIL SHARDS", color: "#78d0b8", fontScale: 1 },
+    { text: "SPRINT · GALLOP · VEIL SHARDS", color: "#78d0b8", fontScale: 1 },
     { text: "REACH THE GATE", color: "#e8b050", fontScale: 1 },
   ];
 }
@@ -123,16 +105,35 @@ function wrapBriefLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
   return lines.length ? lines : [text];
 }
 
-const LAP_COUNT = 2;
-const RACE_LAUNCH_MS = 3200;
-const RACE_BASE_PACE = 0.000178;
-const RACE_MAX_PACE = 0.00031;
+const RACE_LAP_DIST = 1100;
+const RACE_LAPS = 2;
+const RACE_GOAL_DIST = RACE_LAP_DIST * RACE_LAPS;
+const GALLOP_BASE = 5.4;
+const GALLOP_MAX = 10.8;
 const PLAYER_SCREEN_X = 148;
 const RUN_SPEED = 4.85;
 const GRAVITY = 0.58;
 const JUMP_VEL = -12.8;
 const COYOTE_MS = 110;
-const RACE_PLAY_BOTTOM_PAD = 72;
+
+const RACE_OBSTACLES: RaceObstacle[] = [
+  { x: 280, kind: "rock" },
+  { x: 520, kind: "cactus" },
+  { x: 760, kind: "rock" },
+  { x: 980, kind: "cactus" },
+  { x: 1180, kind: "rock" },
+  { x: 1380, kind: "cactus" },
+  { x: 1580, kind: "rock" },
+  { x: 1780, kind: "cactus" },
+  { x: 1980, kind: "rock" },
+];
+
+const RACE_RIVALS: RaceRival[] = [
+  { name: "Corsus", color: "#c87878", dist: -40, pace: 5.6 },
+  { name: "Sparrow", color: "#98b8e8", dist: -80, pace: 5.9 },
+  { name: "Veil", color: "#b898c8", dist: -120, pace: 5.4 },
+  { name: "Scribe", color: "#e8b050", dist: -160, pace: 6.1 },
+];
 
 const ASTEROID_WAVE_MS = 4200;
 const ASTEROID_WAVE_CLEAR_MS = 2200;
@@ -465,27 +466,13 @@ function drawCharterGate(ctx: CanvasRenderingContext2D, gx: number, groundY: num
   ctx.textAlign = "left";
 }
 
-/** Closed circuit — Corsus desert loop (normalized 0–1). */
-const AI_RIVALS: Array<{ name: string; color: string; pace: number; aggression: number }> = [
-  { name: "Corsus", color: "#c87878", pace: 0.000128, aggression: 0.92 },
-  { name: "Sparrow", color: "#98b8e8", pace: 0.000134, aggression: 1.05 },
-  { name: "Veil", color: "#b898c8", pace: 0.000122, aggression: 0.88 },
-  { name: "Scribe", color: "#e8b050", pace: 0.000138, aggression: 1.1 },
-];
-
-function paramDist(a: number, b: number): number {
-  let d = Math.abs(a - b);
-  if (d > 0.5) d = 1 - d;
-  return d;
-}
-
-function racerRank(racers: Racer[]): Racer[] {
-  return [...racers].sort((a, b) => {
-    if (a.finished && b.finished) return a.finishMs - b.finishMs;
-    if (a.finished) return -1;
-    if (b.finished) return 1;
-    return b.lapProgress - a.lapProgress;
-  });
+/** Corsus desert gallop — rival paces for side-scroll cart trial. */
+function racePlace(playerDist: number, rivals: RaceRival[]): number {
+  let place = 1;
+  for (const r of rivals) {
+    if (r.dist > playerDist) place += 1;
+  }
+  return place;
 }
 
 export class DemplarWarrior {
@@ -495,16 +482,8 @@ export class DemplarWarrior {
   subBanner = warriorTrialNames.platform;
   done = false;
 
-  private track = buildTrack();
   private jumpHeld = false;
   private coyoteUntil = 0;
-  private pointerSteer = 0;
-  private raceTouchSteer = 0;
-  private raceControls = {
-    wheelAngle: 0,
-    wheelDragging: false,
-    boostHeld: false,
-  };
 
   platform = {
     x: 64,
@@ -519,21 +498,25 @@ export class DemplarWarrior {
   };
 
   race = {
-    racers: [] as Racer[],
-    track: this.track,
-    items: [] as Array<{ t: number; lateral: number; kind: "turbo" | "boot" | "oil"; taken?: boolean }>,
+    dist: 0,
+    speed: GALLOP_BASE,
+    y: 0,
+    vy: 0,
+    onGround: true,
+    cam: 0,
     score: 0,
     raceOver: false,
-    playerPlace: 5,
-    launchUntil: 0,
-    shakeUntil: 0,
-    launched: false,
-    curbUntil: 0,
-    smoothedLat: 0,
+    playerPlace: 1,
+    lap: 1,
+    gallopHeld: false,
+    rivals: [] as RaceRival[],
+    obstacles: [] as RaceObstacle[],
   };
 
   asteroids = {
     shipX: 0.5,
+    shipY: 0.82,
+    shipAngle: -Math.PI / 2,
     score: 0,
     combo: 0,
     comboTimer: 0,
@@ -641,69 +624,29 @@ export class DemplarWarrior {
     this.coyoteUntil = 0;
   }
 
-  private resetRace(now = performance.now()) {
-    const racers: Racer[] = [
-      {
-        name: "You",
-        color: "#68e8a8",
-        isPlayer: true,
-        lapProgress: 0,
-        lateral: 0,
-        lateralVel: 0,
-        speed: 0,
-        steerHeld: 0,
-        finished: false,
-        finishMs: 0,
-        boost: 1,
-        drifting: false,
-      },
-      ...AI_RIVALS.map((r) => ({
-        name: r.name,
-        color: r.color,
-        isPlayer: false,
-        lapProgress: -0.03 - Math.random() * 0.05,
-        lateral: (Math.random() - 0.5) * 0.2,
-        lateralVel: 0,
-        speed: r.pace * 0.85,
-        steerHeld: 0,
-        finished: false,
-        finishMs: 0,
-        boost: 1,
-        drifting: false,
-      })),
-    ];
-
-    const items: typeof this.race.items = [];
-    for (let i = 0; i < 14; i++) {
-      const kinds = ["turbo", "boot", "oil", "turbo", "boot"] as const;
-      items.push({
-        t: (i * 0.07 + 0.05) % 0.98,
-        lateral: (i % 3) * 0.22 - 0.22,
-        kind: kinds[i % kinds.length]!,
-      });
-    }
-
+  private resetRace() {
     this.race = {
-      racers,
-      track: this.track,
-      items,
+      dist: 0,
+      speed: GALLOP_BASE,
+      y: 0,
+      vy: 0,
+      onGround: true,
+      cam: 0,
       score: 0,
       raceOver: false,
-      playerPlace: 5,
-      launchUntil: now + RACE_LAUNCH_MS,
-      shakeUntil: 0,
-      launched: false,
-      curbUntil: 0,
-      smoothedLat: 0,
+      playerPlace: 1,
+      lap: 1,
+      gallopHeld: false,
+      rivals: RACE_RIVALS.map((r) => ({ ...r })),
+      obstacles: RACE_OBSTACLES.map((o) => ({ ...o })),
     };
-    this.raceControls = { wheelAngle: 0, wheelDragging: false, boostHeld: false };
-    this.pointerSteer = 0;
-    this.raceTouchSteer = 0;
   }
 
   private resetAsteroids() {
     this.asteroids = {
       shipX: 0.5,
+      shipY: 0.82,
+      shipAngle: -Math.PI / 2,
       score: 0,
       combo: 0,
       comboTimer: 0,
@@ -746,7 +689,7 @@ export class DemplarWarrior {
     if (next === "race") {
       this.result.platform = this.platform.score;
       this.subBanner = warriorTrialNames.race;
-      this.resetRace(now);
+      this.resetRace();
     } else if (next === "asteroids") {
       this.result.race = this.race.score;
       this.subBanner = warriorTrialNames.asteroids;
@@ -763,12 +706,21 @@ export class DemplarWarrior {
   }
 
   jump() {
-    if (this.stage !== "platform") return;
-    this.jumpHeld = true;
     const now = performance.now();
-    if (this.platform.onGround || now < this.coyoteUntil) {
-      this.platform.vy = JUMP_VEL;
-      this.platform.onGround = false;
+    if (this.stage === "platform") {
+      this.jumpHeld = true;
+      if (this.platform.onGround || now < this.coyoteUntil) {
+        this.platform.vy = JUMP_VEL;
+        this.platform.onGround = false;
+      }
+      return;
+    }
+    if (this.stage === "race") {
+      this.jumpHeld = true;
+      if (this.race.onGround || now < this.coyoteUntil) {
+        this.race.vy = JUMP_VEL;
+        this.race.onGround = false;
+      }
     }
   }
 
@@ -777,49 +729,24 @@ export class DemplarWarrior {
     if (this.stage === "platform" && this.platform.vy < -4) {
       this.platform.vy *= 0.45;
     }
+    if (this.stage === "race" && this.race.vy < -4) {
+      this.race.vy *= 0.45;
+    }
   }
 
   steer(dir: -1 | 1) {
-    if (this.stage === "race") {
-      this.pointerSteer = dir;
-      const player = this.race.racers.find((r) => r.isPlayer);
-      if (player) {
-        player.steerHeld = dir;
-        this.raceControls.wheelAngle = dir * MAX_TURN;
-      }
-    }
     if (this.stage === "asteroids") {
-      this.asteroids.shipX = Math.max(0.08, Math.min(0.92, this.asteroids.shipX + dir * 0.04));
+      this.asteroids.shipAngle += dir * 0.08;
     }
   }
 
   releaseSteer() {
-    this.pointerSteer = 0;
-    if (this.stage === "race" && !this.raceControls.wheelDragging) {
-      const player = this.race.racers.find((r) => r.isPlayer);
-      if (player) player.steerHeld = 0;
-      this.raceControls.wheelAngle = 0;
-      return;
-    }
-    const player = this.race.racers.find((r) => r.isPlayer);
-    if (player) player.steerHeld = 0;
-  }
-
-  private applyWheelSteer(steer: number) {
-    const player = this.race.racers.find((r) => r.isPlayer);
-    if (!player) return;
-    player.steerHeld = steer;
-    this.raceControls.wheelAngle = steer * MAX_TURN;
+    /* asteroids rotation is tap/step only */
   }
 
   boost(on: boolean) {
-    if (this.stage !== "race") return;
-    const player = this.race.racers.find((r) => r.isPlayer);
-    if (!player || !on) return;
-    if (player.boost <= 1.12) {
-      player.boost = 2.1;
-      player.speed = Math.min(RACE_MAX_PACE, player.speed + 0.00004);
-      this.race.shakeUntil = performance.now() + 100;
+    if (this.stage === "race") {
+      this.race.gallopHeld = on;
     }
   }
 
@@ -832,27 +759,12 @@ export class DemplarWarrior {
       return;
     }
     if (this.stage === "race") {
-      const layout = raceWheelLayout(w, h);
-      if (hitRaceBoost(nx, ny, layout)) {
-        this.raceControls.boostHeld = true;
-        this.boost(true);
-        return;
-      }
-      if (hitRaceWheel(nx, ny, layout)) {
-        this.raceControls.wheelDragging = true;
-        this.applyWheelSteer(steerFromWheelPointer(nx, ny, layout));
-        return;
-      }
-      const playTop = WARRIOR_HUD_H;
-      const playBottom = h - RACE_PLAY_BOTTOM_PAD;
-      if (ny >= playTop && ny <= playBottom) {
-        this.raceTouchSteer = nx < w / 2 ? -1 : 1;
-        this.applyWheelSteer(this.raceTouchSteer);
-      }
+      this.race.gallopHeld = true;
       return;
     }
     if (this.stage === "asteroids") {
       this.asteroids.shipX = Math.max(0.08, Math.min(0.92, nxn));
+      this.asteroids.shipY = Math.max(0.12, Math.min(0.92, nyn));
       this.fireBullet(nxn, nyn);
     }
   }
@@ -860,50 +772,33 @@ export class DemplarWarrior {
   pointerUp() {
     this.releaseJump();
     if (this.stage === "race") {
-      this.raceControls.wheelDragging = false;
-      this.raceControls.boostHeld = false;
-      this.raceTouchSteer = 0;
-      this.boost(false);
-      this.releaseSteer();
+      this.race.gallopHeld = false;
       return;
     }
     this.releaseSteer();
-    this.boost(false);
   }
 
   pointerMove(nx: number, ny: number, w: number, h: number) {
-    if (this.stage === "race" && this.raceControls.wheelDragging) {
-      const layout = raceWheelLayout(w, h);
-      this.applyWheelSteer(steerFromWheelPointer(nx, ny, layout));
-      return;
-    }
-    if (this.stage === "race" && this.raceTouchSteer !== 0) {
-      const playTop = WARRIOR_HUD_H;
-      const playBottom = h - RACE_PLAY_BOTTOM_PAD;
-      if (ny >= playTop && ny <= playBottom) {
-        this.raceTouchSteer = nx < w / 2 ? -1 : 1;
-        this.applyWheelSteer(this.raceTouchSteer);
-      }
-      return;
-    }
     if (this.stage === "asteroids") {
       this.asteroids.shipX = Math.max(0.08, Math.min(0.92, nx / w));
+      this.asteroids.shipY = Math.max(0.12, Math.min(0.92, ny / h));
     }
   }
 
   private fireBullet(tx: number, ty: number) {
     const sx = this.asteroids.shipX;
-    const sy = 0.88;
+    const sy = this.asteroids.shipY;
     const dx = tx - sx;
     const dy = ty - sy;
     const len = Math.hypot(dx, dy) || 1;
-    const spd = 0.00095;
+    const spd = 0.00105;
+    this.asteroids.shipAngle = Math.atan2(dy, dx);
     this.asteroids.bullets.push({
       x: sx,
       y: sy,
       vx: (dx / len) * spd,
       vy: (dy / len) * spd,
-      life: 1.4,
+      life: 1.6,
     });
   }
 
@@ -1015,172 +910,62 @@ export class DemplarWarrior {
     }
   }
 
-  private tickRacer(r: Racer, dt: number, elapsed: number, now: number, isPlayer: boolean) {
-    if (r.finished) return;
-
-    const frac = ((r.lapProgress % 1) + 1) % 1;
-    const curv = trackCurvature(this.race.track, frac);
-    const turnSign = Math.sign(
-      trackAt(((frac + 0.008) % 1 + 1) % 1, this.race.track).angle -
-        trackAt(((frac - 0.008 + 1) % 1), this.race.track).angle,
-    ) || 1;
-
-    if (isPlayer) {
-      const steer = r.steerHeld;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.0002;
-      r.lateralVel += steer * dt * 0.0022;
-      r.drifting = Math.abs(steer) > 0.6 && r.speed > RACE_BASE_PACE * 0.75 && curv > 0.08;
-      const gripPow = r.drifting ? 0.78 : 0.55;
-      r.lateralVel *= Math.pow(gripPow, dt / 220);
-      r.lateralVel = Math.max(-0.001, Math.min(0.001, r.lateralVel));
-      r.lateral += r.lateralVel * dt;
-      r.lateral += steer * dt * 0.0005;
-      r.lateral = Math.max(-0.68, Math.min(0.68, r.lateral));
-
-      const offTrack = Math.abs(r.lateral) > 0.48;
-      const onCurb = Math.abs(r.lateral) > 0.62;
-      if (onCurb) {
-        r.lateral = Math.sign(r.lateral) * 0.62;
-        r.lateralVel *= 0.2;
-        if (now > this.race.curbUntil) {
-          r.speed *= 0.9;
-          this.race.shakeUntil = now + 90;
-          this.race.curbUntil = now + 420;
-        }
-      } else if (offTrack) {
-        r.lateralVel -= Math.sign(r.lateral) * dt * 0.00032;
-        r.speed *= 0.997;
-      }
-
-      const boostMul = r.boost > 1.12 ? 1.52 + (r.boost - 1) * 0.08 : 1;
-      r.boost = Math.max(1, r.boost - dt * 0.0012);
-      const turnPen = 1 - Math.min(0.34, curv * 2 + Math.abs(steer) * 0.1);
-      let target = RACE_BASE_PACE * boostMul * turnPen * (offTrack ? 0.78 : 1);
-      if (r.drifting) target *= 1.05;
-      if (this.raceControls.boostHeld && r.boost <= 1.12) target *= 1.04;
-      target = Math.min(RACE_MAX_PACE, target);
-      r.speed = r.speed * 0.84 + target * 0.16;
-
-      for (const item of this.race.items) {
-        if (item.taken) continue;
-        const dist = paramDist(frac, item.t);
-        if (dist < 0.022 && Math.abs(r.lateral - item.lateral) < 0.14) {
-          item.taken = true;
-          if (item.kind === "turbo") {
-            r.boost = 2.2;
-            r.speed = Math.min(RACE_MAX_PACE, r.speed + 0.000035);
-            this.race.score += 80;
-            this.race.shakeUntil = now + 100;
-          } else if (item.kind === "boot") {
-            this.race.score += 60;
-            r.speed = Math.min(RACE_MAX_PACE, r.speed * 1.18);
-          } else {
-            r.speed *= 0.55;
-            r.lateralVel *= 1.2;
-            this.race.score = Math.max(0, this.race.score - 25);
-          }
-        }
-      }
-    } else {
-      const ai = AI_RIVALS.find((a) => a.name === r.name)!;
-      const player = this.race.racers.find((x) => x.isPlayer)!;
-      const gap = player.lapProgress - r.lapProgress;
-      const rubber = gap > 0.1 ? 1.08 : gap < -0.06 ? 0.92 : 1;
-      const line = racingLineOffset(this.race.track, frac);
-      const targetLat = line + Math.sin(elapsed * 0.0011 + r.lapProgress * 12) * 0.035;
-      r.lateralVel += (targetLat - r.lateral) * dt * 0.00016;
-      r.lateralVel += turnSign * curv * r.speed * dt * 0.00014;
-      r.lateralVel *= Math.pow(0.24, dt / 195);
-      r.lateral += r.lateralVel * dt;
-      r.lateral = Math.max(-0.82, Math.min(0.82, r.lateral));
-      const turnPen = 1 - Math.min(0.34, curv * 2.15);
-      const aiTarget = Math.min(RACE_MAX_PACE * 1.04, ai.pace * ai.aggression * rubber * turnPen);
-      r.speed = r.speed * 0.88 + aiTarget * 0.12;
-      if (curv < 0.05 && frac > 0.05 && Math.random() < dt * 0.001) {
-        r.speed = Math.min(RACE_MAX_PACE * 1.06, r.speed * 1.025);
-      }
-      if (Math.abs(r.lateral) > 0.58) r.speed *= 0.88;
-    }
-
-    r.lapProgress += r.speed * dt * (1 - Math.abs(r.lateral) * 0.055);
-    if (r.lapProgress >= LAP_COUNT) {
-      r.finished = true;
-      r.finishMs = elapsed;
-      r.lapProgress = LAP_COUNT;
-    }
-  }
-
-  private raceCountdownLabel(now: number): string | undefined {
-    const left = this.race.launchUntil - now;
-    if (left > 0) {
-      if (left > 2200) return "3";
-      if (left > 1400) return "2";
-      if (left > 600) return "1";
-      return "GO!";
-    }
-    if (left > -500) return "GO!";
-    return undefined;
-  }
-
   private tickRace(dt: number, elapsed: number, now: number) {
     if (this.race.raceOver) return;
+    const r = this.race;
 
-    const player = this.race.racers.find((r) => r.isPlayer)!;
+    if (r.gallopHeld) {
+      r.speed = Math.min(GALLOP_MAX, r.speed + dt * 0.022);
+    } else {
+      r.speed = r.speed * 0.985 + GALLOP_BASE * 0.015;
+    }
 
-    if (now < this.race.launchUntil) {
-      if (!this.raceControls.wheelDragging && this.pointerSteer === 0) {
-        player.steerHeld *= Math.pow(0.2, dt / 180);
-        this.raceControls.wheelAngle = player.steerHeld * MAX_TURN;
+    r.dist += r.speed * (dt / 16);
+    r.cam = Math.max(0, r.dist - PLAYER_SCREEN_X);
+
+    r.vy += GRAVITY * (dt / 16);
+    r.y += r.vy * (dt / 16);
+    if (r.y >= 0) {
+      r.y = 0;
+      r.vy = 0;
+      r.onGround = true;
+    } else {
+      r.onGround = false;
+    }
+
+    for (const ob of r.obstacles) {
+      if (ob.hit) continue;
+      if (Math.abs(r.dist - ob.x) < 22 && r.onGround && r.y >= -4) {
+        ob.hit = true;
+        r.speed *= 0.55;
+        r.score = Math.max(0, r.score - 15);
       }
-      return;
     }
 
-    if (!this.race.launched) {
-      this.race.launched = true;
-      player.speed = RACE_BASE_PACE * 0.82;
-      for (const r of this.race.racers) {
-        if (r.isPlayer) continue;
-        const ai = AI_RIVALS.find((a) => a.name === r.name)!;
-        r.speed = ai.pace * 0.78;
-      }
+    for (const rival of r.rivals) {
+      const gap = r.dist - rival.dist;
+      const rubber = gap > 120 ? 1.06 : gap < -80 ? 0.94 : 1;
+      rival.dist += rival.pace * rubber * (dt / 16);
     }
 
-    if (!this.raceControls.wheelDragging && this.pointerSteer === 0 && this.raceTouchSteer === 0) {
-      const decay = Math.pow(0.08, dt / 200);
-      player.steerHeld *= decay;
-      if (Math.abs(player.steerHeld) < 0.04) player.steerHeld = 0;
-      this.raceControls.wheelAngle = player.steerHeld * MAX_TURN;
-    }
+    const lap = Math.min(RACE_LAPS, Math.floor(r.dist / RACE_LAP_DIST) + 1);
+    r.lap = lap;
+    r.playerPlace = racePlace(r.dist, r.rivals);
+    r.score += Math.floor(dt * 0.05);
 
-    for (const r of this.race.racers) {
-      this.tickRacer(r, dt, elapsed, now, r.isPlayer);
-    }
-
-    this.race.smoothedLat += (player.lateral - this.race.smoothedLat) * Math.min(1, dt * 0.014);
-
-    const ranked = racerRank(this.race.racers);
-    this.race.playerPlace = ranked.indexOf(player) + 1;
-
-    this.race.score += Math.floor(dt * 0.05);
-
-    const allDone = this.race.racers.every((r) => r.finished);
-    const playerDone = player.finished;
-
-    if (allDone || elapsed >= STAGE_MS.race) {
-      const place = this.race.playerPlace;
+    if (r.dist >= RACE_GOAL_DIST) {
+      const place = r.playerPlace;
       const placePts = [1100, 900, 700, 500, 300][place - 1] ?? 200;
-      const lapFrac = Math.min(LAP_COUNT, player.lapProgress);
-      const lapPts = Math.floor(lapFrac * 280);
       const timeBonus = Math.floor(Math.max(0, STAGE_MS.race - elapsed) / 120);
-      this.race.score += placePts + lapPts + timeBonus;
-      if (place === 1) this.race.score += 200;
-      this.race.raceOver = true;
+      r.score += placePts + timeBonus;
+      if (place === 1) r.score += 200;
+      r.raceOver = true;
       this.advanceStage(now, "asteroids");
-    } else if (playerDone && elapsed > 14_000) {
-      const place = this.race.playerPlace;
-      this.race.score += [1100, 900, 700, 500, 300][place - 1] ?? 200;
-      this.race.score += Math.floor(player.lapProgress * 280);
-      this.race.raceOver = true;
+    } else if (elapsed >= STAGE_MS.race) {
+      const place = r.playerPlace;
+      r.score += [1100, 900, 700, 500, 300][place - 1] ?? 200;
+      r.score += Math.floor((r.dist / RACE_GOAL_DIST) * 400);
+      r.raceOver = true;
       this.advanceStage(now, "asteroids");
     }
   }
@@ -1271,14 +1056,37 @@ export class DemplarWarrior {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt * 0.001;
-      return b.life > 0 && b.y > 0.04 && b.x > 0.02 && b.x < 0.98;
+      if (b.x < 0) b.x += 1;
+      if (b.x > 1) b.x -= 1;
+      if (b.y < 0.08) b.y += 0.84;
+      if (b.y > 0.92) b.y -= 0.84;
+      return b.life > 0;
     });
 
     for (const s of a.rocks) {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
       s.rot += dt * 0.00085;
-      if (s.x < 0.04 || s.x > 0.96) s.vx *= -1;
+      if (s.x < 0) s.x += 1;
+      if (s.x > 1) s.x -= 1;
+      if (s.y < 0.08) s.y += 0.84;
+      if (s.y > 0.92) s.y -= 0.84;
+    }
+
+    const shipHitR = 0.045;
+    for (let ri = a.rocks.length - 1; ri >= 0; ri--) {
+      const s = a.rocks[ri]!;
+      const dx = (a.shipX - s.x) * 520;
+      const dy = (a.shipY - s.y) * 420;
+      if (Math.hypot(dx, dy) < s.r * 0.55 + shipHitR * 520) {
+        a.rocks.splice(ri, 1);
+        a.lives -= 1;
+        a.combo = 0;
+        if (a.lives <= 0) {
+          a.lives = 2;
+          a.score = Math.max(0, a.score - 80);
+        }
+      }
     }
 
     for (let bi = a.bullets.length - 1; bi >= 0; bi--) {
@@ -1296,19 +1104,6 @@ export class DemplarWarrior {
       }
     }
 
-    for (let ri = a.rocks.length - 1; ri >= 0; ri--) {
-      const s = a.rocks[ri]!;
-      if (s.y > 0.94) {
-        a.rocks.splice(ri, 1);
-        a.lives -= 1;
-        a.combo = 0;
-        a.score = Math.max(0, a.score - 40);
-        if (a.lives <= 0) {
-          a.score = Math.max(0, a.score - 100);
-          a.lives = 2;
-        }
-      }
-    }
 
     a.score += Math.floor(dt * 0.03);
 
@@ -1360,11 +1155,13 @@ export class DemplarWarrior {
     ctx.fillText(this.fitHudLine(ctx, this.subBanner, w * 0.58), 10, 34);
 
     if (this.stage === "race" && !this.race.raceOver) {
-      const player = this.race.racers.find((r) => r.isPlayer)!;
-      const lap = Math.min(LAP_COUNT, Math.floor(player.lapProgress) + 1);
       ctx.fillStyle = "#f8f0ff";
       ctx.font = `${statPx}px "VT323", monospace`;
-      ctx.fillText(`LAP ${lap}/${LAP_COUNT}  P${this.race.playerPlace}/5`, w * 0.34, 16);
+      ctx.fillText(
+        `LAP ${this.race.lap}/${RACE_LAPS}  P${this.race.playerPlace}/5`,
+        w * 0.34,
+        16,
+      );
     }
 
     if (this.stage === "asteroids") {
@@ -1544,99 +1341,142 @@ export class DemplarWarrior {
   }
 
   private drawRace(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
-    const playTop = WARRIOR_HUD_H;
-    const playH = h - playTop - RACE_PLAY_BOTTOM_PAD;
-    const player = this.race.racers.find((r) => r.isPlayer)!;
-    const speedNorm = Math.min(1, player.speed / RACE_MAX_PACE);
-    const speedMph = Math.round(54 + player.speed * 470_000 * (player.boost > 1.12 ? 1.38 : 1));
-    const shake = now < this.race.shakeUntil ? Math.sin(now * 0.05) * 2 : 0;
-    const fx: ChaseCamFx = {
-      speedNorm,
-      shake,
-      countdown: this.raceCountdownLabel(now),
-      boosting: player.boost > 1.12 || this.raceControls.boostHeld,
-    };
+    const groundY = h * 0.74;
+    const r = this.race;
+    const cam = r.cam;
+    const tick = now;
 
-    drawCorsusChaseRace(
-      ctx,
-      w,
-      playTop,
-      playH,
-      this.race.track,
-      this.race.racers,
-      this.race.items,
-      now * 0.001,
-      speedMph,
-      fx,
-      this.race.smoothedLat,
-    );
+    drawSargaanoSky(ctx, w, h, groundY, cam, tick);
 
-    const layout = raceWheelLayout(w, h);
-    drawRaceSteeringWheel(
-      ctx,
-      layout,
-      this.raceControls.wheelAngle,
-      this.raceControls.wheelDragging,
-    );
-    drawRaceBoostPad(ctx, layout, this.raceControls.boostHeld);
+    ctx.fillStyle = "#4a3828";
+    ctx.fillRect(0, groundY, w, h - groundY);
+    ctx.fillStyle = "#5a4838";
+    for (let i = 0; i < Math.ceil(w / 48) + 2; i++) {
+      const sx = i * 48 - (cam * 0.5) % 48;
+      ctx.fillRect(sx, groundY + 4, 40, 6);
+    }
 
-    ctx.fillStyle = "rgba(248,240,255,0.7)";
+    for (let li = 1; li <= RACE_LAPS; li++) {
+      const fx = li * RACE_LAP_DIST - cam;
+      if (fx < -40 || fx > w + 40) continue;
+      ctx.fillStyle = li <= r.lap ? "#68e8a8" : "#9890c8";
+      ctx.fillRect(fx - 2, groundY - 48, 4, 48);
+      ctx.fillStyle = "#e8b050";
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillText(`L${li}`, fx - 10, groundY - 52);
+    }
+
+    for (const ob of r.obstacles) {
+      const sx = ob.x - cam;
+      if (sx < -30 || sx > w + 30) continue;
+      if (ob.kind === "rock") {
+        ctx.fillStyle = ob.hit ? "#3a2830" : "#6a5048";
+        ctx.fillRect(sx - 14, groundY - 18, 28, 18);
+      } else {
+        ctx.fillStyle = ob.hit ? "#2a4030" : "#4a6848";
+        ctx.fillRect(sx - 4, groundY - 28, 8, 28);
+        ctx.fillRect(sx - 12, groundY - 16, 24, 8);
+      }
+    }
+
+    for (const rival of r.rivals) {
+      const sx = rival.dist - cam + 30;
+      if (sx < -40 || sx > w + 40) continue;
+      drawKnightCart(ctx, sx, groundY, {
+        pose: "run",
+        frame: Math.floor(rival.dist / 18) % 2,
+        scale: 1.6,
+      });
+    }
+
+    const px = PLAYER_SCREEN_X;
+    const py = groundY + r.y;
+    const pose = !r.onGround ? (r.vy < -1.5 ? "jump" : "fall") : "run";
+    drawKnightCart(ctx, px, py, {
+      pose,
+      frame: Math.floor(r.dist / 14) % 2,
+      scale: 2,
+    });
+
+    const prog = Math.min(1, r.dist / RACE_GOAL_DIST);
+    ctx.fillStyle = "#1a1420";
+    ctx.fillRect(12, h - 22, w - 24, 8);
+    ctx.fillStyle = r.gallopHeld ? "#e87850" : SARGAANO.gold;
+    ctx.fillRect(12, h - 22, (w - 24) * prog, 8);
+    ctx.strokeStyle = SARGAANO.charter;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, h - 22, w - 24, 8);
+
+    ctx.fillStyle = "rgba(248, 240, 255, 0.75)";
     ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("TAP LEFT/RIGHT · DRAG WHEEL · ⚡ NITRO · 2 LAPS", w / 2, h - 12);
+    ctx.fillText("HOLD TO GALLOP · TAP / SPACE TO JUMP · 2 LAPS", w / 2, h - 28);
     ctx.textAlign = "left";
   }
 
   private drawAsteroids(ctx: CanvasRenderingContext2D, w: number, h: number) {
     const playTop = WARRIOR_HUD_H;
-    ctx.fillStyle = "#080818";
-    ctx.fillRect(0, playTop, w, h - playTop);
+    const playH = h - playTop;
 
-    for (let i = 0; i < 50; i++) {
-      ctx.fillStyle = `rgba(248,240,255,${0.12 + (i % 4) * 0.06})`;
-      ctx.fillRect((i * 73) % w, playTop + ((i * 41) % (h - playTop - 40)), 2, 2);
+    ctx.fillStyle = "#000008";
+    ctx.fillRect(0, playTop, w, playH);
+
+    ctx.strokeStyle = "rgba(104, 232, 168, 0.12)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 12; i++) {
+      const y = playTop + ((i * 47) % playH);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = i % 3 === 0 ? "#68e8a8" : "rgba(104,232,168,0.35)";
+      ctx.fillRect((i * 73) % w, playTop + ((i * 41) % playH), 2, 2);
     }
 
     for (const b of this.asteroids.bullets) {
-      ctx.fillStyle = "#e8b050";
+      const bx = b.x * w;
+      const by = playTop + b.y * playH;
+      ctx.strokeStyle = "#e8b050";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(b.x * w, playTop + b.y * (h - playTop), 4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx - b.vx * w * 80, by - b.vy * playH * 80);
+      ctx.stroke();
     }
 
     for (const s of this.asteroids.rocks) {
-      const col = s.tier === 0 ? "#6a5878" : s.tier === 1 ? "#8a7898" : "#aab0c8";
       const sx = s.x * w;
-      const sy = playTop + s.y * (h - playTop);
+      const sy = playTop + s.y * playH;
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(s.rot);
-      ctx.fillStyle = col;
+      ctx.strokeStyle = s.tier === 0 ? "#68e8a8" : s.tier === 1 ? "#98b8e8" : "#e8b050";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        const rr = s.r * (0.85 + (i % 2) * 0.15);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const rr = s.r * (0.8 + (i % 3) * 0.12);
         const vx = Math.cos(a) * rr;
         const vy = Math.sin(a) * rr;
         if (i === 0) ctx.moveTo(vx, vy);
         else ctx.lineTo(vx, vy);
       }
       ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "#e8b050";
-      ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
     }
 
     const shipX = this.asteroids.shipX * w;
-    const shipY = h - 28;
-    drawKnightFlyer(ctx, shipX, shipY);
+    const shipY = playTop + this.asteroids.shipY * playH;
+    drawKnightAsteroidShip(ctx, shipX, shipY, this.asteroids.shipAngle);
 
-    ctx.fillStyle = "rgba(248,240,255,0.7)";
+    ctx.fillStyle = "rgba(104,232,168,0.55)";
     ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("DRAG SHIP · TAP TO SHOOT · SURVIVE WAVES", w / 2, h - 10);
+    ctx.fillText("DRAG KNIGHT · TAP TO LANCE · A/D ROTATE", w / 2, h - 10);
     ctx.textAlign = "left";
   }
 
@@ -1648,7 +1488,7 @@ export class DemplarWarrior {
     ctx.fillStyle = "#f8f0ff";
     ctx.font = `${Math.max(7, w * 0.011)}px "Press Start 2P", monospace`;
     ctx.fillText(`RUN ${this.result.platform}`, w / 2, h * 0.44);
-    ctx.fillText(`CIRCUIT P${this.race.playerPlace} · ${this.result.race}`, w / 2, h * 0.5);
+    ctx.fillText(`GALLOP P${this.race.playerPlace} · ${this.result.race}`, w / 2, h * 0.5);
     ctx.fillText(`SHARDS ${this.result.asteroids}`, w / 2, h * 0.56);
     ctx.fillStyle = "#68e8a8";
     ctx.fillText(`TOTAL ${this.result.total}`, w / 2, h * 0.64);
@@ -1659,10 +1499,9 @@ export class DemplarWarrior {
     if (this.stage === "brief") return "";
     if (this.stage === "platform") return "Sprint the Sargaano causeway — leap the veil pits to the Charter Gate";
     if (this.stage === "race") {
-      const p = this.race.playerPlace;
-      return `Steer into turns · tap left/right or drag wheel · ⚡ boost — P${p}/5`;
+      return `Hold screen / ↓ to gallop · Space to jump rocks — P${this.race.playerPlace}/5`;
     }
-    if (this.stage === "asteroids") return `Wave ${this.asteroids.wave} — shoot shards, guard your lives`;
+    if (this.stage === "asteroids") return `Wave ${this.asteroids.wave} — lance the veil shards, A/D to turn`;
     return "Demplar Warrior — three charter trials";
   }
 }

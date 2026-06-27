@@ -1392,13 +1392,6 @@ async function bootTrail() {
 
 canvas.addEventListener("pointerdown", (e) => {
   demplarPointer(e);
-  if (state.phase === "demplar_warrior" && demplarGame?.stage === "race") {
-    try {
-      canvas.setPointerCapture(e.pointerId);
-    } catch {
-      /* optional */
-    }
-  }
 });
 
 canvas.addEventListener("pointermove", (e) => {

@@ -26,8 +26,8 @@ export const knightGateLines = [
 
 export const warriorTrialNames = {
   platform: "I · Sargaano Sprint — reach the gate",
-  race: "II · Corsus Circuit — 2 laps vs 4 rivals",
-  asteroids: "III · Veil Shards — shoot the waves",
+  race: "II · Corsus Gallop — hold to charge the cart",
+  asteroids: "III · Veil Shards — classic knight asteroids",
 } as const;
 
 export const warriorBriefLines = [
