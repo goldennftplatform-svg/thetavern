@@ -21,6 +21,22 @@ export function hubChoiceHtml(
   </button>`;
 }
 
+export function hubTableSeatHtml(
+  action: string,
+  icon: string,
+  title: string,
+  hint: string,
+  seat: "north" | "east" | "south" | "west",
+  accent?: "gold" | "jade",
+): string {
+  const cls = accent ? ` tavern-table__seat--${accent}` : "";
+  return `<button type="button" class="tavern-table__seat tavern-table__seat--${seat}${cls}" data-hub-action="${action}">
+    <span class="tavern-table__prop-icon" aria-hidden="true">${icon}</span>
+    <span class="tavern-table__prop-name">${title}</span>
+    <span class="tavern-table__prop-hint">${hint}</span>
+  </button>`;
+}
+
 export function hubTileHtml(
   icon: string,
   label: string,

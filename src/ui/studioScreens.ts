@@ -14,6 +14,7 @@ import { mobileHallFeedHtml, mobileHallLeaderboardHtml } from "../hall/mobileHal
 import {
   feastButtonHtml,
   hubBackHtml,
+  hubTableSeatHtml,
   hubTileHtml,
   renderCardRow,
   studioStageHtml,
@@ -61,29 +62,56 @@ export function hubWellHtml(
   extraLore: string,
   charterNight: string,
 ): string {
-  return studioStageHtml(
-    "The Moonwell",
-    `${scoreboardHtml(s)}
-    <p class="studio-charter-night">Tavern night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
-    <p class="studio-night">${escapeHtml(nightTitle)}</p>
-    <p class="studio-lore-line">${escapeHtml(nightTagline)}</p>
-    <p class="studio-lore-line studio-lore-line--verse">${escapeHtml(s.seasonVerse)}</p>
-    <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(s.seasonNote)}</p>
-    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
-      ${hubTileHtml("🎣", "Cast", "fish", "gold")}
-      ${hubTileHtml("🕹", "Arcade", "demplar_warrior", "gold")}
-      ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
-      ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
+  const tableBg = `${import.meta.env.BASE_URL}media/tavern-table-bg.png`;
+  const titleLine =
+    s.titles.length > 0
+      ? `<p class="tavern-table-scene__titles">${escapeHtml(s.titles.slice(-2).join(" · "))}</p>`
+      : "";
+  return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
+    <div class="tavern-table-scene__veil" aria-hidden="true"></div>
+    <header class="tavern-table-scene__head">
+      <p class="tavern-table-scene__kicker">Tavern night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
+      <h2 class="tavern-table-scene__title">The Great Table</h2>
+      <p class="tavern-table-scene__night">${escapeHtml(nightTitle)}</p>
+      <p class="tavern-table-scene__tag">${escapeHtml(nightTagline)}</p>
+    </header>
+
+    <div class="tavern-table-scene__stats" aria-label="Your run">
+      <span class="tavern-table-scene__stat"><em>★</em> ${s.renown} <small>Legend</small></span>
+      <span class="tavern-table-scene__stat"><em>◎</em> ${s.tokens} <small>Tokens</small></span>
+      <span class="tavern-table-scene__stat"><em>🐟</em> ${s.catalogSize} <small>Caught</small></span>
+      <span class="tavern-table-scene__name">${escapeHtml(s.nickname)} · ${escapeHtml(s.seasonName)}</span>
     </div>
-    <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(hubVerse)}</p>
-    <p class="studio-lore-line">${escapeHtml(extraLore)}</p>
-    <div class="studio-hub-footer">
-      <button type="button" class="btn ghost studio-link-btn studio-link-btn--hall" data-hub-action="hall_view">📺 Hall view</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Neighbor lore on X ↓</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Rim notice</button>
-    </div>`,
-  );
+    ${titleLine}
+
+    <div class="tavern-table-wrap">
+      <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
+        <div class="tavern-table__well" aria-hidden="true">
+          <span class="tavern-table__well-glow"></span>
+          <span class="tavern-table__well-label">☽ Moonwell</span>
+          <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
+        </div>
+        ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown", "north", "gold")}
+        ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
+        ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-lo & over/under", "south", "jade")}
+        ${hubTableSeatHtml("feast_menu", "🍖", "Kitchen Spread", "Buffs before you cast", "west", "jade")}
+        <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
+        <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
+        <span class="tavern-table__candle tavern-table__candle--c" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <p class="tavern-table-scene__verse">${escapeHtml(s.seasonVerse)}</p>
+    <p class="tavern-table-scene__lore">${escapeHtml(hubVerse)}</p>
+    <p class="tavern-table-scene__lore tavern-table-scene__lore--extra">${escapeHtml(extraLore)}</p>
+
+    <footer class="tavern-table-scene__footer">
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="hall_view">📺 Hall view</button>
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="ledger">Ledger</button>
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="herald_scroll">Neighbor lore ↓</button>
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="charter">Rim notice</button>
+    </footer>
+  </div>`;
 }
 
 export function catchResolveHtml(c: CatchResult, flourish: string, blurb: string): string {
