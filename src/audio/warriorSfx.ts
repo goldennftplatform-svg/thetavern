@@ -57,3 +57,34 @@ export function playWarriorImpact(punch = 1): void {
   noise.start(t0);
   noise.stop(t0 + 0.06);
 }
+
+function blip(freq: number, dur: number, vol: number, type: OscillatorType = "square"): void {
+  const ac = getCtx();
+  if (!ac) return;
+  void ac.resume();
+  const t0 = ac.currentTime;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.6, t0 + dur);
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+/** Tetris hard slam — chunky thud. */
+export function playTetrisSlam(): void {
+  blip(160, 0.07, 0.28, "triangle");
+  blip(90, 0.05, 0.18, "square");
+}
+
+/** Line clear — brighter pop scales with rows cleared. */
+export function playTetrisClear(rows: number): void {
+  const base = 280 + rows * 80;
+  blip(base, 0.09, 0.22, "square");
+  blip(base * 1.35, 0.07, 0.14, "triangle");
+}

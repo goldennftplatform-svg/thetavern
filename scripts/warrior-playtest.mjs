@@ -99,7 +99,20 @@ async function run() {
   if (!tetrisState) throw new Error("QA hook missing");
   if (tetrisState.stage !== "tetris") throw new Error(`Expected tetris, got ${tetrisState.stage}`);
 
-  // Fast-forward tetris (90s is too long for CI)
+  const slamPace = await page.evaluate(() => {
+    const t = window.__tavernQA?.getDemplar?.()?.tetris;
+    if (!t) return null;
+    t.hardDrop();
+    const y0 = t.active?.y ?? -99;
+    t.update(90, 1000, 75_000);
+    const y1 = t.active?.y ?? -99;
+    return { y0, y1, moved: y1 > y0 };
+  });
+  if (!slamPace?.moved) {
+    throw new Error(`Tetris slam spawn too slow — piece y ${slamPace?.y0} → ${slamPace?.y1} after 90ms`);
+  }
+
+  // Fast-forward tetris (75s is too long for CI)
   await page.evaluate(() => {
     const d = window.__tavernQA?.getDemplar?.();
     if (!d) throw new Error("no demplar");

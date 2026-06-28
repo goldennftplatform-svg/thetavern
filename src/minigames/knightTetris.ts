@@ -1,6 +1,9 @@
 /**
  * Charter Tetris — trial II stack for Demplar Warrior.
+ * Arcade-fast: instant slam lock, primed spawns, ghost + next preview.
  */
+
+import { playTetrisClear, playTetrisSlam } from "../audio/warriorSfx";
 
 export type TetrisColor = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -17,6 +20,10 @@ const SHAPES: readonly (readonly [number, number])[][] = [
 ];
 
 const PALETTE = ["#68e8a8", "#e8b050", "#98b8e8", "#78d0b8", "#e87850", "#6898e8", "#d8a868"];
+const LOCK_DELAY_MS = 60;
+const BASE_GRAVITY_MS = 480;
+const MIN_GRAVITY_MS = 140;
+const SOFT_DROP_MS = 42;
 
 type ActivePiece = {
   shape: number;
@@ -48,7 +55,8 @@ export class KnightTetris {
   private dropMs = 0;
   private lockMs = 0;
   private softDrop = false;
-  private gravityMs = 820;
+  private gravityMs = BASE_GRAVITY_MS;
+  private flashMs = 0;
 
   reset() {
     this.score = 0;
@@ -58,11 +66,18 @@ export class KnightTetris {
     this.finished = false;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(-1) as (TetrisColor | -1)[]);
     this.bag = [];
-    this.dropMs = 0;
+    this.dropMs = BASE_GRAVITY_MS * 0.55;
     this.lockMs = 0;
     this.softDrop = false;
-    this.gravityMs = 820;
-    this.spawn();
+    this.gravityMs = BASE_GRAVITY_MS;
+    this.flashMs = 0;
+    this.spawn(false);
+  }
+
+  /** Next shape index for HUD preview. */
+  peekNext(): number {
+    if (this.bag.length < 1) this.refillBag();
+    return this.bag[0]!;
   }
 
   private refillBag() {
@@ -74,11 +89,13 @@ export class KnightTetris {
     this.bag.push(...next);
   }
 
-  private spawn() {
+  private spawn(primeFall: boolean) {
     if (this.bag.length < 2) this.refillBag();
     const shape = this.bag.shift()!;
     const color = shape as TetrisColor;
     this.active = { shape, color, rot: 0, x: 3, y: -1 };
+    this.lockMs = 0;
+    this.dropMs = primeFall ? this.gravityMs * 0.82 : this.gravityMs * 0.35;
     if (this.collides(this.active)) {
       this.gameOver = true;
       this.active = null;
@@ -97,10 +114,20 @@ export class KnightTetris {
     return false;
   }
 
+  private ghostY(): number {
+    if (!this.active) return 0;
+    let gy = this.active.y;
+    while (!this.collides(this.active, 0, gy - this.active.y + 1)) gy += 1;
+    return gy;
+  }
+
   move(dir: -1 | 1) {
     if (!this.active || this.gameOver) return;
     const p = this.active;
-    if (!this.collides(p, dir, 0)) p.x += dir;
+    if (!this.collides(p, dir, 0)) {
+      p.x += dir;
+      if (!this.collides(p, 0, 1)) this.lockMs = 0;
+    }
   }
 
   rotate() {
@@ -109,12 +136,14 @@ export class KnightTetris {
     const nextRot = (p.rot + 1) % 4;
     if (!this.collides(p, 0, 0, nextRot)) {
       p.rot = nextRot;
+      if (!this.collides(p, 0, 1)) this.lockMs = 0;
       return;
     }
     for (const kick of [-1, 1, -2, 2]) {
       if (!this.collides(p, kick, 0, nextRot)) {
         p.x += kick;
         p.rot = nextRot;
+        if (!this.collides(p, 0, 1)) this.lockMs = 0;
         return;
       }
     }
@@ -131,19 +160,21 @@ export class KnightTetris {
       this.active.y += 1;
       dropped += 1;
     }
-    this.score += dropped * 2;
-    this.lockPiece();
+    this.score += dropped * 2 + 4;
+    playTetrisSlam();
+    this.lockPiece(true);
   }
 
-  private lockPiece() {
+  private lockPiece(fromSlam = false) {
     const p = this.active;
     if (!p) return;
     for (const [x, y] of this.cells(p)) {
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) this.grid[y]![x] = p.color;
     }
+    this.active = null;
     this.clearLines();
-    this.spawn();
-    this.lockMs = 0;
+    if (this.gameOver) return;
+    this.spawn(fromSlam);
   }
 
   private clearLines() {
@@ -158,14 +189,18 @@ export class KnightTetris {
     }
     if (cleared > 0) {
       this.lines += cleared;
-      const base = [0, 120, 320, 620, 900][cleared] ?? 900;
+      const base = [0, 140, 380, 720, 1100][cleared] ?? 1100;
       this.score += base * this.level;
-      this.level = 1 + Math.floor(this.lines / 8);
-      this.gravityMs = Math.max(280, 820 - (this.level - 1) * 55);
+      this.level = 1 + Math.floor(this.lines / 6);
+      this.gravityMs = Math.max(MIN_GRAVITY_MS, BASE_GRAVITY_MS - (this.level - 1) * 42);
+      this.flashMs = 140;
+      playTetrisClear(cleared);
     }
   }
 
   update(dt: number, elapsed: number, timeLimitMs: number): boolean {
+    if (this.flashMs > 0) this.flashMs = Math.max(0, this.flashMs - dt);
+
     if (this.finished || this.gameOver) {
       if (!this.finished) {
         this.finished = true;
@@ -182,17 +217,17 @@ export class KnightTetris {
 
     if (!this.active) return false;
 
-    const grav = this.softDrop ? Math.min(80, this.gravityMs * 0.12) : this.gravityMs;
+    const grav = this.softDrop ? SOFT_DROP_MS : this.gravityMs;
     this.dropMs += dt;
     if (this.dropMs >= grav) {
-      this.dropMs = 0;
+      this.dropMs -= grav;
       if (!this.collides(this.active, 0, 1)) {
         this.active.y += 1;
         this.lockMs = 0;
         if (this.softDrop) this.score += 1;
       } else {
         this.lockMs += dt;
-        if (this.lockMs >= 420) this.lockPiece();
+        if (this.lockMs >= LOCK_DELAY_MS) this.lockPiece(false);
       }
     }
     return false;
@@ -205,7 +240,7 @@ export class KnightTetris {
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number) {
     const pad = 8;
     const playH = h - hudTop - pad * 2;
-    const cell = Math.floor(Math.min((w - pad * 2) / COLS, playH / ROWS));
+    const cell = Math.floor(Math.min((w - pad * 2) / (COLS + 3.2), playH / ROWS));
     const boardW = cell * COLS;
     const boardH = cell * ROWS;
     const ox = Math.floor((w - boardW) / 2);
@@ -217,19 +252,37 @@ export class KnightTetris {
     ctx.lineWidth = 2;
     ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
 
+    const flash = this.flashMs > 0 ? this.flashMs / 140 : 0;
+
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const c = this.grid[y]![x]!;
-        if (c >= 0) this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[c]!);
+        if (c < 0) continue;
+        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[c]!);
       }
     }
 
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${flash * 0.38})`;
+      ctx.fillRect(ox, oy, boardW, boardH);
+    }
+
     if (this.active) {
+      const ghost = this.ghostY();
+      if (ghost > this.active.y) {
+        for (const [x, y] of this.cells(this.active)) {
+          const gy = y + (ghost - this.active.y);
+          if (gy < 0) continue;
+          this.drawGhost(ctx, ox + x * cell, oy + gy * cell, cell, PALETTE[this.active.color]!);
+        }
+      }
       for (const [x, y] of this.cells(this.active)) {
         if (y < 0) continue;
         this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[this.active.color]!);
       }
     }
+
+    this.drawNextPreview(ctx, ox + boardW + 10, oy + 4, cell);
 
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
@@ -238,7 +291,54 @@ export class KnightTetris {
     ctx.textAlign = "left";
   }
 
-  private drawCell(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+  private drawNextPreview(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number) {
+    const shape = this.peekNext();
+    const color = shape as TetrisColor;
+    const previewCell = Math.max(6, Math.floor(cell * 0.55));
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(x - 2, y - 2, previewCell * 4 + 8, previewCell * 3 + 16);
+    ctx.strokeStyle = "rgba(104,232,168,0.45)";
+    ctx.strokeRect(x - 2, y - 2, previewCell * 4 + 8, previewCell * 3 + 16);
+    ctx.fillStyle = "rgba(248,240,255,0.55)";
+    ctx.font = `${Math.max(12, previewCell)}px "VT323", monospace`;
+    ctx.fillText("NEXT", x + 2, y + 10);
+    const cells = SHAPES[shape]!;
+    const minX = Math.min(...cells.map(([cx]) => cx));
+    const minY = Math.min(...cells.map(([, cy]) => cy));
+    for (const [cx, cy] of cells) {
+      this.drawCell(
+        ctx,
+        x + (cx - minX) * previewCell,
+        y + 16 + (cy - minY) * previewCell,
+        previewCell,
+        PALETTE[color]!,
+      );
+    }
+  }
+
+  private drawGhost(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+  ) {
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
+    ctx.restore();
+  }
+
+  private drawCell(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+  ) {
     ctx.fillStyle = color;
     ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
     ctx.strokeStyle = "rgba(0,0,0,0.35)";
