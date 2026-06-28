@@ -64,10 +64,12 @@ export class KnightDrMario {
 
   private seedViruses() {
     let count = 0;
-    for (let y = 4; y < ROWS - 2; y++) {
+    const target = 6 + Math.floor(Math.random() * 3);
+    for (let y = 6; y < ROWS - 2; y++) {
       for (let x = 0; x < COLS; x++) {
-        const depth = (y - 4) / (ROWS - 6);
-        const chance = 0.1 + depth * 0.14;
+        if (count >= target) break;
+        const depth = (y - 6) / (ROWS - 8);
+        const chance = 0.08 + depth * 0.12;
         if (Math.random() < chance) {
           const c = COLORS[Math.floor(Math.random() * 3)]!;
           this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
@@ -75,14 +77,13 @@ export class KnightDrMario {
         }
       }
     }
-    if (count < 10) {
-      for (let i = 0; i < 10 - count; i++) {
-        const x = Math.floor(Math.random() * COLS);
-        const y = 5 + Math.floor(Math.random() * (ROWS - 8));
-        if (!this.grid[y]![x]) {
-          const c = COLORS[i % 3]!;
-          this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
-        }
+    while (count < 6) {
+      const x = Math.floor(Math.random() * COLS);
+      const y = 8 + Math.floor(Math.random() * (ROWS - 10));
+      if (!this.grid[y]![x]) {
+        const c = COLORS[count % 3]!;
+        this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
+        count += 1;
       }
     }
     this.virusesLeft = this.countViruses();
@@ -228,16 +229,24 @@ export class KnightDrMario {
     }
   }
 
+  private finishTrial(timeLimitMs: number, elapsed: number) {
+    const timeLeft = Math.max(0, timeLimitMs - elapsed);
+    this.score += Math.floor(timeLeft / 400);
+    this.score += Math.max(0, 120 - this.virusesLeft * 8);
+    this.score = Math.max(0, this.score);
+    this.finished = true;
+  }
+
   update(dt: number, elapsed: number, timeLimitMs: number): boolean {
     if (this.finished) return false;
     if (this.gameOver) {
+      this.score = Math.max(0, this.score + 40);
       this.finished = true;
       return true;
     }
 
     if (elapsed >= timeLimitMs) {
-      this.score += this.virusesLeft * -20 + Math.max(0, Math.floor((timeLimitMs - elapsed) / 250));
-      this.finished = true;
+      this.finishTrial(timeLimitMs, elapsed);
       return true;
     }
 
@@ -272,9 +281,15 @@ export class KnightDrMario {
 
     ctx.fillStyle = "#101828";
     ctx.fillRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
-    ctx.strokeStyle = "#98b8e8";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#c878e8";
+    ctx.lineWidth = 3;
     ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+
+    ctx.fillStyle = "#e8b050";
+    ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("III · VEIL CURE", w / 2, oy - 10);
+    ctx.textAlign = "left";
 
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {

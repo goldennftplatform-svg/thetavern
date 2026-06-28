@@ -112,13 +112,30 @@ async function run() {
     throw new Error(`Tetris slam spawn too slow — piece y ${slamPace?.y0} → ${slamPace?.y1} after 90ms`);
   }
 
-  // Fast-forward tetris (75s is too long for CI)
+  // Fast-forward tetris — must show Trial III handoff first
   await page.evaluate(() => {
     const d = window.__tavernQA?.getDemplar?.();
     if (!d) throw new Error("no demplar");
     d.advanceStage(performance.now(), "drmario");
   });
   await page.waitForSelector("#play-shell[data-warrior-stage='drmario']", { timeout: 5000 });
+  await sleep(400);
+  const handoff = await page.evaluate(() => {
+    const d = window.__tavernQA?.getDemplar?.();
+    return d?.stageBreak?.subtitle ?? "";
+  });
+  if (!handoff.includes("DR MARIO")) {
+    throw new Error(`Missing Trial III handoff overlay: ${handoff}`);
+  }
+  await sleep(2400);
+
+  const noNegDr = await page.evaluate(() => {
+    const dr = window.__tavernQA?.getDemplar?.()?.drMario;
+    if (!dr) return false;
+    dr.update(75_000, 75_000, 75_000);
+    return dr.score >= 0;
+  });
+  if (!noNegDr) throw new Error("Dr Mario timeout still applies negative score");
 
   // Dr Mario: light control smoke
   await page.keyboard.press("KeyA");

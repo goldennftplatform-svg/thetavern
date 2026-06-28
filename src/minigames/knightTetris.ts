@@ -57,6 +57,7 @@ export class KnightTetris {
   private softDrop = false;
   private gravityMs = BASE_GRAVITY_MS;
   private flashMs = 0;
+  private topOutMercies = 2;
 
   reset() {
     this.score = 0;
@@ -71,7 +72,15 @@ export class KnightTetris {
     this.softDrop = false;
     this.gravityMs = BASE_GRAVITY_MS;
     this.flashMs = 0;
+    this.topOutMercies = 2;
     this.spawn(false);
+  }
+
+  private clearTopRows(n: number) {
+    for (let i = 0; i < n; i++) {
+      this.grid.shift();
+      this.grid.push(Array(COLS).fill(-1) as (TetrisColor | -1)[]);
+    }
   }
 
   /** Next shape index for HUD preview. */
@@ -97,8 +106,18 @@ export class KnightTetris {
     this.lockMs = 0;
     this.dropMs = primeFall ? this.gravityMs * 0.82 : this.gravityMs * 0.35;
     if (this.collides(this.active)) {
-      this.gameOver = true;
-      this.active = null;
+      if (this.topOutMercies > 0) {
+        this.topOutMercies -= 1;
+        this.clearTopRows(5);
+        this.active = { shape, color, rot: 0, x: 3, y: -1 };
+        if (this.collides(this.active)) {
+          this.gameOver = true;
+          this.active = null;
+        }
+      } else {
+        this.gameOver = true;
+        this.active = null;
+      }
     }
   }
 
@@ -203,6 +222,7 @@ export class KnightTetris {
 
     if (this.finished || this.gameOver) {
       if (!this.finished) {
+        this.score = Math.max(0, this.score);
         this.finished = true;
         return true;
       }
@@ -211,6 +231,7 @@ export class KnightTetris {
 
     if (elapsed >= timeLimitMs || this.lines >= 18) {
       this.score += Math.max(0, Math.floor((timeLimitMs - elapsed) / 200)) + this.lines * 40;
+      this.score = Math.max(0, this.score);
       this.finished = true;
       return true;
     }
@@ -249,8 +270,14 @@ export class KnightTetris {
     ctx.fillStyle = "#0a1020";
     ctx.fillRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
     ctx.strokeStyle = "#68e8a8";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+
+    ctx.fillStyle = "#68e8a8";
+    ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("II · CHARTER STACK", w / 2, oy - 10);
+    ctx.textAlign = "left";
 
     const flash = this.flashMs > 0 ? this.flashMs / 140 : 0;
 
