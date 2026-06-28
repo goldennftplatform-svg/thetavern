@@ -24,6 +24,7 @@ const LOCK_DELAY_MS = 60;
 const BASE_GRAVITY_MS = 480;
 const MIN_GRAVITY_MS = 140;
 const SOFT_DROP_MS = 42;
+export const TETRIS_WIN_LINES = 10;
 
 type ActivePiece = {
   shape: number;
@@ -57,7 +58,6 @@ export class KnightTetris {
   private softDrop = false;
   private gravityMs = BASE_GRAVITY_MS;
   private flashMs = 0;
-  private topOutMercies = 2;
 
   reset() {
     this.score = 0;
@@ -72,15 +72,7 @@ export class KnightTetris {
     this.softDrop = false;
     this.gravityMs = BASE_GRAVITY_MS;
     this.flashMs = 0;
-    this.topOutMercies = 2;
     this.spawn(false);
-  }
-
-  private clearTopRows(n: number) {
-    for (let i = 0; i < n; i++) {
-      this.grid.shift();
-      this.grid.push(Array(COLS).fill(-1) as (TetrisColor | -1)[]);
-    }
   }
 
   /** Next shape index for HUD preview. */
@@ -106,18 +98,8 @@ export class KnightTetris {
     this.lockMs = 0;
     this.dropMs = primeFall ? this.gravityMs * 0.82 : this.gravityMs * 0.35;
     if (this.collides(this.active)) {
-      if (this.topOutMercies > 0) {
-        this.topOutMercies -= 1;
-        this.clearTopRows(5);
-        this.active = { shape, color, rot: 0, x: 3, y: -1 };
-        if (this.collides(this.active)) {
-          this.gameOver = true;
-          this.active = null;
-        }
-      } else {
-        this.gameOver = true;
-        this.active = null;
-      }
+      this.gameOver = true;
+      this.active = null;
     }
   }
 
@@ -229,7 +211,7 @@ export class KnightTetris {
       return false;
     }
 
-    if (elapsed >= timeLimitMs || this.lines >= 18) {
+    if (elapsed >= timeLimitMs || this.lines >= TETRIS_WIN_LINES) {
       this.score += Math.max(0, Math.floor((timeLimitMs - elapsed) / 200)) + this.lines * 40;
       this.score = Math.max(0, this.score);
       this.finished = true;

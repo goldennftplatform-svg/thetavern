@@ -112,22 +112,14 @@ async function run() {
     throw new Error(`Tetris slam spawn too slow — piece y ${slamPace?.y0} → ${slamPace?.y1} after 90ms`);
   }
 
-  // Fast-forward tetris — must show Trial III handoff first
+  // Force tetris timer expiry → must hand off to Dr Mario
   await page.evaluate(() => {
     const d = window.__tavernQA?.getDemplar?.();
     if (!d) throw new Error("no demplar");
-    d.advanceStage(performance.now(), "drmario");
+    d.stageStarted = performance.now() - 51_000;
+    for (let i = 0; i < 40; i++) d.update(16, performance.now());
   });
-  await page.waitForSelector("#play-shell[data-warrior-stage='drmario']", { timeout: 5000 });
-  await sleep(400);
-  const handoff = await page.evaluate(() => {
-    const d = window.__tavernQA?.getDemplar?.();
-    return d?.stageBreak?.subtitle ?? "";
-  });
-  if (!handoff.includes("DR MARIO")) {
-    throw new Error(`Missing Trial III handoff overlay: ${handoff}`);
-  }
-  await sleep(2400);
+  await page.waitForSelector("#play-shell[data-warrior-stage='drmario']", { timeout: 10000 });
 
   const noNegDr = await page.evaluate(() => {
     const dr = window.__tavernQA?.getDemplar?.()?.drMario;

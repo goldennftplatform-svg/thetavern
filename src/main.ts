@@ -853,11 +853,19 @@ function finishDemplarRun() {
   setPhase("demplar_result");
 }
 
+let lastWarriorStage: string | undefined;
+
 function syncWarriorShell() {
   if (state.phase === "demplar_warrior" && demplarGame) {
-    elPlayShell.dataset.warriorStage = demplarGame.stage;
+    const stage = demplarGame.stage;
+    elPlayShell.dataset.warriorStage = stage;
+    if (stage === "drmario" && lastWarriorStage !== "drmario") {
+      showToast("TRIAL III — Veil Cure · Dr Mario! Match 4 to clear viruses.", 4200);
+    }
+    lastWarriorStage = stage;
   } else {
     delete elPlayShell.dataset.warriorStage;
+    lastWarriorStage = undefined;
   }
 }
 
