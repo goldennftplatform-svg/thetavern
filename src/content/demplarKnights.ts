@@ -25,14 +25,14 @@ export const knightGateLines = [
 ];
 
 export const warriorTrialNames = {
-  platform: "I · Sargaano Sprint — reach the gate",
-  race: "II · Corsus Gallop — hold to charge the cart",
-  asteroids: "III · Veil Shards — classic knight asteroids",
+  platform: "I · Sargaano Sprint — knight platformer",
+  race: "II · Charter Stack — Tetris",
+  asteroids: "III · Veil Cure — Dr. Mario",
 } as const;
 
 export const warriorBriefLines = [
   "Three tavern trials — speed is renown on our wall, not theirs.",
-  "Borrowed legend night: wrist, wheel, and wrath on the training track.",
+  "Borrowed legend night: sprint, stack, and cure the veil on the training track.",
   "Where shadow breathes, only the swift earn a boast at the bar.",
   "Their desert lives on X — @DemplarOfficial reckons; we run the arcade.",
 ];
@@ -45,13 +45,13 @@ export const warriorCompleteLines = [
 
 export const demplarWarriorChronicles = [
   "{angler} clears the tavern trials — {score} speed. The Moonwell wall remembers.",
-  "⚔ {angler} runs Sargaano, races Corsus, shatters the veil — {score} on our scoreboard.",
+  "⚔ {angler} runs Sargaano, stacks the charter, cures the veil — {score} on our scoreboard.",
   "Rim tavern: {angler} earns {score} on the borrowed Warrior track.",
   "{angler} survives three trials where time fractures — {score} in tavern chalk.",
 ];
 
 export const demplarWarriorSubtexts = [
-  "Run {platform} · Circuit {race} · Shards {asteroids}",
+  "Run {platform} · Tetris {race} · Dr Mario {asteroids}",
   "Training grounds favor the bold — tavern night keeps the score.",
   "Arcade mode at the rim: speed over story, renown over doubt.",
 ];

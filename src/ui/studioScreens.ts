@@ -177,8 +177,8 @@ export function demplarResultStudioHtml(
     <p class="studio-lore-line studio-lore-line--hint">Knights of the ancient charter — three trials sealed.</p>
     <div class="studio-scoreboard studio-scoreboard--demplar">
       <span class="studio-stat"><em>I</em> ${r.platform} <small>Run</small></span>
-      <span class="studio-stat"><em>II</em> ${r.race} <small>Circuit</small></span>
-      <span class="studio-stat"><em>III</em> ${r.asteroids} <small>Shards</small></span>
+      <span class="studio-stat"><em>II</em> ${r.race} <small>Tetris</small></span>
+      <span class="studio-stat"><em>III</em> ${r.asteroids} <small>Dr Mario</small></span>
     </div>
     <p class="studio-reward">Total ${r.total} · +${renown} ★ · +${tokens} ◎</p>
     ${bestLine}

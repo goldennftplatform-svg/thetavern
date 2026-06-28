@@ -1,0 +1,321 @@
+/**
+ * Charter Dr. Mario — trial III pill puzzle for Demplar Warrior.
+ */
+
+export type PillColor = "R" | "B" | "Y";
+
+const COLS = 8;
+const ROWS = 16;
+const COLORS: PillColor[] = ["R", "B", "Y"];
+const PALETTE: Record<PillColor, string> = {
+  R: "#e87850",
+  B: "#6898e8",
+  Y: "#e8b050",
+};
+
+type Cell = PillColor | "vR" | "vB" | "vY" | null;
+
+type FallingPill = {
+  x: number;
+  y: number;
+  horiz: boolean;
+  a: PillColor;
+  b: PillColor;
+};
+
+function cellColor(c: Cell): PillColor | null {
+  if (!c) return null;
+  if (c === "vR") return "R";
+  if (c === "vB") return "B";
+  if (c === "vY") return "Y";
+  return c;
+}
+
+function isVirus(c: Cell): boolean {
+  return c === "vR" || c === "vB" || c === "vY";
+}
+
+export class KnightDrMario {
+  score = 0;
+  virusesLeft = 0;
+  combo = 0;
+  finished = false;
+  gameOver = false;
+
+  private grid: Cell[][] = [];
+  private pill: FallingPill | null = null;
+  private dropMs = 0;
+  private softDrop = false;
+  private gravityMs = 520;
+
+  reset() {
+    this.score = 0;
+    this.combo = 0;
+    this.finished = false;
+    this.gameOver = false;
+    this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null) as Cell[]);
+    this.seedViruses();
+    this.pill = null;
+    this.dropMs = 0;
+    this.softDrop = false;
+    this.gravityMs = 520;
+    this.spawnPill();
+  }
+
+  private seedViruses() {
+    let count = 0;
+    for (let y = ROWS - 7; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (Math.random() < 0.28) {
+          const c = COLORS[Math.floor(Math.random() * 3)]!;
+          this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
+          count += 1;
+        }
+      }
+    }
+    if (count < 8) {
+      for (let i = 0; i < 8 - count; i++) {
+        const x = Math.floor(Math.random() * COLS);
+        const y = ROWS - 2 - Math.floor(Math.random() * 5);
+        if (!this.grid[y]![x]) {
+          const c = COLORS[i % 3]!;
+          this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
+        }
+      }
+    }
+    this.virusesLeft = this.countViruses();
+  }
+
+  private countViruses(): number {
+    let n = 0;
+    for (const row of this.grid) {
+      for (const c of row) if (isVirus(c)) n += 1;
+    }
+    return n;
+  }
+
+  private spawnPill() {
+    const a = COLORS[Math.floor(Math.random() * 3)]!;
+    const b = COLORS[Math.floor(Math.random() * 3)]!;
+    const horiz = Math.random() < 0.55;
+    const pill: FallingPill = { x: 3, y: 0, horiz, a, b };
+    if (this.pillBlocked(pill)) {
+      this.gameOver = true;
+      this.pill = null;
+      return;
+    }
+    this.pill = pill;
+  }
+
+  private pillCells(p: FallingPill): [number, number, PillColor][] {
+    if (p.horiz) return [[p.x, p.y, p.a], [p.x + 1, p.y, p.b]];
+    return [[p.x, p.y, p.a], [p.x, p.y + 1, p.b]];
+  }
+
+  private pillBlocked(p: FallingPill, ox = 0, oy = 0, horiz = p.horiz): boolean {
+    const test = { ...p, x: p.x + ox, y: p.y + oy, horiz };
+    for (const [x, y] of this.pillCells(test).map(([cx, cy]) => [cx, cy])) {
+      if (x < 0 || x >= COLS || y >= ROWS) return true;
+      if (y >= 0 && this.grid[y]![x]) return true;
+    }
+    return false;
+  }
+
+  move(dir: -1 | 1) {
+    if (!this.pill || this.gameOver) return;
+    if (!this.pillBlocked(this.pill, dir, 0)) this.pill.x += dir;
+  }
+
+  rotate() {
+    if (!this.pill || this.gameOver) return;
+    const p = this.pill;
+    const next = !p.horiz;
+    if (!this.pillBlocked(p, 0, 0, next)) {
+      p.horiz = next;
+      return;
+    }
+    for (const kick of [-1, 1]) {
+      if (!this.pillBlocked(p, kick, 0, next)) {
+        p.x += kick;
+        p.horiz = next;
+        return;
+      }
+    }
+  }
+
+  setSoftDrop(on: boolean) {
+    this.softDrop = on;
+  }
+
+  hardDrop() {
+    if (!this.pill || this.gameOver) return;
+    let dropped = 0;
+    while (!this.pillBlocked(this.pill, 0, 1)) {
+      this.pill.y += 1;
+      dropped += 1;
+    }
+    this.score += dropped;
+    this.lockPill();
+  }
+
+  private lockPill() {
+    const p = this.pill;
+    if (!p) return;
+    for (const [x, y, color] of this.pillCells(p)) {
+      if (y >= 0) this.grid[y]![x] = color;
+    }
+    this.pill = null;
+    this.resolveMatches();
+    if (this.virusesLeft <= 0) {
+      this.score += 600;
+      this.finished = true;
+      return;
+    }
+    this.spawnPill();
+  }
+
+  private resolveMatches() {
+    let chain = 0;
+    for (;;) {
+      const toClear = new Set<string>();
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const c = cellColor(this.grid[y]![x]);
+          if (!c) continue;
+          let runH = 1;
+          while (x + runH < COLS && cellColor(this.grid[y]![x + runH]) === c) runH += 1;
+          if (runH >= 4) {
+            for (let i = 0; i < runH; i++) toClear.add(`${x + i},${y}`);
+          }
+          let runV = 1;
+          while (y + runV < ROWS && cellColor(this.grid[y + runV]![x]) === c) runV += 1;
+          if (runV >= 4) {
+            for (let i = 0; i < runV; i++) toClear.add(`${x},${y + i}`);
+          }
+        }
+      }
+      if (toClear.size === 0) break;
+      chain += 1;
+      let viruses = 0;
+      for (const key of toClear) {
+        const [xs, ys] = key.split(",");
+        const x = Number(xs);
+        const y = Number(ys);
+        const cell = this.grid[y]![x];
+        if (isVirus(cell)) viruses += 1;
+        this.grid[y]![x] = null;
+      }
+      this.virusesLeft = this.countViruses();
+      const mult = 1 + (chain - 1) * 0.35;
+      this.score += Math.floor((toClear.size * 18 + viruses * 90) * mult);
+      this.combo = chain;
+      this.applyGravity();
+    }
+  }
+
+  private applyGravity() {
+    for (let x = 0; x < COLS; x++) {
+      const col: Cell[] = [];
+      for (let y = ROWS - 1; y >= 0; y--) {
+        const c = this.grid[y]![x];
+        if (c) col.push(c);
+      }
+      for (let y = 0; y < ROWS; y++) {
+        this.grid[ROWS - 1 - y]![x] = col[y] ?? null;
+      }
+    }
+  }
+
+  update(dt: number, elapsed: number, timeLimitMs: number): boolean {
+    if (this.finished) return false;
+    if (this.gameOver) {
+      this.finished = true;
+      return true;
+    }
+
+    if (elapsed >= timeLimitMs) {
+      this.score += this.virusesLeft * -20 + Math.max(0, Math.floor((timeLimitMs - elapsed) / 250));
+      this.finished = true;
+      return true;
+    }
+
+    if (!this.pill) return false;
+
+    const grav = this.softDrop ? 90 : this.gravityMs;
+    this.dropMs += dt;
+    if (this.dropMs >= grav) {
+      this.dropMs = 0;
+      if (!this.pillBlocked(this.pill, 0, 1)) {
+        this.pill.y += 1;
+        if (this.softDrop) this.score += 1;
+      } else {
+        this.lockPill();
+      }
+    }
+    return this.finished;
+  }
+
+  hudLine(): string {
+    return `♥${this.virusesLeft} virus${this.virusesLeft === 1 ? "" : "es"}`;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number) {
+    const pad = 8;
+    const playH = h - hudTop - pad * 2;
+    const cell = Math.floor(Math.min((w - pad * 2) / COLS, playH / ROWS));
+    const boardW = cell * COLS;
+    const boardH = cell * ROWS;
+    const ox = Math.floor((w - boardW) / 2);
+    const oy = hudTop + Math.floor((playH - boardH) / 2) + pad;
+
+    ctx.fillStyle = "#101828";
+    ctx.fillRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+    ctx.strokeStyle = "#98b8e8";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const c = this.grid[y]![x];
+        if (!c) continue;
+        const color = cellColor(c)!;
+        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[color], isVirus(c));
+      }
+    }
+
+    if (this.pill) {
+      for (const [x, y, color] of this.pillCells(this.pill)) {
+        if (y < 0) continue;
+        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[color], false);
+      }
+    }
+
+    ctx.fillStyle = "rgba(248,240,255,0.7)";
+    ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · CLEAR ALL VIRUSES", w / 2, h - 8);
+    ctx.textAlign = "left";
+  }
+
+  private drawCell(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+    virus: boolean,
+  ) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (virus) {
+      ctx.arc(x + size / 2, y + size / 2, size * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.stroke();
+    } else {
+      ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    }
+  }
+}

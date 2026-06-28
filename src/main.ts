@@ -1276,8 +1276,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "KeyF") {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      demplarGame?.pointerDown(rect.width / 2, rect.height * 0.2, rect.width, rect.height);
+      demplarGame?.hardDrop();
     }
     return;
   }
