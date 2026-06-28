@@ -27,8 +27,8 @@ type Plat = { x: number; y: number; w: number; h: number };
 const STAGE_MS = {
   brief: 2800,
   platform: 48_000,
-  tetris: 90_000,
-  drmario: 90_000,
+  tetris: 75_000,
+  drmario: 75_000,
 } as const;
 
 const BRIEF_CHUNK_CHARS = 8;
@@ -88,10 +88,10 @@ function wrapBriefLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
 }
 
 const PLAYER_SCREEN_X = 148;
-const RUN_SPEED = 4.85;
+const RUN_SPEED = 4.35;
 const GRAVITY = 0.58;
 const JUMP_VEL = -12.8;
-const COYOTE_MS = 110;
+const COYOTE_MS = 140;
 
 /** Hand-built platform course — gaps are intentional pits. */
 const PLATFORM_PLATS: Plat[] = [
@@ -443,6 +443,10 @@ export class DemplarWarrior {
   tetris = new KnightTetris();
   drMario = new KnightDrMario();
 
+  /** Mobile: double-tap center within this window = hard drop. */
+  private lastCenterTapMs = 0;
+  private softDropTouch = false;
+
   result: DemplarRunResult = { total: 0, platform: 0, race: 0, asteroids: 0 };
 
   private briefLines = buildBriefLines(pickLine(warriorBriefLines));
@@ -607,25 +611,54 @@ export class DemplarWarrior {
     if (this.stage === "drmario") this.drMario.hardDrop();
   }
 
-  pointerDown(nx: number, _ny: number, w: number, _h: number) {
+  pointerDown(nx: number, ny: number, w: number, h: number) {
     if (this.stage === "platform") {
       this.jump();
       return;
     }
     if (this.stage === "tetris" || this.stage === "drmario") {
-      if (nx < w * 0.33) this.steer(-1);
-      else if (nx > w * 0.66) this.steer(1);
-      else this.jump();
+      if (ny >= h * 0.72) {
+        this.softDropTouch = true;
+        this.boost(true);
+        return;
+      }
+      if (nx < w * 0.33) {
+        this.steer(-1);
+        return;
+      }
+      if (nx > w * 0.66) {
+        this.steer(1);
+        return;
+      }
+      const now = performance.now();
+      if (now - this.lastCenterTapMs < 340) {
+        this.hardDrop();
+        this.lastCenterTapMs = 0;
+      } else {
+        this.lastCenterTapMs = now;
+        this.jump();
+      }
     }
   }
 
   pointerUp() {
     this.releaseJump();
-    this.boost(false);
+    if (this.softDropTouch) {
+      this.softDropTouch = false;
+      this.boost(false);
+    }
   }
 
-  pointerMove(_nx: number, _ny: number, _w: number, _h: number) {
-    /* puzzle trials use tap zones */
+  pointerMove(_nx: number, ny: number, _w: number, h: number) {
+    if (this.stage !== "tetris" && this.stage !== "drmario") return;
+    const inDropZone = ny >= h * 0.72;
+    if (inDropZone && !this.softDropTouch) {
+      this.softDropTouch = true;
+      this.boost(true);
+    } else if (!inDropZone && this.softDropTouch) {
+      this.softDropTouch = false;
+      this.boost(false);
+    }
   }
 
   update(dt: number, now: number) {
@@ -677,8 +710,8 @@ export class DemplarWarrior {
   private respawnPlatform() {
     const p = this.platform;
     p.deaths += 1;
-    p.score = Math.max(0, p.score - 80);
-    p.x = Math.max(64, p.x - 180);
+    p.score = Math.max(0, p.score - 50);
+    p.x = Math.max(64, p.x - 120);
     p.y = 0;
     p.vy = 0;
   }
@@ -972,16 +1005,20 @@ export class DemplarWarrior {
   }
 
   private drawDone(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    ctx.fillStyle = "#e8b050";
-    ctx.font = `${Math.max(9, w * 0.018)}px "Press Start 2P", monospace`;
+    const titlePx = Math.max(22, Math.min(32, Math.floor(w * 0.062)));
+    const linePx = Math.max(18, Math.min(26, Math.floor(w * 0.048)));
+    const totalPx = Math.max(20, Math.min(28, Math.floor(w * 0.052)));
     ctx.textAlign = "center";
+    ctx.fillStyle = "#e8b050";
+    ctx.font = `${titlePx}px "VT323", monospace`;
     ctx.fillText("CHARTER TRIAL COMPLETE", w / 2, h * 0.34);
     ctx.fillStyle = "#f8f0ff";
-    ctx.font = `${Math.max(7, w * 0.011)}px "Press Start 2P", monospace`;
+    ctx.font = `${linePx}px "VT323", monospace`;
     ctx.fillText(`SPRINT ${this.result.platform}`, w / 2, h * 0.44);
     ctx.fillText(`TETRIS ${this.result.race}`, w / 2, h * 0.5);
     ctx.fillText(`DR MARIO ${this.result.asteroids}`, w / 2, h * 0.56);
     ctx.fillStyle = "#68e8a8";
+    ctx.font = `${totalPx}px "VT323", monospace`;
     ctx.fillText(`TOTAL ${this.result.total}`, w / 2, h * 0.64);
     ctx.textAlign = "left";
   }
@@ -990,10 +1027,10 @@ export class DemplarWarrior {
     if (this.stage === "brief") return "";
     if (this.stage === "platform") return "Sprint the Sargaano causeway — leap the veil pits to the Charter Gate";
     if (this.stage === "tetris") {
-      return `Stack ${this.tetris.lines} lines · level ${this.tetris.level} — A/D move, Space rotate, ↓ drop`;
+      return `Stack ${this.tetris.lines} lines · level ${this.tetris.level} — A/D move · Space rotate · ↓ drop · F slam`;
     }
     if (this.stage === "drmario") {
-      return `${this.drMario.virusesLeft} viruses left — match four to cure the veil`;
+      return `${this.drMario.virusesLeft} viruses left — match four · mobile: bottom=drop · dbl-tap center=slam`;
     }
     return "Demplar Warrior — three charter trials";
   }

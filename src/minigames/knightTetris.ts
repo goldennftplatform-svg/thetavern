@@ -234,7 +234,7 @@ export class KnightTetris {
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP", w / 2, h - 8);
+    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM", w / 2, h - 8);
     ctx.textAlign = "left";
   }
 

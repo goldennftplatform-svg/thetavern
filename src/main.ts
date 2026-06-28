@@ -1067,7 +1067,7 @@ function setPhase(next: GamePhase) {
       break;
   }
   hud();
-  drawWell();
+  if (state.phase !== "demplar_warrior") drawWell();
   syncWarriorShell();
   broadcastFishing(true);
   broadcastChance();

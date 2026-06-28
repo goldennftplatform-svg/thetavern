@@ -64,19 +64,21 @@ export class KnightDrMario {
 
   private seedViruses() {
     let count = 0;
-    for (let y = ROWS - 7; y < ROWS; y++) {
+    for (let y = 4; y < ROWS - 2; y++) {
       for (let x = 0; x < COLS; x++) {
-        if (Math.random() < 0.28) {
+        const depth = (y - 4) / (ROWS - 6);
+        const chance = 0.1 + depth * 0.14;
+        if (Math.random() < chance) {
           const c = COLORS[Math.floor(Math.random() * 3)]!;
           this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
           count += 1;
         }
       }
     }
-    if (count < 8) {
-      for (let i = 0; i < 8 - count; i++) {
+    if (count < 10) {
+      for (let i = 0; i < 10 - count; i++) {
         const x = Math.floor(Math.random() * COLS);
-        const y = ROWS - 2 - Math.floor(Math.random() * 5);
+        const y = 5 + Math.floor(Math.random() * (ROWS - 8));
         if (!this.grid[y]![x]) {
           const c = COLORS[i % 3]!;
           this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
@@ -293,7 +295,7 @@ export class KnightDrMario {
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · CLEAR ALL VIRUSES", w / 2, h - 8);
+    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM · CLEAR VIRUSES", w / 2, h - 8);
     ctx.textAlign = "left";
   }
 
