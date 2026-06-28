@@ -230,7 +230,7 @@ function bumpTally(d: Deed) {
 function refreshLeaderboard() {
   const cap = isWallMode() ? LB_WALL : LB_DEFAULT;
   const rows = topLeaderboard(leaderboardRows, cap);
-  elLbNight.textContent = `Charter ${formatCharterDayLabel(hallDayId)} · resets 4am PT`;
+  elLbNight.textContent = `Tavern ${formatCharterDayLabel(hallDayId)} · resets 4am PT`;
 
   if (rows.length === 0) {
     elLeaderboard.innerHTML =
@@ -281,8 +281,8 @@ function refreshStats() {
 
   dockTally.textContent =
     hallTally.catches + hallTally.gambles + hallTally.feasts + hallTally.wisdom > 0
-      ? `Charter ${formatCharterDayLabel(hallDayId)} · ${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ★${hallTally.renown}${hallArchive.length > 0 ? ` · ${hallArchive.length} archived` : ""}`
-      : `Charter ${formatCharterDayLabel(hallDayId)} — quiet hall. Scores reset 4am PT.`;
+      ? `Tavern ${formatCharterDayLabel(hallDayId)} · ${hallTally.catches} fish · ${hallTally.gambles} wagers (${hallTally.wins}W) · ★${hallTally.renown}${hallArchive.length > 0 ? ` · ${hallArchive.length} archived` : ""}`
+      : `Tavern ${formatCharterDayLabel(hallDayId)} — quiet hall. Scores reset 4am PT.`;
 }
 
 function countLiveActivity() {
@@ -846,7 +846,7 @@ function onPatrons(p: { patrons: { name: string }[] }) {
 
 function refreshCharterChrome() {
   const nightLabel = formatCharterDayLabel(hallDayId);
-  const charterText = `Charter ${nightLabel} · resets 4am PT`;
+  const charterText = `Tavern ${nightLabel} · resets 4am PT`;
   elCharterNight.textContent = charterText;
   elMapCharterNight.textContent = charterText;
   mapTheme = { ...mapTheme, charterNight: nightLabel, crest: loadedTheme?.images.crest ?? null };

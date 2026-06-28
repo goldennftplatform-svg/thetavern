@@ -146,10 +146,10 @@ export const triviaWell = [
 ];
 
 export const demplarNotice =
-  "⚔ Rim notice: Knights Demplar keep their Herald's ink on @DemplarOfficial — this tavern on their land reckons casts before dawn, not charter deeds.";
+  "⚔ Rim notice: this is the Moonwell Tavern — fish, feast, cards, arcade. Neighbor lore posts on @DemplarOfficial; we don't speak for them.";
 
 export const demplarModalIntro =
-  "We are a tavern on Demplarverse land—not Knights Demplar, not their Herald. Demplar isn't a realm; it's a reckoning elsewhere on X. Where shadow breathes and time fractures, their missives drift to our wall; Planet Sargaano bleeds through our planks; Corsus crossed the desert once in legend we borrow for trial night. knightsdemplar.com and @DemplarOfficial are theirs. No purse required to fish here.";
+  "The Moonwell Tavern — anglers, degens, and anyone with a name. Fish the well, eat, play cards, or hit the back-room arcade. We sit on Demplarverse land and sometimes borrow their scenery for trial night; @DemplarOfficial and knightsdemplar.com are theirs, not ours. No purse required to cast.";
 
 export const creditsLine =
-  "Moonwell Anglers — rim tavern for anglers and legend-spinners. Neighbor lore: Demplar on X.";
+  "Moonwell Tavern — fish, renown, and back-room arcade. Neighbor lore on X.";

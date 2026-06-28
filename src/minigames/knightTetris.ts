@@ -271,7 +271,7 @@ export class KnightTetris {
     ctx.fillStyle = "#68e8a8";
     ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("II · CHARTER STACK", w / 2, oy - 10);
+    ctx.fillText("II · STACK ATTACK", w / 2, oy - 10);
     ctx.textAlign = "left";
 
     const flash = this.flashMs > 0 ? this.flashMs / 140 : 0;

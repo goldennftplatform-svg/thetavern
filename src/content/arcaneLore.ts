@@ -82,7 +82,7 @@ export const noticeBoardArcane = [
   "Lost: one familiar-shaped shadow. Answers to nothing. Reward: peanuts.",
   "Tonight's special: courage, served hot. Side of pretzel.",
   "The Moonwell deck favors evens. Doubled faces. No odd pips—house superstition.",
-  "Charter ally Demplar keeps their lamps on X — we keep ours at the Moonwell.",
+  "Neighbor lore on X — our lamps are at the Moonwell.",
   "Duels of wit: loser buys bait. Winner buys the story.",
 ];
 

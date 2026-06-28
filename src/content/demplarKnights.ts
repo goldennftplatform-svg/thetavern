@@ -1,94 +1,94 @@
-/** Demplarverse neighbor lore — tavern games & relay voice. Knights Demplar live on X (@DemplarOfficial); we are not them. */
+/** Neighbor lore on X — this file feeds tavern voice. We are the Moonwell Tavern, not Knights Demplar. */
 
 export const demplarEpigraphs = [
-  "Demplar isn't a realm. It's a reckoning — and we hear it from the rim.",
-  "Where shadow breathes, time fractures, and legends ignite — mostly on X, sometimes through our planks.",
-  "Sargaano bleeds through tavern floorboards when the moon is thin.",
-  "The Old Man tolls elsewhere; here the Moonwell tolls for anglers, not charter knights.",
+  "Pull up a chair — the well is open, the arcade is loud, the fish don't care who you are.",
+  "Moonlit water, honest casts, and three arcade trials when you're bored of waiting for a bite.",
+  "Neighbor legends drift in from X; we borrow the scenery and run our own scoreboard.",
+  "This is a tavern. Fish, feast, cards, and the arcade in the back room.",
 ];
 
 export const knightHallWhispers = [
-  "⚔ Crossed blades over the well — tavern chalk still wet from last night's reckoning.",
-  "Tapestry threads show Corsus crossing desert sand — trial night borrows their legend.",
-  "The Codex sleeps on X; Demplar's Herald does not. @DemplarOfficial keeps those lamps.",
-  "Shattered echoes wander the veil — riddles through forgotten eras we only overhear.",
-  "Planet Sargaano bleeds through the planks when the moon is thin.",
-  "Knights of Degen fought for meme culture; Moonwell patrons fight for the strike.",
-  "Intercepting frequency… grapefruit for liver, charter for the soul — not our broadcast.",
+  "⚔ Crossed swords above the well mean arcade night — fish first if you're shy.",
+  "Tapestry threads show a desert sprint — borrowed set dressing for trial one.",
+  "Someone on X keeps posting epic lore; we keep posting who caught what.",
+  "The back-room cabinet glows green — stack attack, then pill puzzle, then back to the bar.",
+  "Planet Sargaano is a mood, not a membership card.",
+  "Degens and anglers share one table. Only the fish know your house.",
+  "House rule: we don't claim their charter. We claim the strike window.",
   "Valenplar Ball candles gutter; tavern night favors honest casts.",
 ];
 
 export const knightGateLines = [
   "Bind thy name — the tavern wall remembers anglers who dare cast.",
-  "This hall sits on Demplarverse land: moonlit well, knightly tables, honest renown. We are not the charter.",
-  "Atlantis narrates on Spaces; thou narratest with wrist and reel at the rim.",
+  "The Moonwell Tavern: moonlit well, arcade in back, renown on the wall.",
+  "Thou narratest with wrist and reel — not with a manifesto.",
 ];
 
 export const warriorTrialNames = {
-  platform: "I · Sargaano Sprint — knight platformer",
-  race: "II · Charter Stack — Tetris",
+  platform: "I · Desert Sprint — platformer",
+  race: "II · Stack Attack — Tetris",
   asteroids: "III · Veil Cure — Dr. Mario",
 } as const;
 
 export const warriorBriefLines = [
-  "Three tavern trials — speed is renown on our wall, not theirs.",
-  "Borrowed legend night: sprint, stack, and cure the veil on the training track.",
-  "Where shadow breathes, only the swift earn a boast at the bar.",
-  "Their desert lives on X — @DemplarOfficial reckons; we run the arcade.",
+  "Three tavern arcade trials — speed goes on our wall.",
+  "Borrowed scenery night: sprint, stack, cure the veil — then back to fishing.",
+  "The well can wait. The cabinet cannot.",
+  "Neighbor lore on X; the high scores are ours.",
 ];
 
 export const warriorCompleteLines = [
-  "The tavern wall chalks thy speed — Demplar's Herald never saw it.",
-  "Trial complete — Sargaano echoes approve the rim, not the Codex.",
+  "The tavern wall chalks thy run — back to the well when ready.",
+  "Arcade cleared — the bar approves.",
   "Even the degen table pretends not to stare. They fail.",
 ];
 
 export const demplarWarriorChronicles = [
-  "{angler} clears the tavern trials — {score} speed. The Moonwell wall remembers.",
-  "⚔ {angler} runs Sargaano, stacks the charter, cures the veil — {score} on our scoreboard.",
-  "Rim tavern: {angler} earns {score} on the borrowed Warrior track.",
-  "{angler} survives three trials where time fractures — {score} in tavern chalk.",
+  "{angler} clears the tavern arcade — {score} on our wall.",
+  "⚔ {angler} sprints, stacks, and cures the veil — {score} at the Moonwell.",
+  "Rim tavern: {angler} earns {score} on the back-room track.",
+  "{angler} survives three arcade trials — {score} in tavern chalk.",
 ];
 
 export const demplarWarriorSubtexts = [
   "Run {platform} · Tetris {race} · Dr Mario {asteroids}",
-  "Training grounds favor the bold — tavern night keeps the score.",
-  "Arcade mode at the rim: speed over story, renown over doubt.",
+  "Back-room cabinet favors the bold — tavern night keeps the score.",
+  "Arcade at the rim: speed over story, renown over doubt.",
 ];
 
 export const knightNoticeBoard = [
-  "Rim notice: crossed swords above the well mean trial night — fish or face the Warrior arcade.",
-  "Official adventures post on @DemplarOfficial — here we fish live at the Great Table.",
-  "The Rim Academy adjourns; this tavern convocates by candle and mist.",
-  "Their land claims are elsewhere — tonight claim only the strike window.",
+  "Rim notice: arcade cabinet lit — fish or play the back-room trials.",
+  "Neighbor adventures post on @DemplarOfficial — here we fish live at the Great Table.",
+  "House rule: we relay their lore, we don't speak for them.",
+  "Tonight claim only the strike window — and maybe the high score.",
 ];
 
 export const bigboardHeadlines = [
   "Tavern Chronicle",
   "Moonwell Ledger",
-  "Rim Convocation",
-  "Overheard from Demplar's Herald",
+  "Great Table",
+  "Overheard at the bar",
 ];
 
 export const bigboardMoodLines: Record<string, string> = {
-  quiet: "Shadow breathes — the tavern waits; Sargaano whispers through the planks",
-  gathering: "Patrons pull up chairs · our lamps steady, their Herald elsewhere",
-  live: "⚔ Someone trials the well",
-  chronicle: "Relay from X — Demplar reckons; we inscribe tavern deeds",
-  celebration: "Legends ignite at the bar — the Codex never notices",
+  quiet: "Shadow breathes — the tavern waits; someone should cast.",
+  gathering: "Patrons pull up chairs · lamps low, well bright",
+  live: "⚔ Someone is at the well or the arcade",
+  chronicle: "Tavern deed posted — neighbor lore stays on X",
+  celebration: "Legends ignite at the bar — the wall remembers",
 };
 
 export const bigboardSpotlightKickers = [
-  "Overheard from @DemplarOfficial…",
-  "Tavern chalk flows — rim adjacency, not charter ink",
-  "Planet Sargaano listens through the floorboards…",
-  "Where time fractures, the Moonwell remembers anglers",
+  "Overheard at the Moonwell…",
+  "Tavern chalk flows — our wall, our scores",
+  "The back-room cabinet hums…",
+  "Where the well ripples, the tavern remembers anglers",
 ];
 
 export const bigboardFeedHints: Record<string, string> = {
-  quiet: "Pull up a chair — Demplarverse echoes reach this tavern, we do not speak for them.",
-  gathering: "Tales arrive one at a time — tavern rules, neighbor lore.",
+  quiet: "Pull up a chair — this is a tavern, not a crusade.",
+  gathering: "Tales arrive one at a time — house rules apply.",
   live: "Watch the Great Table — an angler is playing.",
-  chronicle: "Hold — we relay a deed; their Herald tells other stories on X.",
+  chronicle: "Hold — we inscribe a tavern deed.",
   celebration: "Tonight the tavern wall will remember.",
 };

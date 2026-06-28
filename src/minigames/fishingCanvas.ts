@@ -49,7 +49,7 @@ function drawKnightHeraldry(ctx2d: CanvasRenderingContext2D, w: number, h: numbe
   ctx2d.fillStyle = `rgba(200, 160, 80, ${0.12 + shimmer * 0.08})`;
   ctx2d.font = '6px "Press Start 2P", monospace';
   ctx2d.textAlign = "center";
-  ctx2d.fillText("DEMPLAR CHARTER", w / 2, groundY - 52);
+  ctx2d.fillText("MOONWELL TAVERN", w / 2, groundY - 52);
   ctx2d.textAlign = "left";
 
   ctx2d.strokeStyle = `rgba(152, 144, 200, ${0.35 + shimmer * 0.2})`;

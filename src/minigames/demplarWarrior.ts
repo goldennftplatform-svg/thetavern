@@ -66,10 +66,10 @@ function warriorHintFont(w: number): string {
 
 function buildBriefLines(lore: string): BriefLine[] {
   return [
-    { text: "DEMPLAR WARRIOR", color: "#e8b050", fontScale: 1.18, title: true },
+    { text: "TAVERN ARCADE", color: "#e8b050", fontScale: 1.18, title: true },
     { text: lore, color: "#d8e4f8", fontScale: 1.05 },
-    { text: "SPRINT · STACK · CURE THE VEIL", color: "#78d0b8", fontScale: 1 },
-    { text: "REACH THE GATE", color: "#e8b050", fontScale: 1 },
+    { text: "SPRINT · STACK · CURE", color: "#78d0b8", fontScale: 1 },
+    { text: "BACK-ROOM TRIALS", color: "#e8b050", fontScale: 1 },
   ];
 }
 
@@ -416,7 +416,7 @@ function drawCharterGate(ctx: CanvasRenderingContext2D, gx: number, groundY: num
   ctx.font = '10px "VT323", monospace';
   ctx.fillStyle = SARGAANO.gold;
   ctx.textAlign = "center";
-  ctx.fillText("CHARTER", gx + 8, groundY - 98);
+  ctx.fillText("FINISH", gx + 8, groundY - 98);
   ctx.fillText("GATE", gx + 8, groundY - 86);
   ctx.textAlign = "left";
 }
@@ -424,7 +424,7 @@ function drawCharterGate(ctx: CanvasRenderingContext2D, gx: number, groundY: num
 export class DemplarWarrior {
   stage: DemplarStage = "brief";
   stageStarted = 0;
-  banner = "DEMPLAR WARRIOR";
+  banner = "TAVERN ARCADE";
   subBanner = warriorTrialNames.platform;
   done = false;
 
@@ -565,10 +565,10 @@ export class DemplarWarrior {
       this.tetris.reset();
       this.stageBreak = {
         title: "TRIAL II",
-        subtitle: "CHARTER STACK · TETRIS",
+        subtitle: "STACK ATTACK · TETRIS",
         until: now + STAGE_BREAK_MS,
       };
-      this.banner = "CHARTER STACK";
+      this.banner = "STACK ATTACK";
     } else if (next === "drmario") {
       this.result.race = Math.max(0, this.tetris.score);
       this.subBanner = warriorTrialNames.asteroids;
@@ -585,7 +585,7 @@ export class DemplarWarrior {
       this.result.platform = Math.max(0, this.result.platform);
       this.result.total = this.result.platform + this.result.race + this.result.asteroids;
       this.done = true;
-      this.banner = "CHARTER TRIALS SEALED";
+      this.banner = "ARCADE CLEARED";
       this.subBanner = `Total ${this.result.total}`;
       this.stageBreak = null;
     }
@@ -1180,7 +1180,7 @@ export class DemplarWarrior {
     ctx.textAlign = "center";
     ctx.fillStyle = "#e8b050";
     ctx.font = `${titlePx}px "VT323", monospace`;
-    ctx.fillText("CHARTER TRIAL COMPLETE", w / 2, h * 0.34);
+    ctx.fillText("ARCADE RUN COMPLETE", w / 2, h * 0.34);
     ctx.fillStyle = "#f8f0ff";
     ctx.font = `${linePx}px "VT323", monospace`;
     ctx.fillText(`SPRINT ${this.result.platform}`, w / 2, h * 0.44);
@@ -1194,14 +1194,14 @@ export class DemplarWarrior {
 
   hint(): string {
     if (this.stage === "brief") return "";
-    if (this.stage === "platform") return "Sprint the Sargaano causeway — leap the veil pits to the Charter Gate";
+    if (this.stage === "platform") return "Sprint the causeway — leap the pits to the finish gate";
     if (this.stage === "tetris") {
       return `35s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure / Dr Mario`;
     }
     if (this.stage === "drmario") {
       return `${this.drMario.virusesLeft} viruses left — match 4 · pills cure the veil`;
     }
-    return "Demplar Warrior — three charter trials";
+    return "Tavern arcade — three back-room trials";
   }
 }
 

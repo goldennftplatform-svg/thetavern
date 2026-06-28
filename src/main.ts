@@ -326,8 +326,8 @@ function updateGateRecall() {
   const title =
     peek.titles.length > 0 ? peek.titles[peek.titles.length - 1]! : "returning angler";
   const archiveBit =
-    peek.archiveCount > 0 ? ` · ${peek.archiveCount} charter nights archived` : "";
-  elGateRecall.textContent = `Welcome back, ${peek.nickname} — charter ${peek.charterNight}: ★${peek.renown} · ◎${peek.tokens} · ${peek.catalogSize} codex · ${title}${archiveBit}`;
+    peek.archiveCount > 0 ? ` · ${peek.archiveCount} tavern nights archived` : "";
+  elGateRecall.textContent = `Welcome back, ${peek.nickname} — tavern night ${peek.charterNight}: ★${peek.renown} · ◎${peek.tokens} · ${peek.catalogSize} codex · ${title}${archiveBit}`;
   elGateRecall.hidden = false;
 }
 
@@ -843,8 +843,8 @@ function finishDemplarRun() {
   if (!state.demplarBest || result.total > state.demplarBest) {
     state.demplarBest = result.total;
   }
-  if (result.total >= 2500 && !state.titles.includes("Demplar Warrior")) {
-    state.titles.push("Demplar Warrior");
+  if (result.total >= 2500 && !state.titles.includes("Arcade Ace")) {
+    state.titles.push("Arcade Ace");
   }
   const { chronicle, subtext } = composeDemplarDeed(
     state.nickname,
@@ -1149,8 +1149,8 @@ function finishReel(good: number, total: number) {
     addRenown(state.lastCatch.renown);
     state.tokens += state.lastCatch.tokens;
     state.catalog.add(result.fishId);
-    if (result.rarity === "mythic" && !state.titles.includes("Charter Angler")) {
-      state.titles.push("Charter Angler");
+    if (result.rarity === "mythic" && !state.titles.includes("Moonwell Legend")) {
+      state.titles.push("Moonwell Legend");
     }
     if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) {
       state.titles.push("Omen Reader");
@@ -1459,7 +1459,7 @@ async function startGameFromGate() {
     setPhase("well");
     if (peek) {
       showToast(
-        `Charter ${formatCharterDayLabel(charterDayId())} — ★${state.renown} renown · ◎${state.tokens} tokens`,
+        `Tavern ${formatCharterDayLabel(charterDayId())} — ★${state.renown} renown · ◎${state.tokens} tokens`,
         5200,
       );
     }

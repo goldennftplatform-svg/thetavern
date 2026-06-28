@@ -64,14 +64,14 @@ export function hubWellHtml(
   return studioStageHtml(
     "The Moonwell",
     `${scoreboardHtml(s)}
-    <p class="studio-charter-night">Charter night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
+    <p class="studio-charter-night">Tavern night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
     <p class="studio-night">${escapeHtml(nightTitle)}</p>
     <p class="studio-lore-line">${escapeHtml(nightTagline)}</p>
     <p class="studio-lore-line studio-lore-line--verse">${escapeHtml(s.seasonVerse)}</p>
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(s.seasonNote)}</p>
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("🎣", "Cast", "fish", "gold")}
-      ${hubTileHtml("⚔", "Warrior", "demplar_warrior", "gold")}
+      ${hubTileHtml("🕹", "Arcade", "demplar_warrior", "gold")}
       ${hubTileHtml("🃏", "Cards", "chance_menu", "jade")}
       ${hubTileHtml("🍖", "Eat", "feast_menu", "jade")}
     </div>
@@ -80,7 +80,7 @@ export function hubWellHtml(
     <div class="studio-hub-footer">
       <button type="button" class="btn ghost studio-link-btn studio-link-btn--hall" data-hub-action="hall_view">📺 Hall view</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="ledger">Ledger &amp; lore</button>
-      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X ↓</button>
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Neighbor lore on X ↓</button>
       <button type="button" class="btn ghost studio-link-btn" data-hub-action="charter">Rim notice</button>
     </div>`,
   );
@@ -169,12 +169,12 @@ export function demplarResultStudioHtml(
 ): string {
   const bestLine =
     best != null
-      ? `<p class="studio-lore-line studio-lore-line--hint">Charter best: ${best}</p>`
+      ? `<p class="studio-lore-line studio-lore-line--hint">Tavern best: ${best}</p>`
       : "";
   return studioStageHtml(
-    "Demplar Warrior",
+    "Tavern Arcade",
     `<p class="studio-flourish">${escapeHtml(pickLine(warriorCompleteLines))}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Knights of the ancient charter — three trials sealed.</p>
+    <p class="studio-lore-line studio-lore-line--hint">Three back-room trials — scores on the tavern wall.</p>
     <div class="studio-scoreboard studio-scoreboard--demplar">
       <span class="studio-stat"><em>I</em> ${r.platform} <small>Run</small></span>
       <span class="studio-stat"><em>II</em> ${r.race} <small>Tetris</small></span>
@@ -234,9 +234,9 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
     : "Empty chairs — enter a name and cast to appear at the Great Table";
 
   return studioStageHtml(
-    "Charter hall",
+    "Tavern hall",
     `<p class="${liveCls}" role="status"><span class="mobile-hall-live-dot" aria-hidden="true"></span> ${liveLabel}</p>
-    <p class="studio-charter-night">Charter ${escapeHtml(hall.charterNight)} <small>· resets 4am PT</small></p>
+    <p class="studio-charter-night">Tavern night ${escapeHtml(hall.charterNight)} <small>· resets 4am PT</small></p>
     <p class="mobile-hall-patrons"><strong>At the table</strong> ${patrons}</p>
     <section class="mobile-hall-block" aria-labelledby="mobile-hall-lb-title">
       <h3 id="mobile-hall-lb-title" class="mobile-hall-block-title">Leaderboard</h3>
