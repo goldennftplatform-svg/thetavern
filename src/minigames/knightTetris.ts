@@ -24,7 +24,8 @@ const LOCK_DELAY_MS = 60;
 const BASE_GRAVITY_MS = 480;
 const MIN_GRAVITY_MS = 140;
 const SOFT_DROP_MS = 42;
-export const TETRIS_WIN_LINES = 10;
+export const TETRIS_WIN_LINES = 6;
+export const TETRIS_MAX_PIECES = 14;
 
 type ActivePiece = {
   shape: number;
@@ -47,6 +48,7 @@ export class KnightTetris {
   score = 0;
   lines = 0;
   level = 1;
+  piecesLocked = 0;
   gameOver = false;
   finished = false;
 
@@ -63,6 +65,7 @@ export class KnightTetris {
     this.score = 0;
     this.lines = 0;
     this.level = 1;
+    this.piecesLocked = 0;
     this.gameOver = false;
     this.finished = false;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(-1) as (TetrisColor | -1)[]);
@@ -166,6 +169,11 @@ export class KnightTetris {
     this.lockPiece(true);
   }
 
+  freeze() {
+    this.active = null;
+    this.softDrop = false;
+  }
+
   private lockPiece(fromSlam = false) {
     const p = this.active;
     if (!p) return;
@@ -173,8 +181,13 @@ export class KnightTetris {
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) this.grid[y]![x] = p.color;
     }
     this.active = null;
+    this.piecesLocked += 1;
     this.clearLines();
-    if (this.gameOver) return;
+    if (this.gameOver || this.finished) return;
+    if (this.piecesLocked >= TETRIS_MAX_PIECES || this.lines >= TETRIS_WIN_LINES) {
+      this.finished = true;
+      return;
+    }
     this.spawn(fromSlam);
   }
 

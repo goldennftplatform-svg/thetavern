@@ -300,6 +300,7 @@ let biteOpenTimer = 0;
 let saveTimer = 0;
 let demplarGame: DemplarWarrior | null = null;
 let demplarRaf = 0;
+let warriorFailsafeTimer = 0;
 let lastDemplarT = 0;
 let demplarLastRewards = { renown: 0, tokens: 0 };
 let demplarLastResult: DemplarRunResult | null = null;
@@ -822,6 +823,10 @@ function drawDemplar() {
 function stopDemplarLoop() {
   window.cancelAnimationFrame(demplarRaf);
   demplarRaf = 0;
+  if (warriorFailsafeTimer) {
+    window.clearInterval(warriorFailsafeTimer);
+    warriorFailsafeTimer = 0;
+  }
 }
 
 function finishDemplarRun() {
@@ -886,6 +891,19 @@ function startDemplarLoop() {
     demplarRaf = requestAnimationFrame(tick);
   };
   demplarRaf = requestAnimationFrame(tick);
+
+  if (warriorFailsafeTimer) window.clearInterval(warriorFailsafeTimer);
+  warriorFailsafeTimer = window.setInterval(() => {
+    if (state.phase !== "demplar_warrior" || !demplarGame) {
+      stopDemplarLoop();
+      return;
+    }
+    const now = performance.now();
+    demplarGame.update(0, now);
+    syncWarriorShell();
+    drawDemplar();
+    if (demplarGame.done) finishDemplarRun();
+  }, 1000);
 }
 
 function startDemplarWarrior() {

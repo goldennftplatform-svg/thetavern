@@ -10,7 +10,7 @@ import { pickLine } from "../content/arcaneLore";
 import { playWarriorImpact } from "../audio/warriorSfx";
 import { drawKnightPlatformer, drawKnightPortrait } from "../sprites/knightSprite";
 import { KnightDrMario } from "./knightDrMario";
-import { KnightTetris, TETRIS_WIN_LINES } from "./knightTetris";
+import { KnightTetris, TETRIS_MAX_PIECES, TETRIS_WIN_LINES } from "./knightTetris";
 
 export type DemplarStage = "brief" | "platform" | "tetris" | "drmario" | "done";
 
@@ -27,12 +27,12 @@ type Plat = { x: number; y: number; w: number; h: number };
 const STAGE_MS = {
   brief: 2800,
   platform: 48_000,
-  tetris: 50_000,
+  tetris: 35_000,
   drmario: 75_000,
 } as const;
 
-const STAGE_BREAK_MS = 2800;
-const TETRIS_HANDOFF_MS = 2800;
+const STAGE_BREAK_MS = 1800;
+const TETRIS_HANDOFF_MS = 2400;
 
 const BRIEF_CHUNK_CHARS = 8;
 const BRIEF_LINE_STAGGER_MS = 680;
@@ -454,6 +454,8 @@ export class DemplarWarrior {
   private stageBreak: { title: string; subtitle: string; until: number } | null = null;
   /** After Tetris ends, freeze + overlay before Dr Mario. */
   private tetrisHandoffAt = 0;
+  /** Wall-clock ms when Tetris MUST end — set when play actually starts. */
+  private tetrisDeadline = 0;
 
   result: DemplarRunResult = { total: 0, platform: 0, race: 0, asteroids: 0 };
 
@@ -559,6 +561,7 @@ export class DemplarWarrior {
       this.result.platform = Math.max(0, this.platform.score);
       this.subBanner = warriorTrialNames.race;
       this.tetrisHandoffAt = 0;
+      this.tetrisDeadline = 0;
       this.tetris.reset();
       this.stageBreak = {
         title: "TRIAL II",
@@ -598,20 +601,54 @@ export class DemplarWarrior {
   private endTetrisTrial(now: number) {
     if (this.stage !== "tetris" || this.tetrisHandoffAt > 0) return;
     this.tetris.finished = true;
+    this.tetris.freeze();
     this.result.race = Math.max(0, this.tetris.score);
     this.tetrisHandoffAt = now + TETRIS_HANDOFF_MS;
+    this.tetrisDeadline = 0;
     this.stageBreak = {
       title: "TRIAL II — COMPLETE",
-      subtitle: `STACK ${this.result.race} · NEXT: VEIL CURE / DR MARIO`,
+      subtitle: `STACK ${this.result.race} · DR MARIO NEXT`,
       until: now + TETRIS_HANDOFF_MS,
     };
     this.banner = "TRIAL II SEALED";
-    this.subBanner = "Entering Veil Cure…";
+    this.subBanner = "Veil Cure loading…";
     playWarriorImpact(1.15);
+  }
+
+  private skipTetrisIntro(now: number) {
+    if (this.stage !== "tetris" || !this.stageBreak) return;
+    this.stageBreak = null;
+    if (this.tetrisDeadline === 0) this.tetrisDeadline = now + STAGE_MS.tetris;
+  }
+
+  private armTetrisDeadline(now: number) {
+    if (this.stage !== "tetris" || this.tetrisDeadline > 0 || this.inStageBreak(now)) return;
+    this.tetrisDeadline = now + STAGE_MS.tetris;
+  }
+
+  /** Checked every frame before anything can block the handoff. */
+  private mustEndTetris(now: number): boolean {
+    if (this.stage !== "tetris" || this.tetrisHandoffAt > 0) return false;
+    if (this.inStageBreak(now)) return false;
+    this.armTetrisDeadline(now);
+    if (this.tetrisDeadline > 0 && now >= this.tetrisDeadline) return true;
+    if (this.tetris.finished || this.tetris.gameOver) return true;
+    if (this.tetris.lines >= TETRIS_WIN_LINES) return true;
+    if (this.tetris.piecesLocked >= TETRIS_MAX_PIECES) return true;
+    return false;
+  }
+
+  tetrisSecondsLeft(now: number): number {
+    if (this.tetrisDeadline <= 0) return STAGE_MS.tetris / 1000;
+    return Math.max(0, (this.tetrisDeadline - now) / 1000);
   }
 
   jump() {
     const now = performance.now();
+    if (this.stage === "tetris" && this.inStageBreak(now)) {
+      this.skipTetrisIntro(now);
+      return;
+    }
     if (this.tetrisHandoffAt > 0 || this.inStageBreak(now)) return;
     if (this.stage === "platform") {
       this.jumpHeld = true;
@@ -660,7 +697,12 @@ export class DemplarWarrior {
   }
 
   pointerDown(nx: number, ny: number, w: number, h: number) {
-    if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    const now = performance.now();
+    if (this.stage === "tetris" && this.inStageBreak(now)) {
+      this.skipTetrisIntro(now);
+      return;
+    }
+    if (this.tetrisHandoffAt > 0 || this.inStageBreak(now)) return;
     if (this.stage === "platform") {
       this.jump();
       return;
@@ -722,10 +764,18 @@ export class DemplarWarrior {
       return;
     }
 
+    if (this.mustEndTetris(now)) {
+      this.endTetrisTrial(now);
+      return;
+    }
+
     const elapsed = this.stageElapsed(now);
 
     if (this.stageBreak && now < this.stageBreak.until) return;
-    if (this.stageBreak && now >= this.stageBreak.until) this.stageBreak = null;
+    if (this.stageBreak && now >= this.stageBreak.until) {
+      this.stageBreak = null;
+      if (this.stage === "tetris") this.armTetrisDeadline(now);
+    }
 
     if (this.stage === "brief") {
       this.tickBriefImpacts(elapsed, this.briefDisplayLines);
@@ -832,15 +882,8 @@ export class DemplarWarrior {
   }
 
   private tickTetris(dt: number, elapsed: number, now: number) {
-    if (this.tetrisHandoffAt > 0) return;
-    if (this.tetris.finished) {
-      this.endTetrisTrial(now);
-      return;
-    }
-    const ended = this.tetris.update(dt, elapsed, STAGE_MS.tetris);
-    if (ended || elapsed >= STAGE_MS.tetris) {
-      this.endTetrisTrial(now);
-    }
+    if (this.tetrisHandoffAt > 0 || this.mustEndTetris(now)) return;
+    this.tetris.update(dt, elapsed, STAGE_MS.tetris);
   }
 
   private tickDrMario(dt: number, elapsed: number, now: number) {
@@ -861,13 +904,39 @@ export class DemplarWarrior {
 
     this.drawHud(ctx, w, h, now);
     if (this.stage === "platform") this.drawPlatform(ctx, w, h, now);
-    else if (this.stage === "tetris") this.tetris.draw(ctx, w, h, WARRIOR_HUD_H);
+    else if (this.stage === "tetris") {
+      this.tetris.draw(ctx, w, h, WARRIOR_HUD_H);
+      this.drawTetrisTimer(ctx, w, h, now);
+    }
     else if (this.stage === "drmario") this.drMario.draw(ctx, w, h, WARRIOR_HUD_H);
     else this.drawDone(ctx, w, h);
 
     if (this.stageBreak && now < this.stageBreak.until) {
       this.drawStageBreak(ctx, w, h, now);
     }
+  }
+
+  private drawTetrisTimer(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
+    if (this.tetrisHandoffAt > 0 || this.inStageBreak(now)) return;
+    const left = this.tetrisSecondsLeft(now);
+    const pct = Math.max(0, Math.min(1, left / (STAGE_MS.tetris / 1000)));
+    const barY = WARRIOR_HUD_H + 4;
+    const barW = w - 24;
+    ctx.fillStyle = "#1a1420";
+    ctx.fillRect(12, barY, barW, 10);
+    ctx.fillStyle = left <= 5 ? "#e87850" : "#68e8a8";
+    ctx.fillRect(12, barY, barW * pct, 10);
+    ctx.strokeStyle = "#e8b050";
+    ctx.strokeRect(12, barY, barW, 10);
+    ctx.fillStyle = left <= 5 ? "#ffb898" : "#f8f0ff";
+    ctx.font = `${Math.max(14, Math.floor(w * 0.036))}px "VT323", monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then DR MARIO`,
+      w / 2,
+      barY + 24,
+    );
+    ctx.textAlign = "left";
   }
 
   private drawStageBreak(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
@@ -1127,7 +1196,7 @@ export class DemplarWarrior {
     if (this.stage === "brief") return "";
     if (this.stage === "platform") return "Sprint the Sargaano causeway — leap the veil pits to the Charter Gate";
     if (this.stage === "tetris") {
-      return `Stack ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · slam fast — trial ends at ${TETRIS_WIN_LINES} lines or timer`;
+      return `35s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure / Dr Mario`;
     }
     if (this.stage === "drmario") {
       return `${this.drMario.virusesLeft} viruses left — match 4 · pills cure the veil`;

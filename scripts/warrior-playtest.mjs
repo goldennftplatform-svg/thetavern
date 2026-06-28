@@ -112,12 +112,12 @@ async function run() {
     throw new Error(`Tetris slam spawn too slow — piece y ${slamPace?.y0} → ${slamPace?.y1} after 90ms`);
   }
 
-  // Force tetris timer expiry → must hand off to Dr Mario
+  // Force tetris wall-clock deadline → must hand off to Dr Mario
   await page.evaluate(() => {
     const d = window.__tavernQA?.getDemplar?.();
     if (!d) throw new Error("no demplar");
-    d.stageStarted = performance.now() - 51_000;
-    for (let i = 0; i < 40; i++) d.update(16, performance.now());
+    d.tetrisDeadline = performance.now() - 1;
+    for (let i = 0; i < 60; i++) d.update(16, performance.now());
   });
   await page.waitForSelector("#play-shell[data-warrior-stage='drmario']", { timeout: 10000 });
 
