@@ -65,7 +65,7 @@ export function renderNightBanner(title: string, tagline: string, herald: string
 
 export function renderPlayingCard(
   c: MoonwellCard,
-  opts?: { face?: "up" | "down"; hero?: boolean },
+  opts?: { face?: "up" | "down"; hero?: boolean; neutral?: boolean; colorReveal?: boolean },
 ): string {
   const face = opts?.face ?? "up";
   const hero = opts?.hero ? " playing-card--hero" : "";
@@ -74,7 +74,12 @@ export function renderPlayingCard(
   }
   const rank = cardRankChar(c);
   const sym = MOONWELL_SUIT_SYMBOL[c.suit];
-  return `<div class="playing-card playing-card--${c.suit}${hero}" aria-label="${c.label}">
+  const mode = opts?.neutral
+    ? " playing-card--neutral"
+    : opts?.colorReveal
+      ? ` playing-card--color-${c.suit === "cups" || c.suit === "coins" ? "red" : "black"}`
+      : "";
+  return `<div class="playing-card playing-card--${c.suit}${mode}${hero}" aria-label="${c.label}">
     <div class="playing-card-corner playing-card-corner--tl">
       <span class="playing-card-rank">${rank}</span>
       <span class="playing-card-suit-sm">${sym}</span>
@@ -102,42 +107,6 @@ export function studioStageHtml(title: string, body: string, extraClass = ""): s
     <header class="studio-stage-head">${title}</header>
     <div class="studio-stage-body">${body}</div>
   </div>`;
-}
-
-export function chanceHighLowHtml(card: MoonwellCard): string {
-  return studioStageHtml(
-    "Hi-Lo",
-    `${renderPlayingCard(card, { hero: true })}
-    <p class="studio-stage-lead">Will the next card rank higher or lower?</p>
-    <div class="chance-actions chance-actions--studio" id="chance-actions">
-      <button type="button" class="btn studio-choice studio-choice--high" data-guess="high">
-        <span class="studio-choice-label">Higher</span>
-        <span class="studio-choice-hint">▲</span>
-      </button>
-      <button type="button" class="btn studio-choice studio-choice--low" data-guess="low">
-        <span class="studio-choice-label">Lower</span>
-        <span class="studio-choice-hint">▼</span>
-      </button>
-    </div>`,
-  );
-}
-
-export function chanceRedBlackHtml(): string {
-  return studioStageHtml(
-    "Red / Black",
-    `<div class="chance-card-back" aria-hidden="true">🂠</div>
-    <p class="studio-stage-lead">Call the color — then the card turns.</p>
-    <div class="chance-actions chance-actions--studio" id="chance-actions">
-      <button type="button" class="btn studio-choice studio-choice--red" data-guess="red">
-        <span class="studio-choice-label">Red</span>
-        <span class="studio-choice-hint">♥ ◆</span>
-      </button>
-      <button type="button" class="btn studio-choice studio-choice--black" data-guess="black">
-        <span class="studio-choice-label">Black</span>
-        <span class="studio-choice-hint">♣ ♠</span>
-      </button>
-    </div>`,
-  );
 }
 
 export function chancePickHtml(): string {

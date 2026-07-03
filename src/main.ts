@@ -42,6 +42,8 @@ import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
+  isChanceGameId,
+  isGuessForGame,
   resolveHighLow,
   resolveRedBlack,
   type ChanceGameId,
@@ -73,14 +75,14 @@ import {
 } from "./lore/xFeed";
 import { hallNoticeEntries, renderNoticeCardLi } from "./ui/notices";
 import {
-  chanceHighLowHtml,
-  chanceRedBlackHtml,
-  hubBackHtml,
-} from "./ui/tavernHub";
+  chanceHighLowPlayHtml,
+  chanceRedBlackPlayHtml,
+  chanceResultStudioHtml,
+} from "./ui/chanceScreens";
+import { hubBackHtml } from "./ui/tavernHub";
 import {
   catchResolveHtml,
   chancePickStudioHtml,
-  chanceResultStudioHtml,
   demplarResultStudioHtml,
   feastStudioHtml,
   hubWellHtml,
@@ -570,7 +572,9 @@ function ensureMenuClickDelegation() {
 
     const guess = btn.getAttribute("data-guess");
     if (guess) {
-      finishChance(guess as "high" | "low" | "red" | "black");
+      const gameAttr = btn.getAttribute("data-chance-game");
+      if (gameAttr && state.chanceGame && gameAttr !== state.chanceGame) return;
+      finishChance(guess);
       return;
     }
 
@@ -695,7 +699,11 @@ function handleHubAction(action: string) {
     return;
   }
   if (action.startsWith("chance:")) {
-    const id = action.slice(7) as ChanceGameId;
+    const id = action.slice(7);
+    if (!isChanceGameId(id)) {
+      setPhase("chance_pick");
+      return;
+    }
     startChanceGame(id);
     return;
   }
@@ -706,6 +714,10 @@ function handleHubAction(action: string) {
 }
 
 function startChanceGame(id: ChanceGameId) {
+  if (!isChanceGameId(id)) {
+    setPhase("chance_pick");
+    return;
+  }
   const game = CHANCE_GAMES.find((g) => g.id === id)!;
   if (state.tokens < game.stake) {
     openMenu(`${hubBackHtml()}`);
@@ -747,23 +759,30 @@ function buyFeast(id: FoodId) {
   setPhase("well");
 }
 
-function finishChance(guess: "high" | "low" | "red" | "black") {
-  const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
+function finishChance(guess: string) {
+  const gameId = state.chanceGame;
+  if (!gameId || !isChanceGameId(gameId)) {
+    setPhase("chance_pick");
+    return;
+  }
+  if (!isGuessForGame(gameId, guess)) return;
+
+  const game = CHANCE_GAMES.find((g) => g.id === gameId)!;
   if (state.tokens < game.stake) {
     setPhase("well");
     return;
   }
 
   let result;
-  if (state.chanceGame === "high_low") {
+  if (gameId === "high_low") {
     const first = state.chanceCards[0]!;
     const second = drawFromDeck(1)[0]!;
     state.chanceCards = [first, second];
-    result = resolveHighLow(game.stake, first, second, guess as "high" | "low");
+    result = resolveHighLow(game.stake, first, second, guess);
   } else {
     const drawn = drawFromDeck(1)[0]!;
     state.chanceCards = [drawn];
-    result = resolveRedBlack(game.stake, drawn, guess as "red" | "black");
+    result = resolveRedBlack(game.stake, drawn, guess);
   }
 
   state.tokens = Math.max(0, state.tokens + result.tokenDelta);
@@ -1045,12 +1064,18 @@ function setPhase(next: GamePhase) {
       wirePhaseHub();
       break;
     case "chance_play": {
-      if (state.chanceGame === "high_low") {
+      const gameId = state.chanceGame;
+      if (!gameId || !isChanceGameId(gameId)) {
+        setPhase("chance_pick");
+        break;
+      }
+      if (gameId === "high_low") {
         if (state.chanceCards.length === 0) state.chanceCards = drawFromDeck(1);
         const first = state.chanceCards[0]!;
-        openMenu(chanceHighLowHtml(first));
+        openMenu(chanceHighLowPlayHtml(first));
       } else {
-        openMenu(chanceRedBlackHtml());
+        state.chanceCards = [];
+        openMenu(chanceRedBlackPlayHtml());
       }
       showToast("");
       elPrimary.hidden = true;

@@ -2,9 +2,7 @@ import { warriorCompleteLines } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
-import type { ChanceResult } from "../minigames/chance";
 import type { DemplarRunResult } from "../minigames/demplarWarrior";
-import type { MoonwellCard } from "../minigames/moonwellDeck";
 import type { FoodId } from "../content/tavernNights";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
 import type { XLoreFeed } from "../lore/xFeed";
@@ -16,7 +14,6 @@ import {
   hubBackHtml,
   hubTableSeatHtml,
   hubTileHtml,
-  renderCardRow,
   studioStageHtml,
 } from "./tavernHub";
 import { type NoticeEntry, renderNoticeList } from "./notices";
@@ -173,19 +170,6 @@ export function triviaTeachHtml(teach: string): string {
   return studioStageHtml(
     "The well teaches",
     `<p class="studio-flourish">${escapeHtml(teach)}</p>
-    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
-  );
-}
-
-export function chanceResultStudioHtml(r: ChanceResult): string {
-  const cards = renderCardRow(r.cards, { hero: r.cards.length <= 2 });
-  const cls =
-    r.outcome === "win" ? "win" : r.outcome === "push" ? "push" : "lose";
-  return studioStageHtml(
-    r.title,
-    `<p class="studio-flourish studio-flourish--${cls}">${escapeHtml(r.detail)}</p>
-    ${cards}
-    <p class="studio-reward">${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎ · +${r.renownDelta} ★</p>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }

@@ -98,16 +98,39 @@ async function run() {
   }
   await page.waitForSelector("[data-hub-action='fish']", { timeout: 12000 });
 
-  // Cards flow smoke
+  // Cards flow smoke — Hi-Lo
   await page.click("[data-hub-action='chance_menu']");
   await page.waitForSelector("[data-hub-action='chance:high_low']", { timeout: 5000 });
   await page.click("[data-hub-action='chance:high_low']");
-  await page.waitForSelector("[data-guess='high']", { timeout: 5000 });
+  await page.waitForSelector("[data-guess='high'][data-chance-game='high_low']", { timeout: 5000 });
+  const hiloKicker = await page.locator(".chance-stage--hilo .chance-game-kicker").textContent();
+  if (!hiloKicker?.includes("Rank")) {
+    throw new Error(`Hi-Lo screen wrong: kicker=${hiloKicker}`);
+  }
   await page.click("[data-guess='high']");
   await page.waitForSelector("[data-continue='well']", { timeout: 5000 });
-  const resultMenuDisplay = await page.locator("#play-menu").evaluate((el) => getComputedStyle(el).display);
+  let resultMenuDisplay = await page.locator("#play-menu").evaluate((el) => getComputedStyle(el).display);
   if (resultMenuDisplay === "none") {
     throw new Error(`Chance result overlay hidden (display=${resultMenuDisplay})`);
+  }
+  await page.click("[data-continue='well']");
+  await page.waitForSelector("[data-hub-action='fish']", { timeout: 5000 });
+
+  // Red / Black
+  await page.click("[data-hub-action='chance_menu']");
+  await page.click("[data-hub-action='chance:red_black']");
+  await page.waitForSelector("[data-guess='red'][data-chance-game='red_black']", { timeout: 5000 });
+  const colorKicker = await page.locator(".chance-stage--color .chance-game-kicker").textContent();
+  if (!colorKicker?.includes("Color")) {
+    throw new Error(`Red/Black screen wrong: kicker=${colorKicker}`);
+  }
+  const faceDown = await page.locator(".chance-stage--color .playing-card--back").count();
+  if (faceDown < 1) throw new Error("Red/Black should show face-down card");
+  await page.click("[data-guess='red']");
+  await page.waitForSelector("[data-continue='well']", { timeout: 5000 });
+  resultMenuDisplay = await page.locator("#play-menu").evaluate((el) => getComputedStyle(el).display);
+  if (resultMenuDisplay === "none") {
+    throw new Error(`Red/Black result overlay hidden`);
   }
   await page.click("[data-continue='well']");
   await page.waitForSelector("[data-hub-action='fish']", { timeout: 5000 });

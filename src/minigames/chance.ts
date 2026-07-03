@@ -3,6 +3,28 @@ import { cardColor } from "./moonwellDeck";
 
 export type ChanceGameId = "high_low" | "red_black";
 
+export type HighLowGuess = "high" | "low";
+export type RedBlackGuess = "red" | "black";
+export type ChanceGuess = HighLowGuess | RedBlackGuess;
+
+export const HI_LO_RANK_LADDER = "2 · 4 · 6 · 8 · 10 · J · Q · K · A";
+
+export function isChanceGameId(id: string): id is ChanceGameId {
+  return id === "high_low" || id === "red_black";
+}
+
+export function isHighLowGuess(guess: string): guess is HighLowGuess {
+  return guess === "high" || guess === "low";
+}
+
+export function isRedBlackGuess(guess: string): guess is RedBlackGuess {
+  return guess === "red" || guess === "black";
+}
+
+export function isGuessForGame(game: ChanceGameId, guess: string): guess is ChanceGuess {
+  return game === "high_low" ? isHighLowGuess(guess) : isRedBlackGuess(guess);
+}
+
 export const CHANCE_GAMES: Array<{ id: ChanceGameId; name: string; blurb: string; stake: number }> = [
   {
     id: "high_low",
