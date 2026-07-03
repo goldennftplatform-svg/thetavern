@@ -57,7 +57,7 @@ export class KnightDrMario {
     this.seedViruses();
     this.pill = null;
     this.dropMs = 0;
-    this.gravityMs = this.mobileEase ? 900 : 720;
+    this.gravityMs = this.mobileEase ? 980 : 800;
     this.spawnPill();
   }
 
@@ -103,6 +103,7 @@ export class KnightDrMario {
 
   /** Board topped out — finish with partial credit instead of a punishing game over. */
   private endTrialBoardFull() {
+    this.pill = null;
     this.score += Math.max(0, 100 - this.virusesLeft * 12);
     this.score = Math.max(0, this.score);
     this.finished = true;
@@ -255,7 +256,7 @@ export class KnightDrMario {
   }
 
   update(dt: number, elapsed: number, timeLimitMs: number): boolean {
-    if (this.finished) return false;
+    if (this.finished) return true;
 
     if (elapsed >= timeLimitMs) {
       this.finishTrial(timeLimitMs, elapsed);

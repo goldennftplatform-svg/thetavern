@@ -727,16 +727,17 @@ export class DemplarWarrior {
 
   private tickDropRepeat(dt: number) {
     if (!this.dropHeld || this.stage !== "drmario") return;
-    if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    if (this.drMario.finished || this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
     this.dropRepeatMs += dt;
-    if (this.dropRepeatMs < 200) return;
-    this.dropRepeatMs -= 170;
+    if (this.dropRepeatMs < 260) return;
+    this.dropRepeatMs -= 230;
     this.drMario.stepDown();
   }
 
   boost(on: boolean) {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
     if (this.stage === "drmario") {
+      if (this.drMario.finished) return;
       if (on) {
         this.dropHeld = true;
         this.dropRepeatMs = 0;
@@ -752,6 +753,7 @@ export class DemplarWarrior {
 
   hardDrop() {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    if (this.stage === "drmario" && this.drMario.finished) return;
     if (this.stage === "tetris") this.tetris.hardDrop();
     if (this.stage === "drmario") this.drMario.hardDrop();
   }
@@ -972,7 +974,8 @@ export class DemplarWarrior {
   }
 
   private tickDrMario(dt: number, elapsed: number, now: number) {
-    if (this.drMario.update(dt, elapsed, STAGE_MS.drmario)) {
+    if (this.stage !== "drmario") return;
+    if (this.drMario.finished || this.drMario.update(dt, elapsed, STAGE_MS.drmario)) {
       this.advanceStage(now, "done");
     }
   }

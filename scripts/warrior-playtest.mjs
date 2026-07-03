@@ -144,13 +144,18 @@ async function run() {
     throw new Error(`Dr Mario stage broken: ${JSON.stringify(drState)}`);
   }
 
-  // Finish run
-  await page.evaluate(() => {
+  // Board capped (bricked) — must still tally and reach result screen
+  const capState = await page.evaluate(() => {
     const d = window.__tavernQA?.getDemplar?.();
     if (!d) throw new Error("no demplar");
-    d.advanceStage(performance.now(), "done");
-    d.done = true;
+    d.drMario.finished = true;
+    d.drMario.pill = null;
+    for (let i = 0; i < 12; i++) d.update(16, performance.now());
+    return { stage: d.stage, done: d.done, total: d.result.total, asteroids: d.result.asteroids };
   });
+  if (capState.stage !== "done" || !capState.done) {
+    throw new Error(`Dr Mario cap stuck: ${JSON.stringify(capState)}`);
+  }
 
   await page.waitForSelector("#play-shell[data-phase='demplar_result']", { timeout: 8000 });
   const resultVisible = await page.locator("[data-continue='well']").isVisible();
