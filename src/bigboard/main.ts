@@ -161,14 +161,13 @@ function lineForDeed(d: Deed): string {
     return `${who} landed ${d.fish}${d.rarity ? ` (${d.rarity})` : ""} — ${d.renown ?? 0} renown`;
   }
   if (d.kind === "gamble") {
-    const game = d.game === "over_under" ? "O/U" : "Hi-Lo";
+    const game = d.game === "red_black" ? "Red/Black" : "Hi-Lo";
     const cards = cardArrow(d.cards);
-    const mark = d.game === "over_under" && d.target != null ? ` mark ${d.target}` : "";
     const verdict =
       d.outcome === "win" ? "WIN" : d.outcome === "push" ? "PUSH" : d.outcome === "lose" ? "LOSE" : "";
     const tail = d.renown ? ` (+${d.renown} renown)` : "";
     if (cards) {
-      return `${who} ${game}${mark}: ${cards}${verdict ? ` — ${verdict}` : ""}${tail}`;
+      return `${who} ${game}: ${cards}${verdict ? ` — ${verdict}` : ""}${tail}`;
     }
     if (d.text) return `${who} at the chance table — ${d.text}${tail}`;
     return `${who} wagered at the chance table${tail}`;
@@ -545,7 +544,7 @@ function onChanceUpdate(d: {
       ...p,
       chance: {
         phase,
-        game: d.game as "high_low" | "over_under" | undefined,
+        game: d.game as "high_low" | "red_black" | undefined,
         cards: d.cards,
         target: d.target,
         outcome: d.outcome as "win" | "lose" | "push" | undefined,

@@ -43,8 +43,7 @@ import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
   resolveHighLow,
-  resolveOverUnder,
-  rollOverUnderTarget,
+  resolveRedBlack,
   type ChanceGameId,
 } from "./minigames/chance";
 import { buildMoonwellDeck, shuffleDeck } from "./minigames/moonwellDeck";
@@ -70,7 +69,7 @@ import { getXLoreFeed, loadXLoreFeed, onXLoreFeedUpdate, refreshXLoreFeed } from
 import { hallNoticeEntries, renderNoticeCardLi } from "./ui/notices";
 import {
   chanceHighLowHtml,
-  chanceOverUnderHtml,
+  chanceRedBlackHtml,
   hubBackHtml,
 } from "./ui/tavernHub";
 import {
@@ -385,7 +384,6 @@ function broadcastChance() {
 
   const payload: Record<string, unknown> = { phase: state.phase };
   if (state.chanceGame) payload.game = state.chanceGame;
-  if (state.overUnderTarget != null) payload.target = state.overUnderTarget;
   if (state.chanceCards.length > 0) {
     payload.cards = state.chanceCards.map((c) => ({
       label: c.label,
@@ -559,7 +557,7 @@ function ensureMenuClickDelegation() {
 
     const guess = btn.getAttribute("data-guess");
     if (guess) {
-      finishChance(guess as "high" | "low" | "over" | "under");
+      finishChance(guess as "high" | "low" | "red" | "black");
       return;
     }
 
@@ -685,9 +683,6 @@ function startChanceGame(id: ChanceGameId) {
   }
   state.chanceGame = id;
   state.chanceCards = [];
-  if (id === "over_under") {
-    state.overUnderTarget = rollOverUnderTarget();
-  }
   setPhase("chance_play");
 }
 
@@ -719,7 +714,7 @@ function buyFeast(id: FoodId) {
   setPhase("well");
 }
 
-function finishChance(guess: "high" | "low" | "over" | "under") {
+function finishChance(guess: "high" | "low" | "red" | "black") {
   const game = CHANCE_GAMES.find((g) => g.id === state.chanceGame)!;
   if (state.tokens < game.stake) {
     setPhase("well");
@@ -735,12 +730,7 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
   } else {
     const drawn = drawFromDeck(1)[0]!;
     state.chanceCards = [drawn];
-    result = resolveOverUnder(
-      game.stake,
-      drawn,
-      state.overUnderTarget ?? 8,
-      guess as "over" | "under",
-    );
+    result = resolveRedBlack(game.stake, drawn, guess as "red" | "black");
   }
 
   state.tokens = Math.max(0, state.tokens + result.tokenDelta);
@@ -755,13 +745,11 @@ function finishChance(guess: "high" | "low" | "over" | "under") {
     result.outcome,
     result.cards,
     guess,
-    result.target,
   );
   announceDeed("gamble", chronicle, subtext, result.renownDelta, {
     game: result.game,
     outcome: result.outcome,
     cards: result.cards.map((c) => ({ label: c.label, rank: c.rank, suit: c.suit })),
-    target: result.target,
   });
   hud();
   setPhase("chance_result");
@@ -1029,7 +1017,7 @@ function setPhase(next: GamePhase) {
         const first = state.chanceCards[0]!;
         openMenu(chanceHighLowHtml(first));
       } else {
-        openMenu(chanceOverUnderHtml(state.overUnderTarget ?? 8));
+        openMenu(chanceRedBlackHtml());
       }
       showToast("");
       elPrimary.hidden = true;

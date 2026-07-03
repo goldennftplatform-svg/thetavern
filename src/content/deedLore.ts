@@ -6,6 +6,7 @@
 import type { FishRarity, Season } from "./lore";
 import type { ChanceGameId, ChanceOutcome } from "../minigames/chance";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
+import { cardColor } from "../minigames/moonwellDeck";
 import { pickLine, seasonArcane } from "./arcaneLore";
 import { demplarWarriorChronicles, demplarWarriorSubtexts } from "./demplarKnights";
 
@@ -109,7 +110,7 @@ const demplarCatchChronicles: string[] = [
 
 const gambleWinHiLo: string[] = [
   "{angler} calls {guess} — {cards}. The hall cheers; the mist pays.",
-  "Ascendant or descendant, {angler} reads the deck: {cards}. Fortune nods.",
+  "Hi-Lo favors {angler}: {cards}. Fortune nods.",
   "The Divination Table yields to {angler}: {cards}, {guess} called true.",
 ];
 
@@ -124,18 +125,14 @@ const gamblePushHiLo: string[] = [
   "Twin ranks at the chance table: {cards}. The well hates a draw but respects it.",
 ];
 
-const gambleWinOU: string[] = [
-  "{angler} beats mark {mark} with {card} — {guess} pays double in gossip.",
-  "Mark {mark} falls to {angler}'s {card}. The house murmurs approval.",
+const gambleWinRB: string[] = [
+  "{angler} calls {guess} — {card} flips true. The hall cheers.",
+  "Red or black, {angler} reads the turn: {card} pays {guess}.",
 ];
 
-const gambleLoseOU: string[] = [
-  "{angler} misses mark {mark} — {card} lands wrong. The house keeps its hush.",
-  "{card} vs mark {mark}: {angler} guessed {guess}. The mist is unimpressed.",
-];
-
-const gamblePushOU: string[] = [
-  "{card} hits mark {mark} exactly — {angler} pushes. The Codex shrugs.",
+const gambleLoseRB: string[] = [
+  "{angler} calls {guess} — {card} disagrees. The house keeps its hush.",
+  "{card} lands {color}; {angler} guessed {guess}. The mist is unimpressed.",
 ];
 
 const feastChronicles: string[] = [
@@ -236,26 +233,25 @@ export function composeGambleDeed(
   outcome: ChanceOutcome,
   cards: MoonwellCard[],
   guess: string,
-  target?: number,
 ): { chronicle: string; subtext: string } {
   const cardStr =
     cards.length === 2 ? `${cards[0]!.label} → ${cards[1]!.label}` : cards[0]?.label ?? "?";
-  const vars = { angler, guess, cards: cardStr, card: cards[0]?.label ?? "?", mark: target ?? 0 };
+  const color = cards[0] ? cardColor(cards[0]) : "red";
+  const vars = { angler, guess, cards: cardStr, card: cards[0]?.label ?? "?", color };
 
   let pool: string[];
   if (game === "high_low") {
     pool =
       outcome === "win" ? gambleWinHiLo : outcome === "push" ? gamblePushHiLo : gambleLoseHiLo;
   } else {
-    pool =
-      outcome === "win" ? gambleWinOU : outcome === "push" ? gamblePushOU : gambleLoseOU;
+    pool = outcome === "win" ? gambleWinRB : gambleLoseRB;
   }
 
   const chronicle = fill(pickLine(pool), vars);
-  const gameName = game === "high_low" ? "Ascendant / Descendant" : "Mark of the Mist";
+  const gameName = game === "high_low" ? "Hi-Lo" : "Red / Black";
   const verdict =
     outcome === "win" ? "the hall inscribes a win" : outcome === "push" ? "push — stake returned" : "fortune turns away";
-  const subtext = `${gameName}: ${cardStr}${target != null ? ` vs mark ${target}` : ""} — ${verdict}.`;
+  const subtext = `${gameName}: ${cardStr} — ${verdict}.`;
   return { chronicle, subtext };
 }
 

@@ -4,7 +4,7 @@ export type ChanceCardSnap = { label: string; rank: number; suit: string };
 
 export type ChanceSession = {
   from: string;
-  game?: "high_low" | "over_under";
+  game?: "high_low" | "red_black";
   phase: "chance_pick" | "chance_play" | "chance_result";
   cards?: ChanceCardSnap[];
   target?: number;
@@ -132,10 +132,7 @@ export function drawChanceCorner(
       return;
     }
 
-    if (s.game === "over_under") {
-      ctx.fillStyle = "#68b8a8";
-      ctx.font = '5px "Press Start 2P", monospace';
-      ctx.fillText(`MARK ${s.target ?? "?"}`, zoneX + 6, rowY + 10);
+    if (s.game === "red_black") {
       const card = s.cards?.[0];
       if (card) {
         drawMiniCard(ctx, zoneX + zw - 22, rowY + 6, card, { w: 24, h: 32 });
@@ -146,6 +143,9 @@ export function drawChanceCorner(
           faceDown: true,
         });
       }
+      ctx.fillStyle = "#e87878";
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.fillText("RED/BLK", zoneX + 6, rowY + 10);
     } else {
       const first = s.cards?.[0];
       const second = s.cards?.[1];

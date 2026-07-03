@@ -16,7 +16,7 @@ export type MapPatron = {
   };
   chance?: {
     phase: ChancePhase;
-    game?: "high_low" | "over_under";
+    game?: "high_low" | "red_black";
     cards?: ChanceCardSnap[];
     target?: number;
     outcome?: "win" | "lose" | "push";
@@ -443,8 +443,8 @@ function drawPatronToken(
     const badge =
       chance!.phase === "chance_pick"
         ? "PICK"
-        : chance!.game === "over_under"
-          ? "O/U"
+        : chance!.game === "red_black"
+          ? "R/B"
           : "HI-LO";
     ctx.fillStyle = chance!.outcome === "win" ? "#68e8a8" : "#e8b050";
     ctx.font = '5px "Press Start 2P", monospace';

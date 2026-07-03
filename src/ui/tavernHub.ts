@@ -106,7 +106,7 @@ export function studioStageHtml(title: string, body: string, extraClass = ""): s
 
 export function chanceHighLowHtml(card: MoonwellCard): string {
   return studioStageHtml(
-    "Ascendant / Descendant",
+    "Hi-Lo",
     `${renderPlayingCard(card, { hero: true })}
     <p class="studio-stage-lead">Will the next card rank higher or lower?</p>
     <div class="chance-actions chance-actions--studio" id="chance-actions">
@@ -122,17 +122,19 @@ export function chanceHighLowHtml(card: MoonwellCard): string {
   );
 }
 
-export function chanceOverUnderHtml(mark: number): string {
+export function chanceRedBlackHtml(): string {
   return studioStageHtml(
-    "Mark of the Mist",
-    `<p class="studio-mark">${mark}</p>
-    <p class="studio-stage-lead">One draw — over or under the house mark?</p>
+    "Red / Black",
+    `<div class="chance-card-back" aria-hidden="true">🂠</div>
+    <p class="studio-stage-lead">Call the color — then the card turns.</p>
     <div class="chance-actions chance-actions--studio" id="chance-actions">
-      <button type="button" class="btn studio-choice studio-choice--high" data-guess="over">
-        <span class="studio-choice-label">Over ${mark}</span>
+      <button type="button" class="btn studio-choice studio-choice--red" data-guess="red">
+        <span class="studio-choice-label">Red</span>
+        <span class="studio-choice-hint">♥ ◆</span>
       </button>
-      <button type="button" class="btn studio-choice studio-choice--low" data-guess="under">
-        <span class="studio-choice-label">Under ${mark}</span>
+      <button type="button" class="btn studio-choice studio-choice--black" data-guess="black">
+        <span class="studio-choice-label">Black</span>
+        <span class="studio-choice-hint">♣ ♠</span>
       </button>
     </div>`,
   );
@@ -143,7 +145,7 @@ export function chancePickHtml(): string {
     "Divination Table",
     `<div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
-      ${hubTileHtml("◎", "O / U", "chance:over_under", "jade")}
+      ${hubTileHtml("◆", "Red / Black", "chance:red_black", "jade")}
     </div>${hubBackHtml()}`,
   );
 }
@@ -178,7 +180,7 @@ export function feastButtonHtml(id: FoodId, eaten: boolean): string {
 
 export function chanceGameButtonHtml(id: ChanceGameId, name: string, blurb: string, stake: number): string {
   return hubChoiceHtml(
-    id === "high_low" ? "H" : "O",
+    id === "high_low" ? "H" : "R",
     name,
     `${blurb} (stake ${stake} token)`,
     `chance:${id}`,

@@ -276,6 +276,27 @@ html.play-active .play-menu {
   margin: 8px 0 0;
 }
 
+.studio-choice--low {
+  border-color: rgba(104, 152, 232, 0.45);
+}
+
+.studio-choice--red {
+  border-color: rgba(232, 120, 80, 0.55);
+  color: #ffb8a0;
+}
+
+.studio-choice--black {
+  border-color: rgba(152, 184, 232, 0.45);
+  color: #c8d8f0;
+}
+
+.chance-card-back {
+  font-size: clamp(3rem, 14vw, 4.5rem);
+  line-height: 1;
+  margin: 4px 0 8px;
+  opacity: 0.85;
+}
+
 .studio-choice {
   display: flex;
   flex-direction: column;

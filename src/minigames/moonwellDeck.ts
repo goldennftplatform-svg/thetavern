@@ -84,6 +84,11 @@ export function cardRankLabel(c: MoonwellCard): string {
   return c.label;
 }
 
+/** Red suits: cups & coins · black suits: wands & swords */
+export function cardColor(c: MoonwellCard): "red" | "black" {
+  return c.suit === "cups" || c.suit === "coins" ? "red" : "black";
+}
+
 /** Deck lore blurb for the tavern UI */
 export const MOONWELL_DECK_LORE =
   "The Moonwell deck: fifty-two cards, no odd pips—evens, doubled faces, four Moonwell Aces. House lore says the mist reads ties as prophecy.";

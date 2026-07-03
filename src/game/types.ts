@@ -61,7 +61,6 @@ export type GameState = {
   deck: MoonwellCard[];
   chanceGame?: ChanceGameId;
   chanceCards: MoonwellCard[];
-  overUnderTarget?: number;
   chanceLastResult?: ChanceResult;
   foodBuff?: FoodBuff;
   feastsEaten: FoodId[];

@@ -94,7 +94,7 @@ export function hubWellHtml(
         </div>
         ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown", "north", "gold")}
         ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
-        ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-lo & over/under", "south", "jade")}
+        ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
         ${hubTableSeatHtml("feast_menu", "🍖", "Kitchen Spread", "Buffs before you cast", "west", "jade")}
         <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
         <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
@@ -222,7 +222,7 @@ export function chancePickStudioHtml(intro: string): string {
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(MOONWELL_DECK_LORE)}</p>
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
-      ${hubTileHtml("◎", "O / U", "chance:over_under", "jade")}
+      ${hubTileHtml("◆", "Red / Black", "chance:red_black", "jade")}
     </div>${hubBackHtml()}`,
   );
 }

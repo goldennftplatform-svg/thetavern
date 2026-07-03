@@ -1,18 +1,19 @@
 import type { MoonwellCard } from "./moonwellDeck";
+import { cardColor } from "./moonwellDeck";
 
-export type ChanceGameId = "high_low" | "over_under";
+export type ChanceGameId = "high_low" | "red_black";
 
 export const CHANCE_GAMES: Array<{ id: ChanceGameId; name: string; blurb: string; stake: number }> = [
   {
     id: "high_low",
-    name: "Ascendant / Descendant",
-    blurb: "One card face up—call whether the next from the Moonwell deck climbs or falls.",
+    name: "Hi-Lo",
+    blurb: "One card face up — call whether the next draw ranks higher or lower.",
     stake: 1,
   },
   {
-    id: "over_under",
-    name: "Mark of the Mist",
-    blurb: "The house sets an arcane mark; one draw decides if fortune runs hot or cold.",
+    id: "red_black",
+    name: "Red / Black",
+    blurb: "One draw — call red or black before the card turns.",
     stake: 1,
   },
 ];
@@ -27,7 +28,6 @@ export type ChanceResult = {
   tokenDelta: number;
   renownDelta: number;
   cards: MoonwellCard[];
-  target?: number;
 };
 
 export function resolveHighLow(
@@ -52,7 +52,7 @@ export function resolveHighLow(
   return {
     game: "high_low",
     outcome,
-    title: "Ascendant / Descendant",
+    title: "Hi-Lo",
     detail:
       outcome === "push"
         ? `${first.label} then ${second.label} — push. The mist keeps your stake.`
@@ -65,44 +65,26 @@ export function resolveHighLow(
   };
 }
 
-export function resolveOverUnder(
+export function resolveRedBlack(
   stake: number,
   drawn: MoonwellCard,
-  target: number,
-  guess: "over" | "under",
+  guess: "red" | "black",
 ): ChanceResult {
-  let outcome: ChanceOutcome = "lose";
-  if (drawn.rank === target) {
-    outcome = "push";
-  } else if (drawn.rank > target && guess === "over") {
-    outcome = "win";
-  } else if (drawn.rank < target && guess === "under") {
-    outcome = "win";
-  }
-
-  const tokenDelta =
-    outcome === "win" ? stake + 1 : outcome === "push" ? 0 : -stake;
-  const renownDelta = outcome === "win" ? 2 : outcome === "lose" ? 0 : 1;
+  const actual = cardColor(drawn);
+  const outcome: ChanceOutcome = guess === actual ? "win" : "lose";
+  const tokenDelta = outcome === "win" ? stake + 1 : -stake;
+  const renownDelta = outcome === "win" ? 2 : 0;
 
   return {
-    game: "over_under",
+    game: "red_black",
     outcome,
-    title: "Mark of the Mist",
+    title: "Red / Black",
     detail:
-      outcome === "push"
-        ? `${drawn.label} hits the mark (${target}) exactly — push.`
-        : outcome === "win"
-          ? `${drawn.label} vs mark ${target} — ${guess} pays.`
-          : `${drawn.label} vs mark ${target} — the house murmurs.`,
+      outcome === "win"
+        ? `${drawn.label} is ${actual} — you called ${guess}.`
+        : `${drawn.label} is ${actual} — not ${guess}.`,
     tokenDelta,
     renownDelta,
     cards: [drawn],
-    target,
   };
-}
-
-/** House mark for over/under — even-friendly midpoint of deck ranks */
-export function rollOverUnderTarget(): number {
-  const marks = [6, 8, 10, 12];
-  return marks[Math.floor(Math.random() * marks.length)]!;
 }
