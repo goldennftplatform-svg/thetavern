@@ -61,21 +61,26 @@
                 STRIKE!
               </button>
               <div id="warrior-puzzle-controls" class="warrior-puzzle-float">
-                <div class="warrior-puzzle-row">
-                  <button type="button" id="btn-warrior-left" class="btn warrior-tap" aria-label="Move left">
+                <div class="warrior-puzzle-row warrior-puzzle-row--move">
+                  <button type="button" id="btn-warrior-left" class="btn warrior-tap warrior-tap--move" aria-label="Move left">
                     ◀
                   </button>
-                  <button type="button" id="btn-warrior-rotate" class="btn warrior-tap" aria-label="Rotate piece">
+                  <button type="button" id="btn-warrior-rotate" class="btn warrior-tap warrior-tap--action" aria-label="Rotate piece">
                     ↻
                   </button>
-                  <button type="button" id="btn-warrior-drop" class="btn warrior-tap" aria-label="Soft drop">
-                    ↓
+                  <button type="button" id="btn-warrior-right" class="btn warrior-tap warrior-tap--move" aria-label="Move right">
+                    ▶
+                  </button>
+                </div>
+                <div class="warrior-puzzle-row warrior-puzzle-row--drop">
+                  <button type="button" id="btn-warrior-drop" class="btn warrior-tap warrior-tap--drop" aria-label="Soft drop or step down">
+                    <span class="warrior-tap-icon" aria-hidden="true">↓</span>
+                    <span class="warrior-tap-label warrior-tap-label--tetris">Drop</span>
+                    <span class="warrior-tap-label warrior-tap-label--drmario">Step</span>
                   </button>
                   <button type="button" id="btn-warrior-hard" class="btn warrior-tap warrior-tap--slam" aria-label="Hard drop">
-                    ⇓
-                  </button>
-                  <button type="button" id="btn-warrior-right" class="btn warrior-tap" aria-label="Move right">
-                    ▶
+                    <span class="warrior-tap-icon" aria-hidden="true">⇓</span>
+                    <span class="warrior-tap-label">Slam</span>
                   </button>
                 </div>
               </div>

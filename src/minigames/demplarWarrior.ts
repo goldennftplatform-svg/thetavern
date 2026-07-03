@@ -451,6 +451,8 @@ export class DemplarWarrior {
   private softDropTouch = false;
   private steerHeld: -1 | 0 | 1 = 0;
   private steerDasMs = 0;
+  private dropHeld = false;
+  private dropRepeatMs = 0;
   private respawnUntil = 0;
   readonly mobileEase: boolean;
 
@@ -569,6 +571,8 @@ export class DemplarWarrior {
     this.softDropTouch = false;
     this.steerHeld = 0;
     this.steerDasMs = 0;
+    this.dropHeld = false;
+    this.dropRepeatMs = 0;
     this.tetris.setSoftDrop(false);
     this.drMario.setSoftDrop(false);
   }
@@ -721,10 +725,26 @@ export class DemplarWarrior {
     if (this.stage === "drmario") this.drMario.move(this.steerHeld);
   }
 
+  private tickDropRepeat(dt: number) {
+    if (!this.dropHeld || this.stage !== "drmario") return;
+    if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    this.dropRepeatMs += dt;
+    if (this.dropRepeatMs < 200) return;
+    this.dropRepeatMs -= 170;
+    this.drMario.stepDown();
+  }
+
   boost(on: boolean) {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
     if (this.stage === "drmario") {
-      if (on) this.drMario.stepDown();
+      if (on) {
+        this.dropHeld = true;
+        this.dropRepeatMs = 0;
+        this.drMario.stepDown();
+      } else {
+        this.dropHeld = false;
+        this.dropRepeatMs = 0;
+      }
       return;
     }
     if (this.stage === "tetris") this.tetris.setSoftDrop(on);
@@ -834,6 +854,7 @@ export class DemplarWarrior {
     }
 
     this.tickSteerRepeat(dt);
+    this.tickDropRepeat(dt);
 
     if (this.stage === "platform") this.tickPlatform(dt, elapsed, now);
     if (this.stage === "tetris") this.tickTetris(dt, elapsed, now);
@@ -967,13 +988,17 @@ export class DemplarWarrior {
     }
 
     this.drawHud(ctx, w, h, now);
+    const touchPad = this.mobileEase && (this.stage === "tetris" || this.stage === "drmario");
+    const footReserve = touchPad ? 96 : 28;
     if (this.stage === "platform") this.drawPlatform(ctx, w, h, now);
     else if (this.stage === "tetris") {
-      this.tetris.draw(ctx, w, h, WARRIOR_HUD_H);
+      const timerBand =
+        this.tetrisHandoffAt === 0 && !this.inStageBreak(now) ? 36 : 0;
+      this.tetris.draw(ctx, w, h, WARRIOR_HUD_H + timerBand, footReserve, touchPad);
       this.drawTetrisTimer(ctx, w, h, now);
-    }
-    else if (this.stage === "drmario") this.drMario.draw(ctx, w, h, WARRIOR_HUD_H);
-    else this.drawDone(ctx, w, h);
+    } else if (this.stage === "drmario") {
+      this.drMario.draw(ctx, w, h, WARRIOR_HUD_H, footReserve, touchPad);
+    } else this.drawDone(ctx, w, h);
 
     if (this.stageBreak && now < this.stageBreak.until) {
       this.drawStageBreak(ctx, w, h, now);
@@ -996,7 +1021,9 @@ export class DemplarWarrior {
     ctx.font = `${Math.max(14, Math.floor(w * 0.036))}px "VT323", monospace`;
     ctx.textAlign = "center";
     ctx.fillText(
-      `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then DR MARIO`,
+      this.mobileEase
+        ? `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines`
+        : `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then DR MARIO`,
       w / 2,
       barY + 24,
     );

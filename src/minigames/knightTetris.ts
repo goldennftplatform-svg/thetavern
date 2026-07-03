@@ -260,9 +260,9 @@ export class KnightTetris {
     return `L${this.lines} · LV${this.level}`;
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number) {
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number, footReserve = 28, touchPad = false) {
     const pad = 8;
-    const playH = h - hudTop - pad * 2;
+    const playH = h - hudTop - footReserve - pad * 2;
     const cell = Math.floor(Math.min((w - pad * 2) / (COLS + 3.2), playH / ROWS));
     const boardW = cell * COLS;
     const boardH = cell * ROWS;
@@ -313,11 +313,13 @@ export class KnightTetris {
 
     this.drawNextPreview(ctx, ox + boardW + 10, oy + 4, cell);
 
-    ctx.fillStyle = "rgba(248,240,255,0.7)";
-    ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM", w / 2, h - 8);
-    ctx.textAlign = "left";
+    if (!touchPad) {
+      ctx.fillStyle = "rgba(248,240,255,0.7)";
+      ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM", w / 2, h - 8);
+      ctx.textAlign = "left";
+    }
   }
 
   private drawNextPreview(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number) {

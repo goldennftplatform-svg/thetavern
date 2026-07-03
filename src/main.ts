@@ -60,7 +60,7 @@ import {
 import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
-import { initMobileShellClass } from "./mobile-detect";
+import { initMobileShellClass, isTavernMobile } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
 import { bindWarriorTouch } from "./warriorTouch";
 import { primeWarriorSfx } from "./audio/warriorSfx";
@@ -187,9 +187,8 @@ function juicePlay(kind: "bite" | "catch") {
 
 const $ = (id: string) => document.getElementById(id)!;
 
-/** Slightly longer strike window on touch (coarse pointer) */
-const touchFriendly =
-  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+/** Coarse / narrow — warrior puzzle pad + slower gravity */
+const touchFriendly = typeof window !== "undefined" && isTavernMobile();
 
 const elTitle = $("title");
 const elTag = $("tagline");
@@ -890,7 +889,7 @@ function syncWarriorShell() {
     const stage = demplarGame.stage;
     elPlayShell.dataset.warriorStage = stage;
     if (stage === "drmario" && lastWarriorStage !== "drmario") {
-      showToast("TRIAL III — Veil Cure · Dr Mario! Match 4 to clear viruses.", 4200);
+      showToast("TRIAL III — Veil Cure · match 4 to clear viruses", 2800);
     }
     lastWarriorStage = stage;
   } else {
@@ -1401,7 +1400,8 @@ function resizeCanvas() {
     ? "100%"
     : `${logicalH}px`;
   syncCanvasBuffer();
-  drawWell();
+  if (state.phase === "demplar_warrior" && demplarGame) drawDemplar();
+  else drawWell();
 }
 
 window.addEventListener("resize", resizeCanvas);

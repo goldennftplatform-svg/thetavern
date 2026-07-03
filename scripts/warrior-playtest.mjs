@@ -172,22 +172,16 @@ async function run() {
     d?.advanceStage(performance.now(), "tetris");
   });
   await page.waitForSelector("#play-shell[data-warrior-stage='tetris']", { timeout: 5000 });
-
-  const canvas = page.locator("#well");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("canvas missing");
-
-  await page.touchscreen.tap(box.x + box.width * 0.16, box.y + box.height * 0.5);
-  await sleep(50);
-  await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.5);
-  await sleep(50);
-  await page.touchscreen.tap(box.x + box.width * 0.84, box.y + box.height * 0.5);
-  await sleep(50);
-  await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.82);
-  await sleep(120);
-  await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.waitForSelector("#btn-warrior-left", { timeout: 5000 });
+  await page.locator("#btn-warrior-left").click({ force: true });
   await sleep(40);
-  await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.locator("#btn-warrior-rotate").click({ force: true });
+  await sleep(40);
+  await page.locator("#btn-warrior-right").click({ force: true });
+  await sleep(40);
+  await page.locator("#btn-warrior-drop").click({ force: true });
+  await sleep(80);
+  await page.locator("#btn-warrior-hard").click({ force: true });
 
   if (errors.length) throw new Error(`Page errors:\n${errors.join("\n")}`);
 

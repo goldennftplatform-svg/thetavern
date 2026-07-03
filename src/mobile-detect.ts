@@ -1,7 +1,14 @@
+/** Shared breakpoint for mobile shell + warrior touch ease (keep in sync everywhere). */
+export const TAVERN_MOBILE_MQ = "(max-width: 799.98px), (pointer: coarse)";
+
+export function isTavernMobile(): boolean {
+  return typeof window !== "undefined" && window.matchMedia(TAVERN_MOBILE_MQ).matches;
+}
+
 /** Toggle `html.tavern-mobile` for narrow viewports / coarse pointer — matches EzraMOTA shell pattern. */
 export function initMobileShellClass(): void {
   if (typeof window === "undefined") return;
-  const mq = window.matchMedia("(max-width: 799.98px), (pointer: coarse)");
+  const mq = window.matchMedia(TAVERN_MOBILE_MQ);
   const apply = (): void => {
     document.documentElement.classList.toggle("tavern-mobile", mq.matches);
   };

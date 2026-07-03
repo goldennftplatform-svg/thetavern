@@ -49,7 +49,6 @@ function bindHold(
   btn.addEventListener("pointerdown", down);
   btn.addEventListener("pointerup", up);
   btn.addEventListener("pointercancel", up);
-  btn.addEventListener("pointerleave", up);
 }
 
 export function bindWarriorTouch(opts: WarriorTouchOpts): void {
@@ -75,16 +74,8 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   );
   bindHold(
     buttons.drop,
-    () => {
-      const game = getGame();
-      if (game?.stage === "drmario") game.boost(true);
-      else game?.boost(true);
-    },
-    () => {
-      const game = getGame();
-      if (game?.stage === "drmario") return;
-      game?.boost(false);
-    },
+    () => getGame()?.boost(true),
+    () => getGame()?.boost(false),
     puzzleGate,
   );
 
@@ -107,6 +98,8 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
     platformGate,
   );
 
+  let canvasPointerActive = false;
+
   canvas.addEventListener("pointerdown", (e) => {
     const phase = getPhase();
     const game = getGame();
@@ -114,6 +107,7 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
 
     if (touchFriendly && puzzleStage(game)) return;
 
+    canvasPointerActive = true;
     const rect = canvas.getBoundingClientRect();
     game!.pointerDown(
       e.clientX - rect.left,
@@ -126,6 +120,7 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   canvas.addEventListener("pointermove", (e) => {
     const game = getGame();
     if (!warriorActive(getPhase(), game)) return;
+    if (!canvasPointerActive) return;
     if (touchFriendly && puzzleStage(game)) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -138,6 +133,8 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   });
 
   const pointerEnd = () => {
+    if (!canvasPointerActive) return;
+    canvasPointerActive = false;
     const game = getGame();
     if (!game) return;
     game.pointerUp();
