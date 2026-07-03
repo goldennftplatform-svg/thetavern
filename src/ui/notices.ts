@@ -1,4 +1,5 @@
 import { demplarNotice } from "../content/lore";
+import { knightNoticeBoard } from "../content/demplarKnights";
 import { pickLine, noticeBoardArcane } from "../content/arcaneLore";
 import { tonightUtc } from "../content/tavernNights";
 import { getXLoreFeed } from "../lore/xFeed";
