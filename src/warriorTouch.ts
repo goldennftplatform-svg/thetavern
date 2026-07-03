@@ -75,8 +75,16 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   );
   bindHold(
     buttons.drop,
-    () => getGame()?.boost(true),
-    () => getGame()?.boost(false),
+    () => {
+      const game = getGame();
+      if (game?.stage === "drmario") game.boost(true);
+      else game?.boost(true);
+    },
+    () => {
+      const game = getGame();
+      if (game?.stage === "drmario") return;
+      game?.boost(false);
+    },
     puzzleGate,
   );
 

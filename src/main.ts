@@ -1305,6 +1305,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "ArrowDown") {
       e.preventDefault();
+      if (demplarGame?.stage === "drmario" && e.repeat) return;
       demplarGame?.boost(true);
     }
     if (e.code === "ArrowLeft" || e.code === "KeyA") {
@@ -1350,7 +1351,7 @@ window.addEventListener("keyup", (e) => {
       demplarGame?.releaseJump();
     }
     if (e.code === "ArrowDown") {
-      demplarGame?.boost(false);
+      if (demplarGame?.stage !== "drmario") demplarGame?.boost(false);
     }
     if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "ArrowRight" || e.code === "KeyD") {
       demplarGame?.releaseSteer();

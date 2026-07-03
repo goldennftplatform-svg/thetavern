@@ -565,6 +565,14 @@ export class DemplarWarrior {
     return now - this.stageStarted;
   }
 
+  private clearPuzzleInput() {
+    this.softDropTouch = false;
+    this.steerHeld = 0;
+    this.steerDasMs = 0;
+    this.tetris.setSoftDrop(false);
+    this.drMario.setSoftDrop(false);
+  }
+
   advanceStage(now: number, next: DemplarStage) {
     if (next === "tetris") {
       this.result.platform = Math.max(0, this.platform.score);
@@ -600,6 +608,7 @@ export class DemplarWarrior {
     }
     this.stage = next;
     this.stageStarted = now;
+    this.clearPuzzleInput();
   }
 
   private inStageBreak(now = performance.now()): boolean {
@@ -621,6 +630,7 @@ export class DemplarWarrior {
     };
     this.banner = "TRIAL II SEALED";
     this.subBanner = "Veil Cure loading…";
+    this.clearPuzzleInput();
     playWarriorImpact(1.15);
   }
 
@@ -713,8 +723,11 @@ export class DemplarWarrior {
 
   boost(on: boolean) {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    if (this.stage === "drmario") {
+      if (on) this.drMario.stepDown();
+      return;
+    }
     if (this.stage === "tetris") this.tetris.setSoftDrop(on);
-    if (this.stage === "drmario") this.drMario.setSoftDrop(on);
   }
 
   hardDrop() {
@@ -736,8 +749,12 @@ export class DemplarWarrior {
       return;
     }
     if (this.stage === "tetris" || this.stage === "drmario") {
-      if (ny >= h * 0.72) {
+      if (this.stage === "tetris" && ny >= h * 0.72) {
         this.softDropTouch = true;
+        this.boost(true);
+        return;
+      }
+      if (this.stage === "drmario" && ny >= h * 0.72) {
         this.boost(true);
         return;
       }
@@ -771,7 +788,7 @@ export class DemplarWarrior {
 
   pointerMove(_nx: number, ny: number, _w: number, h: number) {
     if (this.mobileEase && (this.stage === "tetris" || this.stage === "drmario")) return;
-    if (this.stage !== "tetris" && this.stage !== "drmario") return;
+    if (this.stage !== "tetris") return;
     const inDropZone = ny >= h * 0.72;
     if (inDropZone && !this.softDropTouch) {
       this.softDropTouch = true;

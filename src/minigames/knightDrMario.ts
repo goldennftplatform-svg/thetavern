@@ -46,8 +46,7 @@ export class KnightDrMario {
   private grid: Cell[][] = [];
   private pill: FallingPill | null = null;
   private dropMs = 0;
-  private softDrop = false;
-  private gravityMs = 520;
+  private gravityMs = 720;
   mobileEase = false;
 
   reset() {
@@ -58,8 +57,7 @@ export class KnightDrMario {
     this.seedViruses();
     this.pill = null;
     this.dropMs = 0;
-    this.softDrop = false;
-    this.gravityMs = this.mobileEase ? 660 : 520;
+    this.gravityMs = this.mobileEase ? 900 : 720;
     this.spawnPill();
   }
 
@@ -146,8 +144,20 @@ export class KnightDrMario {
     }
   }
 
-  setSoftDrop(on: boolean) {
-    this.softDrop = on;
+  setSoftDrop(_on: boolean) {
+    /* Dr Mario uses tap-to-step (stepDown) — no hold-soft-drop. */
+  }
+
+  /** One row down per tap — not a held turbo drop. */
+  stepDown(): void {
+    if (!this.pill || this.finished) return;
+    this.dropMs = 0;
+    if (!this.pillBlocked(this.pill, 0, 1)) {
+      this.pill.y += 1;
+      this.score += 1;
+    } else {
+      this.lockPill();
+    }
   }
 
   hardDrop() {
@@ -254,13 +264,11 @@ export class KnightDrMario {
 
     if (!this.pill) return false;
 
-    const grav = this.softDrop ? (this.mobileEase ? 105 : 90) : this.gravityMs;
     this.dropMs += dt;
-    if (this.dropMs >= grav) {
+    if (this.dropMs >= this.gravityMs) {
       this.dropMs = 0;
       if (!this.pillBlocked(this.pill, 0, 1)) {
         this.pill.y += 1;
-        if (this.softDrop) this.score += 1;
       } else {
         this.lockPill();
       }
@@ -312,7 +320,7 @@ export class KnightDrMario {
     ctx.fillStyle = "rgba(248,240,255,0.7)";
     ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM · CLEAR VIRUSES", w / 2, h - 8);
+    ctx.fillText("← → MOVE · ↑ ROTATE · ↓ STEP · F SLAM · CLEAR VIRUSES", w / 2, h - 8);
     ctx.textAlign = "left";
   }
 
