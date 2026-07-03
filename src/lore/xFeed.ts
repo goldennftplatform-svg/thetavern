@@ -39,9 +39,17 @@ export type XLoreFeed = {
 
 let cached: XLoreFeed | null = null;
 let loadPromise: Promise<XLoreFeed> | null = null;
+let lastFetchAt = 0;
+let refreshTimer = 0;
+const listeners = new Set<(feed: XLoreFeed) => void>();
+
+/** How often the client re-fetches while the tavern is open. */
+export const X_LORE_REFRESH_MS = 15 * 60_000;
 
 /** Max posts shipped to clients — doom scroll should feel endless, not a dozen. */
 export const X_LORE_FEED_CAP = 200;
+
+const LIVE_API = "/api/lore/x-feed/live";
 
 function mergePostsById(...lists: XLorePost[][]): XLorePost[] {
   const byId = new Map<string, XLorePost>();
@@ -116,6 +124,55 @@ function buildFeed(remote: XLoreFeed | null): XLoreFeed {
   };
 }
 
+function notifyUpdate(feed: XLoreFeed) {
+  for (const fn of listeners) fn(feed);
+}
+
+export function onXLoreFeedUpdate(fn: (feed: XLoreFeed) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+async function fetchRemoteFeed(): Promise<XLoreFeed | null> {
+  const base = import.meta.env.BASE_URL || "/";
+  const bust = Date.now();
+  const urls: string[] = [];
+  if (import.meta.env.DEV) urls.push(`${LIVE_API}?t=${bust}`);
+  urls.push(`${base}lore/x-feed.json?t=${bust}`);
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      return (await res.json()) as XLoreFeed;
+    } catch {
+      /* try next source */
+    }
+  }
+  return null;
+}
+
+export async function refreshXLoreFeed(force = false): Promise<XLoreFeed> {
+  const now = Date.now();
+  if (!force && cached && now - lastFetchAt < 45_000) return cached;
+
+  const remote = await fetchRemoteFeed();
+  cached = buildFeed(remote);
+  lastFetchAt = now;
+  notifyUpdate(cached);
+  return cached;
+}
+
+export function startXLoreFeedAutoRefresh(): void {
+  if (refreshTimer) return;
+  refreshTimer = window.setInterval(() => {
+    void refreshXLoreFeed(true);
+  }, X_LORE_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void refreshXLoreFeed(true);
+  });
+}
+
 function seedFeed(): XLoreFeed {
   return buildFeed(null);
 }
@@ -125,22 +182,18 @@ export async function loadXLoreFeed(): Promise<XLoreFeed> {
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    const base = import.meta.env.BASE_URL || "/";
-    try {
-      const res = await fetch(`${base}lore/x-feed.json`, { cache: "no-cache" });
-      if (res.ok) {
-        const data = (await res.json()) as XLoreFeed;
-        cached = buildFeed(data);
-        return cached;
-      }
-    } catch {
-      /* offline / first load */
-    }
-    cached = seedFeed();
+    const remote = await fetchRemoteFeed();
+    cached = buildFeed(remote);
+    lastFetchAt = Date.now();
+    startXLoreFeedAutoRefresh();
     return cached;
   })();
 
-  return loadPromise;
+  return loadPromise.catch(() => {
+    cached = seedFeed();
+    startXLoreFeedAutoRefresh();
+    return cached;
+  });
 }
 
 export function getXLoreFeed(): XLoreFeed | null {
@@ -168,6 +221,15 @@ export function formatXPostAge(iso: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 14) return `${days}d`;
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function xFeedSyncedLabel(feed?: XLoreFeed | null): string {
+  const f = feed ?? cached;
+  if (!f?.syncedAt) return "offline relay";
+  const ms = Date.parse(f.syncedAt);
+  if (Number.isNaN(ms)) return "offline relay";
+  const age = formatXPostAge(f.syncedAt);
+  return age === "now" || age.endsWith("m") ? `live · ${age}` : `synced ${age} ago`;
 }
 
 export function xLoreLines(feed?: XLoreFeed | null): string[] {

@@ -55,6 +55,34 @@
 
 .play-board-wrap .board {
   margin-top: 0;
+  padding: 10px 12px 12px;
+}
+
+.play-board-wrap .board ul#notices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(44dvh, 380px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+html.tavern-mobile .play-board-wrap .board ul#notices {
+  max-height: min(48dvh, 420px);
+  gap: 10px;
+}
+
+html.tavern-mobile .play-board-wrap .notice-card {
+  padding: 14px 14px 15px;
+}
+
+html.tavern-mobile .play-board-wrap .notice-card__body {
+  font-size: clamp(1rem, 4vw, 1.12rem);
+  line-height: 1.5;
 }
 
 .play-credits {

@@ -60,6 +60,7 @@ export class KnightTetris {
   private softDrop = false;
   private gravityMs = BASE_GRAVITY_MS;
   private flashMs = 0;
+  mobileEase = false;
 
   reset() {
     this.score = 0;
@@ -73,7 +74,7 @@ export class KnightTetris {
     this.dropMs = BASE_GRAVITY_MS * 0.55;
     this.lockMs = 0;
     this.softDrop = false;
-    this.gravityMs = BASE_GRAVITY_MS;
+    this.gravityMs = this.mobileEase ? BASE_GRAVITY_MS + 100 : BASE_GRAVITY_MS;
     this.flashMs = 0;
     this.spawn(false);
   }
@@ -206,7 +207,9 @@ export class KnightTetris {
       const base = [0, 140, 380, 720, 1100][cleared] ?? 1100;
       this.score += base * this.level;
       this.level = 1 + Math.floor(this.lines / 6);
-      this.gravityMs = Math.max(MIN_GRAVITY_MS, BASE_GRAVITY_MS - (this.level - 1) * 42);
+      const minGrav = this.mobileEase ? MIN_GRAVITY_MS + 45 : MIN_GRAVITY_MS;
+      const baseGrav = this.mobileEase ? BASE_GRAVITY_MS + 100 : BASE_GRAVITY_MS;
+      this.gravityMs = Math.max(minGrav, baseGrav - (this.level - 1) * 42);
       this.flashMs = 140;
       playTetrisClear(cleared);
     }
@@ -233,7 +236,11 @@ export class KnightTetris {
 
     if (!this.active) return false;
 
-    const grav = this.softDrop ? SOFT_DROP_MS : this.gravityMs;
+    const grav = this.softDrop
+      ? this.mobileEase
+        ? 52
+        : SOFT_DROP_MS
+      : this.gravityMs;
     this.dropMs += dt;
     if (this.dropMs >= grav) {
       this.dropMs -= grav;

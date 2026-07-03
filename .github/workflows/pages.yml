@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Refresh X lore feed + redeploy twice daily (UTC)
+    - cron: "0 6,18 * * *"
 
 permissions:
   contents: read

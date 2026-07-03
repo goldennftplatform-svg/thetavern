@@ -571,6 +571,86 @@ html.play-active .play-menu {
   color: #c8b8e8;
 }
 
+/* ——— Notice cards (Board + Ledger) ——— */
+.notice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice-card {
+  margin: 0;
+  padding: 12px 14px 13px;
+  background: rgba(10, 14, 24, 0.78);
+  border: 1px solid rgba(152, 144, 200, 0.22);
+  border-radius: 12px;
+  border-left: 3px solid var(--gold);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+.notice-card__label {
+  display: block;
+  font-family: var(--font-label, "Silkscreen", monospace);
+  font-size: clamp(0.62rem, 2.6vw, 0.72rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+
+.notice-card__body {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(0.92rem, 3.6vw, 1.08rem);
+  font-weight: 500;
+  line-height: 1.48;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.notice-card--overheard {
+  border-left-color: #6898e8;
+}
+
+.notice-card--overheard .notice-card__label {
+  color: #98b8e8;
+}
+
+.notice-card--hall {
+  border-left-color: #78d0b8;
+}
+
+.notice-card--hall .notice-card__label {
+  color: #98e8c8;
+}
+
+.notice-card--tonight {
+  border-left-color: #68e8a8;
+  background: rgba(12, 28, 22, 0.72);
+}
+
+.notice-card--tonight .notice-card__label {
+  color: #88e8b0;
+}
+
+.notice-card--archive {
+  border-left-color: #c8b8e8;
+  background: rgba(16, 12, 28, 0.72);
+}
+
+.notice-card--archive .notice-card__label {
+  color: #d8c8f0;
+}
+
+.notice-card--archive .notice-card__body {
+  color: #e8e0f8;
+  font-size: clamp(0.88rem, 3.2vw, 1rem);
+}
+
 /* Ledger & notices — full-width readable scroll, not a skinny centered column */
 .play-menu-body:has(.studio-stage--ledger) {
   width: 100%;
@@ -628,6 +708,19 @@ html.play-active .play-menu {
   text-align: left;
   font-size: clamp(1.15rem, 3.4vw, 1.3rem);
   max-width: none;
+}
+
+.notice-list--ledger {
+  width: 100%;
+  max-height: min(38dvh, 320px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 6px;
+  box-sizing: border-box;
+}
+
+.notice-list--archive {
+  max-height: min(28dvh, 220px);
 }
 
 .studio-stage--ledger .studio-ledger-list {
@@ -846,6 +939,15 @@ html.play-active .play-menu {
   gap: 14px;
 }
 
+html.tavern-mobile .studio-stage--ledger .notice-card__body {
+  font-size: clamp(1rem, 4.2vw, 1.14rem);
+  line-height: 1.52;
+}
+
+html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
+  margin-bottom: 8px;
+}
+
 @media (min-width: 720px) {
   .play-menu-body {
     max-width: min(520px, 100%);
@@ -861,6 +963,10 @@ html.play-active .play-menu {
   .studio-stage--ledger .studio-ledger-list {
     font-size: 1.4rem;
     padding: 16px 20px 16px 1.5rem;
+  }
+
+  html.tavern-mobile .notice-list--ledger {
+    max-height: min(46dvh, 400px);
   }
 
   .play-menu .playing-card--hero {

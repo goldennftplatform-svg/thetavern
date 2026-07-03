@@ -16,13 +16,13 @@ import {
   knightHallWhispers,
 } from "../content/demplarKnights";
 import { formatCharterDayLabel } from "../game/charterDay";
-import { loadXLoreFeed, pickXPost, pickXPostText } from "../lore/xFeed";
+import { loadXLoreFeed, onXLoreFeedUpdate, pickXPost, pickXPostText, refreshXLoreFeed } from "../lore/xFeed";
+import { bbTickerShell, mountBbTicker } from "./bbTicker";
 import { tonightUtc } from "../content/tavernNights";
 import { loadDailyMediaTheme } from "../media/loadTheme";
 import type { LoadedMediaTheme } from "../media/types";
 import { bbIconForKind } from "./bbIcons";
 import { renderFeedCardsHtml } from "./bbFeedCards";
-import { bbTickerShell, mountBbTicker } from "./bbTicker";
 import { createChronicleDirector, type HallMood } from "./chronicleDirector";
 import type { Deed } from "./chronicleDirector.types";
 import {
@@ -856,16 +856,22 @@ function refreshCharterChrome() {
 async function initHeraldTickers(feed: Awaited<ReturnType<typeof loadXLoreFeed>>) {
   const top = document.getElementById("bb-ticker-top");
   const bottom = document.getElementById("bb-ticker-bottom");
+  const roots: HTMLElement[] = [];
   if (top) {
     top.innerHTML = bbTickerShell("DEMPLAR LIVE");
     top.removeAttribute("aria-hidden");
     mountBbTicker(top, feed);
+    roots.push(top);
   }
   if (bottom) {
     bottom.innerHTML = bbTickerShell("HERALD");
     bottom.removeAttribute("aria-hidden");
     mountBbTicker(bottom, feed);
+    roots.push(bottom);
   }
+  onXLoreFeedUpdate((fresh) => {
+    for (const root of roots) mountBbTicker(root, fresh);
+  });
 }
 
 async function initCharterChrome() {
@@ -945,6 +951,7 @@ async function main() {
 
   await initCharterChrome();
   void loadXLoreFeed().then((feed) => initHeraldTickers(feed));
+  void refreshXLoreFeed(true);
 
   director.bind({
     onMood: setMood,

@@ -242,6 +242,126 @@ html.play-active .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
   display: none !important;
 }
 
+/* Warrior puzzle trials — on-screen pad (mobile / coarse pointer) */
+.warrior-puzzle-float {
+  position: absolute;
+  z-index: 28;
+  left: max(6px, env(safe-area-inset-left, 0px));
+  right: max(6px, env(safe-area-inset-right, 0px));
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  display: none;
+  pointer-events: none;
+  padding: 8px 6px 6px;
+  border-radius: 16px 16px 12px 12px;
+  background: linear-gradient(180deg, rgba(8, 6, 4, 0.55), rgba(8, 6, 4, 0.88));
+  backdrop-filter: blur(4px);
+}
+
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="tetris"]
+  .warrior-puzzle-float,
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="drmario"]
+  .warrior-puzzle-float {
+  display: block;
+  pointer-events: auto;
+}
+
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="tetris"]
+  .stage-viewport,
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="drmario"]
+  .stage-viewport {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="tetris"]
+  .canvas-wrap,
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="drmario"]
+  .canvas-wrap {
+  pointer-events: none;
+}
+
+.warrior-puzzle-row {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: clamp(6px, 2.2vw, 10px);
+  width: 100%;
+}
+
+.warrior-tap {
+  flex: 1 1 0;
+  min-width: 0;
+  height: clamp(54px, 14vw, 68px);
+  padding: 0;
+  border-radius: 14px;
+  font-size: clamp(1.25rem, 5.5vw, 1.55rem);
+  line-height: 1;
+  font-weight: 700;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow:
+    0 0 0 2px rgba(232, 196, 120, 0.28),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  background: rgba(18, 14, 10, 0.92);
+  border-color: rgba(232, 196, 120, 0.45);
+  color: #f4e8c8;
+}
+
+.warrior-tap--slam {
+  font-size: clamp(1.1rem, 5vw, 1.4rem);
+  color: #ffb878;
+  border-color: rgba(255, 160, 90, 0.55);
+}
+
+.warrior-tap:active {
+  transform: scale(0.96);
+  background: rgba(48, 38, 26, 0.96);
+}
+
+/* Platform trial — jump button (mobile) */
+.warrior-jump-float {
+  position: absolute;
+  z-index: 28;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  display: none;
+  width: clamp(58px, 16vw, 72px);
+  height: clamp(58px, 16vw, 72px);
+  padding: 0;
+  border-radius: 50%;
+  font-size: clamp(1.45rem, 6vw, 1.75rem);
+  line-height: 1;
+  font-weight: 700;
+  touch-action: manipulation;
+  user-select: none;
+  pointer-events: auto;
+  box-shadow:
+    0 0 0 2px rgba(104, 232, 168, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  background: rgba(12, 22, 18, 0.9);
+  border-color: rgba(104, 232, 168, 0.5);
+  color: #b8f0d0;
+}
+
+html.tavern-mobile
+  .play-shell[data-phase="demplar_warrior"][data-warrior-stage="platform"]
+  .warrior-jump-float {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warrior-jump-float:active {
+  transform: scale(0.94);
+}
+
 .play-menu-body {
   margin: 0;
   padding: 0;

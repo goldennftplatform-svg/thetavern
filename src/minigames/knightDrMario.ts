@@ -6,6 +6,8 @@ export type PillColor = "R" | "B" | "Y";
 
 const COLS = 8;
 const ROWS = 16;
+const VIRUS_COUNT = 6;
+const MAX_MATCH_CHAINS = 6;
 const COLORS: PillColor[] = ["R", "B", "Y"];
 const PALETTE: Record<PillColor, string> = {
   R: "#e87850",
@@ -40,53 +42,43 @@ export class KnightDrMario {
   virusesLeft = 0;
   combo = 0;
   finished = false;
-  gameOver = false;
 
   private grid: Cell[][] = [];
   private pill: FallingPill | null = null;
   private dropMs = 0;
   private softDrop = false;
   private gravityMs = 520;
+  mobileEase = false;
 
   reset() {
     this.score = 0;
     this.combo = 0;
     this.finished = false;
-    this.gameOver = false;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null) as Cell[]);
     this.seedViruses();
     this.pill = null;
     this.dropMs = 0;
     this.softDrop = false;
-    this.gravityMs = 520;
+    this.gravityMs = this.mobileEase ? 660 : 520;
     this.spawnPill();
   }
 
   private seedViruses() {
-    let count = 0;
-    const target = 6 + Math.floor(Math.random() * 3);
-    for (let y = 6; y < ROWS - 2; y++) {
-      for (let x = 0; x < COLS; x++) {
-        if (count >= target) break;
-        const depth = (y - 6) / (ROWS - 8);
-        const chance = 0.08 + depth * 0.12;
-        if (Math.random() < chance) {
-          const c = COLORS[Math.floor(Math.random() * 3)]!;
-          this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
-          count += 1;
-        }
-      }
+    /** Fixed lower-board layout — viruses never move after spawn. */
+    const slots: [number, number][] = [
+      [1, 12],
+      [4, 12],
+      [6, 12],
+      [2, 13],
+      [5, 13],
+      [3, 14],
+    ];
+    for (let i = 0; i < VIRUS_COUNT; i++) {
+      const c = COLORS[i % 3]!;
+      const [x, y] = slots[i]!;
+      this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
     }
-    while (count < 6) {
-      const x = Math.floor(Math.random() * COLS);
-      const y = 8 + Math.floor(Math.random() * (ROWS - 10));
-      if (!this.grid[y]![x]) {
-        const c = COLORS[count % 3]!;
-        this.grid[y]![x] = c === "R" ? "vR" : c === "B" ? "vB" : "vY";
-        count += 1;
-      }
-    }
-    this.virusesLeft = this.countViruses();
+    this.virusesLeft = VIRUS_COUNT;
   }
 
   private countViruses(): number {
@@ -103,11 +95,19 @@ export class KnightDrMario {
     const horiz = Math.random() < 0.55;
     const pill: FallingPill = { x: 3, y: 0, horiz, a, b };
     if (this.pillBlocked(pill)) {
-      this.gameOver = true;
       this.pill = null;
+      this.endTrialBoardFull();
       return;
     }
     this.pill = pill;
+    this.dropMs = 0;
+  }
+
+  /** Board topped out — finish with partial credit instead of a punishing game over. */
+  private endTrialBoardFull() {
+    this.score += Math.max(0, 100 - this.virusesLeft * 12);
+    this.score = Math.max(0, this.score);
+    this.finished = true;
   }
 
   private pillCells(p: FallingPill): [number, number, PillColor][] {
@@ -125,12 +125,12 @@ export class KnightDrMario {
   }
 
   move(dir: -1 | 1) {
-    if (!this.pill || this.gameOver) return;
+    if (!this.pill || this.finished) return;
     if (!this.pillBlocked(this.pill, dir, 0)) this.pill.x += dir;
   }
 
   rotate() {
-    if (!this.pill || this.gameOver) return;
+    if (!this.pill || this.finished) return;
     const p = this.pill;
     const next = !p.horiz;
     if (!this.pillBlocked(p, 0, 0, next)) {
@@ -151,7 +151,7 @@ export class KnightDrMario {
   }
 
   hardDrop() {
-    if (!this.pill || this.gameOver) return;
+    if (!this.pill || this.finished) return;
     let dropped = 0;
     while (!this.pillBlocked(this.pill, 0, 1)) {
       this.pill.y += 1;
@@ -180,6 +180,7 @@ export class KnightDrMario {
   private resolveMatches() {
     let chain = 0;
     for (;;) {
+      if (chain >= MAX_MATCH_CHAINS) break;
       const toClear = new Set<string>();
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
@@ -212,20 +213,26 @@ export class KnightDrMario {
       const mult = 1 + (chain - 1) * 0.35;
       this.score += Math.floor((toClear.size * 18 + viruses * 90) * mult);
       this.combo = chain;
-      this.applyGravity();
+      this.settlePillGravity();
     }
   }
 
-  private applyGravity() {
-    for (let x = 0; x < COLS; x++) {
-      const col: Cell[] = [];
-      for (let y = ROWS - 1; y >= 0; y--) {
-        const c = this.grid[y]![x];
-        if (c) col.push(c);
+  /** Only loose pill halves fall — viruses stay anchored in place. */
+  private settlePillGravity() {
+    for (let pass = 0; pass < ROWS; pass++) {
+      let moved = false;
+      for (let x = 0; x < COLS; x++) {
+        for (let y = ROWS - 2; y >= 0; y--) {
+          const c = this.grid[y]![x];
+          if (!c || isVirus(c)) continue;
+          if (!this.grid[y + 1]![x]) {
+            this.grid[y + 1]![x] = c;
+            this.grid[y]![x] = null;
+            moved = true;
+          }
+        }
       }
-      for (let y = 0; y < ROWS; y++) {
-        this.grid[ROWS - 1 - y]![x] = col[y] ?? null;
-      }
+      if (!moved) break;
     }
   }
 
@@ -239,11 +246,6 @@ export class KnightDrMario {
 
   update(dt: number, elapsed: number, timeLimitMs: number): boolean {
     if (this.finished) return false;
-    if (this.gameOver) {
-      this.score = Math.max(0, this.score + 40);
-      this.finished = true;
-      return true;
-    }
 
     if (elapsed >= timeLimitMs) {
       this.finishTrial(timeLimitMs, elapsed);
@@ -252,7 +254,7 @@ export class KnightDrMario {
 
     if (!this.pill) return false;
 
-    const grav = this.softDrop ? 90 : this.gravityMs;
+    const grav = this.softDrop ? (this.mobileEase ? 105 : 90) : this.gravityMs;
     this.dropMs += dt;
     if (this.dropMs >= grav) {
       this.dropMs = 0;

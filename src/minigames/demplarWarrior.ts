@@ -449,6 +449,10 @@ export class DemplarWarrior {
   /** Mobile: double-tap center within this window = hard drop. */
   private lastCenterTapMs = 0;
   private softDropTouch = false;
+  private steerHeld: -1 | 0 | 1 = 0;
+  private steerDasMs = 0;
+  private respawnUntil = 0;
+  readonly mobileEase: boolean;
 
   /** Full-screen trial handoff — impossible to miss Tetris → Dr Mario. */
   private stageBreak: { title: string; subtitle: string; until: number } | null = null;
@@ -518,7 +522,12 @@ export class DemplarWarrior {
     return rows;
   }
 
-  constructor() {
+  constructor(opts?: { mobileEase?: boolean }) {
+    this.mobileEase = !!opts?.mobileEase;
+    if (this.mobileEase) {
+      this.tetris.mobileEase = true;
+      this.drMario.mobileEase = true;
+    }
     this.resetPlatform();
     this.tetris.reset();
     this.drMario.reset();
@@ -674,14 +683,32 @@ export class DemplarWarrior {
     }
   }
 
-  steer(dir: -1 | 1) {
+  steer(dir: -1 | 1, hold = true) {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    if (this.stage !== "tetris" && this.stage !== "drmario") return;
+    if (hold) {
+      const changed = this.steerHeld !== dir;
+      this.steerHeld = dir;
+      if (changed) this.steerDasMs = 0;
+    }
     if (this.stage === "tetris") this.tetris.move(dir);
     if (this.stage === "drmario") this.drMario.move(dir);
   }
 
   releaseSteer() {
-    /* step controls only */
+    this.steerHeld = 0;
+    this.steerDasMs = 0;
+  }
+
+  private tickSteerRepeat(dt: number) {
+    if (this.steerHeld === 0) return;
+    if (this.tetrisHandoffAt > 0 || this.inStageBreak()) return;
+    if (this.stage !== "tetris" && this.stage !== "drmario") return;
+    this.steerDasMs += dt;
+    if (this.steerDasMs < 130) return;
+    this.steerDasMs -= 68;
+    if (this.stage === "tetris") this.tetris.move(this.steerHeld);
+    if (this.stage === "drmario") this.drMario.move(this.steerHeld);
   }
 
   boost(on: boolean) {
@@ -698,6 +725,7 @@ export class DemplarWarrior {
 
   pointerDown(nx: number, ny: number, w: number, h: number) {
     const now = performance.now();
+    if (this.mobileEase && (this.stage === "tetris" || this.stage === "drmario")) return;
     if (this.stage === "tetris" && this.inStageBreak(now)) {
       this.skipTetrisIntro(now);
       return;
@@ -734,6 +762,7 @@ export class DemplarWarrior {
 
   pointerUp() {
     this.releaseJump();
+    this.releaseSteer();
     if (this.softDropTouch) {
       this.softDropTouch = false;
       this.boost(false);
@@ -741,6 +770,7 @@ export class DemplarWarrior {
   }
 
   pointerMove(_nx: number, ny: number, _w: number, h: number) {
+    if (this.mobileEase && (this.stage === "tetris" || this.stage === "drmario")) return;
     if (this.stage !== "tetris" && this.stage !== "drmario") return;
     const inDropZone = ny >= h * 0.72;
     if (inDropZone && !this.softDropTouch) {
@@ -786,6 +816,8 @@ export class DemplarWarrior {
       return;
     }
 
+    this.tickSteerRepeat(dt);
+
     if (this.stage === "platform") this.tickPlatform(dt, elapsed, now);
     if (this.stage === "tetris") this.tickTetris(dt, elapsed, now);
     if (this.stage === "drmario") this.tickDrMario(dt, elapsed, now);
@@ -819,13 +851,28 @@ export class DemplarWarrior {
     }
   }
 
-  private respawnPlatform() {
+  private findRespawnPlatform(px: number): Plat {
+    for (const plat of this.platform.plats) {
+      if (px + 12 >= plat.x && px - 12 <= plat.x + plat.w) return plat;
+    }
+    let fallback = this.platform.plats[0]!;
+    for (const plat of this.platform.plats) {
+      if (plat.x + plat.w * 0.5 <= px) fallback = plat;
+    }
+    return fallback;
+  }
+
+  private respawnPlatform(now: number) {
     const p = this.platform;
     p.deaths += 1;
     p.score = Math.max(0, p.score - 50);
-    p.x = Math.max(64, p.x - 120);
-    p.y = 0;
+    const plat = this.findRespawnPlatform(p.x);
+    p.x = Math.max(plat.x + 22, Math.min(p.x, plat.x + plat.w - 22));
+    p.y = plat.y;
     p.vy = 0;
+    p.onGround = true;
+    this.coyoteUntil = now + COYOTE_MS;
+    this.respawnUntil = now + 1100;
   }
 
   private tickPlatform(dt: number, elapsed: number, now: number) {
@@ -853,8 +900,8 @@ export class DemplarWarrior {
       }
     }
 
-    if (p.y > 160) {
-      this.respawnPlatform();
+    if (p.y > 120 && now > this.respawnUntil) {
+      this.respawnPlatform(now);
     }
 
     p.cam = Math.max(0, p.x - PLAYER_SCREEN_X);

@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { resolve } from "node:path";
 
 /** GitHub Pages project sites live under /<repo>/ — set GITHUB_PAGES=true and GITHUB_PAGES_BASE in CI */
@@ -9,10 +9,37 @@ function appBase(): string {
   return withSlash.endsWith("/") ? withSlash : `${withSlash}/`;
 }
 
+/** Dev-only live X relay — pulls syndication server-side (no stale static JSON while iterating). */
+function xLiveFeedPlugin(): Plugin {
+  return {
+    name: "x-live-feed",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith("/api/lore/x-feed/live")) {
+          next();
+          return;
+        }
+        try {
+          const { buildLiveFeed } = await import("./scripts/x-lore-lib.mjs");
+          const feed = await buildLiveFeed();
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(feed));
+        } catch (err) {
+          res.statusCode = 502;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: appBase(),
   root: ".",
   publicDir: "public",
+  plugins: [xLiveFeedPlugin()],
   server: {
     /** Avoid hijacking 5173 — many other Vite apps (e.g. social media) use the default. */
     port: 5174,

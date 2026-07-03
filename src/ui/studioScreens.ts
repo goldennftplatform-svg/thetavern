@@ -19,6 +19,7 @@ import {
   renderCardRow,
   studioStageHtml,
 } from "./tavernHub";
+import { type NoticeEntry, renderNoticeList } from "./notices";
 
 export type RunSnapshot = {
   renown: number;
@@ -237,16 +238,19 @@ export function feastStudioHtml(intro: string, nightTitle: string, specials: Foo
   );
 }
 
-export function ledgerStudioHtml(s: RunSnapshot, notices: string[], archiveLines: string[]): string {
-  const noticeLis = notices.map((n) => `<li>${escapeHtml(n)}</li>`).join("");
-  const archiveLis = archiveLines.map((n) => `<li class="studio-archive-line">${escapeHtml(n)}</li>`).join("");
+export function ledgerStudioHtml(s: RunSnapshot, notices: NoticeEntry[], archiveLines: string[]): string {
+  const archiveEntries: NoticeEntry[] = archiveLines.map((body) => ({
+    kind: "archive" as const,
+    label: "Prior charter night",
+    body,
+  }));
   return studioStageHtml(
     "Ledger &amp; notices",
     `${scoreboardHtml(s)}
     <p class="studio-stage-lead">Tavern archive</p>
-    <ul class="studio-ledger-list studio-ledger-list--archive">${archiveLis}</ul>
+    ${renderNoticeList(archiveEntries, "notice-list notice-list--ledger notice-list--archive")}
     <p class="studio-stage-lead">Hall notices</p>
-    <ul class="studio-ledger-list">${noticeLis}</ul>
+    ${renderNoticeList(notices, "notice-list notice-list--ledger")}
     <button type="button" class="btn ghost studio-link-btn" data-hub-action="hall_view">📺 Hall view</button>
     <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
     <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,

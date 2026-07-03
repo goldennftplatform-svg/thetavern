@@ -60,6 +60,28 @@
               <button type="button" id="btn-strike" class="btn strike strike-float" hidden>
                 STRIKE!
               </button>
+              <div id="warrior-puzzle-controls" class="warrior-puzzle-float">
+                <div class="warrior-puzzle-row">
+                  <button type="button" id="btn-warrior-left" class="btn warrior-tap" aria-label="Move left">
+                    ◀
+                  </button>
+                  <button type="button" id="btn-warrior-rotate" class="btn warrior-tap" aria-label="Rotate piece">
+                    ↻
+                  </button>
+                  <button type="button" id="btn-warrior-drop" class="btn warrior-tap" aria-label="Soft drop">
+                    ↓
+                  </button>
+                  <button type="button" id="btn-warrior-hard" class="btn warrior-tap warrior-tap--slam" aria-label="Hard drop">
+                    ⇓
+                  </button>
+                  <button type="button" id="btn-warrior-right" class="btn warrior-tap" aria-label="Move right">
+                    ▶
+                  </button>
+                </div>
+              </div>
+              <button type="button" id="btn-warrior-jump" class="btn warrior-jump-float" aria-label="Jump">
+                ↑
+              </button>
               <div id="play-toast" class="play-toast" hidden aria-live="polite"></div>
             </div>
           </section>
@@ -79,7 +101,7 @@
           </footer>
 
           <details class="play-board-wrap">
-            <summary class="play-board-summary">Board</summary>
+            <summary class="play-board-summary">Ledger</summary>
             <aside class="card board">
               <ul id="notices"></ul>
               <button type="button" id="btn-charter" class="btn linkish">Rim notice</button>

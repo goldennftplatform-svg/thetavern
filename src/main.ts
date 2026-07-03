@@ -9,7 +9,6 @@ import {
   GAME_TITLE,
   creditsLine,
   demplarModalIntro,
-  demplarNotice,
   fishCatalog,
   heraldLines,
   perilBeats,
@@ -17,7 +16,6 @@ import {
 } from "./content/lore";
 import {
   pickLine,
-  noticeBoardArcane,
   chanceTableIntro,
   feastIntro,
   hubVerse,
@@ -63,11 +61,13 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import { bindWarriorTouch } from "./warriorTouch";
 import { primeWarriorSfx } from "./audio/warriorSfx";
-import { demplarEpigraphs, knightNoticeBoard } from "./content/demplarKnights";
+import { demplarEpigraphs } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
-import { getXLoreFeed, loadXLoreFeed } from "./lore/xFeed";
+import { getXLoreFeed, loadXLoreFeed, onXLoreFeedUpdate, refreshXLoreFeed } from "./lore/xFeed";
+import { hallNoticeEntries, renderNoticeCardLi } from "./ui/notices";
 import {
   chanceHighLowHtml,
   chanceOverUnderHtml,
@@ -192,6 +192,12 @@ const elStrike = $("btn-strike");
 const elReel = $("reel-controls");
 const elSlack = $("btn-slack");
 const elHeave = $("btn-heave");
+const elWarriorLeft = $("btn-warrior-left");
+const elWarriorRight = $("btn-warrior-right");
+const elWarriorRotate = $("btn-warrior-rotate");
+const elWarriorDrop = $("btn-warrior-drop");
+const elWarriorHard = $("btn-warrior-hard");
+const elWarriorJump = $("btn-warrior-jump");
 const elHudR = $("hud-renown");
 const elHudT = $("hud-tokens");
 const elHudS = $("hud-season");
@@ -464,27 +470,6 @@ function runSnapshot(): RunSnapshot {
 
 const xFeedReady = loadXLoreFeed();
 
-function hallNoticeItems(): string[] {
-  const night = tonightUtc();
-  const feed = getXLoreFeed();
-  const xSnippets = (feed?.posts ?? [])
-    .slice()
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3)
-    .map((p) => {
-      const t = p.text.length > 110 ? `${p.text.slice(0, 108)}…` : p.text;
-      return `Overheard @${p.handle.replace(/^@/, "")}: ${t}`;
-    });
-  return [
-    demplarNotice,
-    ...xSnippets,
-    pickLine(knightNoticeBoard),
-    pickLine(noticeBoardArcane),
-    `Tonight: ${night.title} — ${night.tagline}`,
-    pickLine(noticeBoardArcane),
-  ];
-}
-
 function fishBlurb(fishId: string): string {
   return fishCatalog.find((f) => f.id === fishId)?.blurb ?? "";
 }
@@ -659,12 +644,12 @@ function handleHubAction(action: string) {
   }
   if (action === "ledger") {
     const archiveLines = formatCharterArchives(loadAnglerArchives(state.nickname));
-    openMenu(ledgerStudioHtml(runSnapshot(), hallNoticeItems(), archiveLines));
+    openMenu(ledgerStudioHtml(runSnapshot(), hallNoticeEntries(), archiveLines));
     elPrimary.hidden = true;
     return;
   }
   if (action === "herald_scroll") {
-    void xFeedReady.then((feed) => {
+    void refreshXLoreFeed(true).then((feed) => {
       openMenu(heraldScrollStudioHtml(runSnapshot(), feed));
       elPrimary.hidden = true;
     });
@@ -908,16 +893,25 @@ function startDemplarLoop() {
 
 function startDemplarWarrior() {
   primeWarriorSfx();
-  demplarGame = new DemplarWarrior();
+  demplarGame = new DemplarWarrior({ mobileEase: touchFriendly });
   setPhase("demplar_warrior");
   syncWarriorShell();
 }
 
-function demplarPointer(e: PointerEvent) {
-  if (state.phase !== "demplar_warrior" || !demplarGame) return;
-  const rect = canvas.getBoundingClientRect();
-  demplarGame.pointerDown(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
-}
+bindWarriorTouch({
+  touchFriendly,
+  canvas,
+  getPhase: () => state.phase,
+  getGame: () => demplarGame,
+  buttons: {
+    left: elWarriorLeft,
+    right: elWarriorRight,
+    rotate: elWarriorRotate,
+    drop: elWarriorDrop,
+    hard: elWarriorHard,
+    jump: elWarriorJump,
+  },
+});
 
 function drawWell(phaseOverride?: GamePhase) {
   const { w, h } = syncCanvasBuffer();
@@ -1294,11 +1288,11 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "ArrowLeft" || e.code === "KeyA") {
       e.preventDefault();
-      demplarGame?.steer(-1);
+      demplarGame?.steer(-1, false);
     }
     if (e.code === "ArrowRight" || e.code === "KeyD") {
       e.preventDefault();
-      demplarGame?.steer(1);
+      demplarGame?.steer(1, false);
     }
     if (e.code === "KeyF") {
       e.preventDefault();
@@ -1366,13 +1360,10 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 
 function fillNotices() {
-  elNotices.innerHTML = "";
-  hallNoticeItems().forEach((t) => {
-    const li = document.createElement("li");
-    li.textContent = t;
-    elNotices.appendChild(li);
-  });
+  elNotices.innerHTML = hallNoticeEntries().map(renderNoticeCardLi).join("");
 }
+
+onXLoreFeedUpdate(() => fillNotices());
 
 async function ensurePixelFonts() {
   try {
@@ -1414,29 +1405,6 @@ async function bootTrail() {
     elTrail.textContent = "Live hall offline — run npm run live, then hard-refresh Play + bigboard.";
   }
 }
-
-canvas.addEventListener("pointerdown", (e) => {
-  demplarPointer(e);
-});
-
-canvas.addEventListener("pointermove", (e) => {
-  if (state.phase !== "demplar_warrior" || !demplarGame) return;
-  const rect = canvas.getBoundingClientRect();
-  demplarGame.pointerMove(
-    e.clientX - rect.left,
-    e.clientY - rect.top,
-    rect.width,
-    rect.height,
-  );
-});
-
-canvas.addEventListener("pointerup", () => {
-  demplarGame?.pointerUp();
-});
-
-canvas.addEventListener("pointercancel", () => {
-  demplarGame?.pointerUp();
-});
 
 async function startGameFromGate() {
   const raw = elNick.value.trim() || "Anonymous Angler";
