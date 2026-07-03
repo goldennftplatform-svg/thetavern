@@ -1,0 +1,21 @@
+---
+description: After fixing bugs or shipping features, commit and push to origin/main without waiting to be asked.
+alwaysApply: true
+---
+
+# Commit and push after fixes
+
+When you complete a bug fix, feature, or meaningful polish in this repo:
+
+1. **Commit and push automatically** — do not wait for the user to ask again.
+2. Run `git status` and `git diff` first; stage only relevant files (never `.env`, credentials, or stray QA screenshots unless requested).
+3. Write a concise commit message focused on **why** the change was made.
+4. Push to `origin` on the current branch (`git push -u origin HEAD` if needed).
+5. Tell the user the **commit hash** and that it's pushed — briefly, not as a big ceremony.
+
+Skip commit/push only when:
+- The user explicitly said not to commit yet, or
+- There are no code changes to commit, or
+- You are mid-task and not done.
+
+Do not ask "want me to commit?" after finishing a fix — just do it.
