@@ -8,7 +8,7 @@ import type { MoonwellCard } from "../minigames/moonwellDeck";
 import type { FoodId } from "../content/tavernNights";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
 import type { XLoreFeed } from "../lore/xFeed";
-import { formatXPostAge } from "../lore/xFeed";
+import { formatXPostAge, heraldScrollMeta, heraldScrollPosts } from "../lore/xFeed";
 import type { MobileHallSnapshot } from "../hall/mobileHall";
 import { mobileHallFeedHtml, mobileHallLeaderboardHtml } from "../hall/mobileHall";
 import {
@@ -287,19 +287,16 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
 }
 
 export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string {
-  const posts = Array.isArray(feed.posts) ? feed.posts : [];
+  const posts = heraldScrollPosts(feed);
   const accounts = Array.isArray(feed.accounts) ? feed.accounts : [];
   const ally = accounts
     .map((a) => `@${escapeHtml(a.handle)}${a.site ? ` · ${escapeHtml(a.site)}` : ""}`)
     .join(" — ");
-  const synced =
-    feed.syncedAt && Date.parse(feed.syncedAt) > 0
-      ? new Date(feed.syncedAt).toLocaleString()
-      : "charter seed";
 
-  const cards = posts
-    .map(
-      (p) => `<article class="studio-x-post" role="article">
+  const cards = posts.length
+    ? posts
+        .map(
+          (p) => `<article class="studio-x-post" role="article">
       <header class="studio-x-post-head">
         <span class="studio-x-avatar" aria-hidden="true">⚔</span>
         <div class="studio-x-meta">
@@ -313,13 +310,14 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
         <a class="studio-x-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">Open on X ↗</a>
       </footer>
     </article>`,
-    )
-    .join("");
+        )
+        .join("")
+    : `<p class="studio-lore-line studio-lore-line--hint">Live syndication is quiet — open @DemplarOfficial on X for tonight&apos;s wire. Charter seed lines stay in the Ledger, not here.</p>`;
 
   return studioStageHtml(
     "Overheard from X",
-    `<p class="studio-stage-lead">Doom scroll neighbor lore — we relay @DemplarOfficial; this tavern is on their land, not in their charter. ${ally}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · <strong>${posts.length}</strong> missives — keep scrolling</p>
+    `<p class="studio-stage-lead">Doom scroll neighbor lore — live relay from @DemplarOfficial (real posts only). ${ally}</p>
+    <p class="studio-lore-line studio-lore-line--hint">${heraldScrollMeta(feed, posts)}</p>
     <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>
     <div class="studio-hub-footer studio-hub-footer--scroll">
       <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>

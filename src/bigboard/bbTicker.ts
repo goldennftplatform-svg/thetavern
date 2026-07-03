@@ -1,5 +1,5 @@
 import type { XLoreFeed } from "../lore/xFeed";
-import { formatXPostAge } from "../lore/xFeed";
+import { formatXPostAge, heraldScrollPosts } from "../lore/xFeed";
 
 function escapeHtml(text: string): string {
   return text
@@ -10,7 +10,7 @@ function escapeHtml(text: string): string {
 }
 
 function tickerItemsHtml(feed: XLoreFeed): string {
-  return feed.posts
+  return heraldScrollPosts(feed)
     .map((p) => {
       const handle = p.handle.replace(/^@/, "");
       const age = formatXPostAge(p.createdAt);

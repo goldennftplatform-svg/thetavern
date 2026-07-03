@@ -238,6 +238,26 @@ export function getXLoreFeed(): XLoreFeed | null {
   return cached;
 }
 
+/** True when the post came from X syndication (snowflake id), not charter seed. */
+export function isRealXPost(p: XLorePost): boolean {
+  return /^\d{10,}$/.test(p.id);
+}
+
+/** Neighbor lore doom scroll — real @DemplarOfficial tweets only, newest first. */
+export function heraldScrollPosts(feed: XLoreFeed): XLorePost[] {
+  return feed.posts
+    .filter(isRealXPost)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .slice(0, X_LORE_FEED_CAP);
+}
+
+export function heraldScrollMeta(feed: XLoreFeed, posts: XLorePost[]): string {
+  const synced = xFeedSyncedLabel(feed);
+  if (!posts.length) return `${synced} · no live syndication — showing charter fallback on X link below`;
+  const newest = formatXPostAge(posts[0]!.createdAt);
+  return `${synced} · <strong>${posts.length}</strong> live posts · newest on X <strong>${newest}</strong> ago`;
+}
+
 /** Cached relay, or charter seed — never blocks on network. */
 export function ensureXLoreFeed(): XLoreFeed {
   try {

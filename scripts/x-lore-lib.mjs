@@ -51,6 +51,22 @@ function normalizeDate(raw) {
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
+/** Twitter syndication uses "Wed May 07 04:36:48 +0000 2025" — always parse as UTC. */
+function normalizeTwitterDate(raw) {
+  if (typeof raw !== "string") return new Date().toISOString();
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function extractPostsFromNextData(data, handle) {
   const posts = [];
   const seen = new Set();
@@ -78,8 +94,8 @@ function extractPostsFromNextData(data, handle) {
       id: String(id),
       handle,
       label: meta.label,
-      text: text.replace(/\s+/g, " ").trim(),
-      createdAt: normalizeDate(created),
+      text: decodeHtmlEntities(text.replace(/\s+/g, " ").trim()),
+      createdAt: normalizeTwitterDate(created),
       url: `https://x.com/${handle}/status/${id}`,
       metrics: {
         likes: legacy.favorite_count ?? legacy.like_count ?? undefined,
@@ -159,8 +175,7 @@ export async function buildLiveFeed(handles = DEFAULT_HANDLES) {
     accounts.push({ handle, label: meta.label, url: meta.url, site: meta.site });
     try {
       const live = await fetchTimeline(handle);
-      const merged = mergePosts(live, seed, handle);
-      allPosts.push(...merged);
+      allPosts.push(...live);
     } catch (err) {
       const seeded = (seed.posts ?? []).filter((p) => p.handle === handle || handles.length === 1);
       allPosts.push(...seeded.map((p) => ({ ...p, handle: p.handle ?? handle })));
