@@ -287,7 +287,9 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
 }
 
 export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string {
-  const ally = feed.accounts
+  const posts = Array.isArray(feed.posts) ? feed.posts : [];
+  const accounts = Array.isArray(feed.accounts) ? feed.accounts : [];
+  const ally = accounts
     .map((a) => `@${escapeHtml(a.handle)}${a.site ? ` · ${escapeHtml(a.site)}` : ""}`)
     .join(" — ");
   const synced =
@@ -295,7 +297,7 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
       ? new Date(feed.syncedAt).toLocaleString()
       : "charter seed";
 
-  const cards = feed.posts
+  const cards = posts
     .map(
       (p) => `<article class="studio-x-post" role="article">
       <header class="studio-x-post-head">
@@ -317,7 +319,7 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
   return studioStageHtml(
     "Overheard from X",
     `<p class="studio-stage-lead">Doom scroll neighbor lore — we relay @DemplarOfficial; this tavern is on their land, not in their charter. ${ally}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · <strong>${feed.posts.length}</strong> missives — keep scrolling</p>
+    <p class="studio-lore-line studio-lore-line--hint">Relay synced ${escapeHtml(synced)} · <strong>${posts.length}</strong> missives — keep scrolling</p>
     <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>
     <div class="studio-hub-footer studio-hub-footer--scroll">
       <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>

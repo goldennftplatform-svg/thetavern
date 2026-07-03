@@ -633,8 +633,21 @@ function openNeighborLore() {
     openMenu(heraldScrollStudioHtml(snap, feed));
     elPrimary.hidden = true;
   };
-  show(ensureXLoreFeed());
-  void refreshXLoreFeed(true).then(show).catch(() => show(ensureXLoreFeed()));
+  try {
+    show(ensureXLoreFeed());
+  } catch {
+    showToast("Neighbor lore relay hiccup — hard-refresh and try again.");
+    return;
+  }
+  void refreshXLoreFeed(true)
+    .then(show)
+    .catch(() => {
+      try {
+        show(ensureXLoreFeed());
+      } catch {
+        showToast("Neighbor lore relay hiccup — hard-refresh and try again.");
+      }
+    });
 }
 
 function handleHubAction(action: string) {

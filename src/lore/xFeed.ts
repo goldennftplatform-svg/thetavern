@@ -54,15 +54,25 @@ export const X_LORE_FEED_CAP = 200;
 
 const LIVE_API = "/api/lore/x-feed/live";
 
-function mergePostsById(...lists: XLorePost[][]): XLorePost[] {
+function mergePostsById(...lists: unknown[]): XLorePost[] {
   const byId = new Map<string, XLorePost>();
   for (const list of lists) {
+    if (!Array.isArray(list)) continue;
     for (const p of list) {
       if (!p?.id || !p.text?.trim()) continue;
-      byId.set(p.id, p);
+      byId.set(p.id, p as XLorePost);
     }
   }
   return [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+function normalizeRemoteFeed(raw: XLoreFeed | null): XLoreFeed | null {
+  if (!raw || typeof raw !== "object") return null;
+  return {
+    ...raw,
+    posts: Array.isArray(raw.posts) ? raw.posts : [],
+    accounts: Array.isArray(raw.accounts) ? raw.accounts : [],
+  };
 }
 
 function stripMarkup(text: string): string {
@@ -108,12 +118,16 @@ function loreSeedPosts(): XLorePost[] {
 
 function buildFeed(remote: XLoreFeed | null): XLoreFeed {
   const base = seedData.posts as XLorePost[];
-  const posts = mergePostsById(base, loreSeedPosts(), remote?.posts ?? []).slice(0, X_LORE_FEED_CAP);
+  const remoteNorm = normalizeRemoteFeed(remote);
+  const posts = mergePostsById(base, loreSeedPosts(), remoteNorm?.posts ?? []).slice(
+    0,
+    X_LORE_FEED_CAP,
+  );
   return {
     version: 1,
-    syncedAt: remote?.syncedAt ?? new Date(0).toISOString(),
-    accounts: remote?.accounts?.length
-      ? remote.accounts
+    syncedAt: remoteNorm?.syncedAt ?? new Date(0).toISOString(),
+    accounts: remoteNorm?.accounts?.length
+      ? remoteNorm.accounts
       : [
           {
             handle: "DemplarOfficial",
@@ -123,7 +137,7 @@ function buildFeed(remote: XLoreFeed | null): XLoreFeed {
           },
         ],
     posts,
-    syncErrors: remote?.syncErrors,
+    syncErrors: remoteNorm?.syncErrors,
   };
 }
 
@@ -169,8 +183,12 @@ export async function refreshXLoreFeed(force = false): Promise<XLoreFeed> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const remote = await fetchRemoteFeed();
-    cached = buildFeed(remote);
+    try {
+      const remote = await fetchRemoteFeed();
+      cached = buildFeed(remote);
+    } catch {
+      cached = cached ?? seedFeed();
+    }
     lastFetchAt = Date.now();
     notifyUpdate(cached);
     return cached;
@@ -222,7 +240,11 @@ export function getXLoreFeed(): XLoreFeed | null {
 
 /** Cached relay, or charter seed — never blocks on network. */
 export function ensureXLoreFeed(): XLoreFeed {
-  return cached ?? seedFeed();
+  try {
+    return cached ?? seedFeed();
+  } catch {
+    return seedFeed();
+  }
 }
 
 export function pickXPost(feed?: XLoreFeed | null): XLorePost | null {
