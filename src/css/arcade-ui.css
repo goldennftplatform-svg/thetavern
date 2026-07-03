@@ -573,6 +573,13 @@ html.play-active .play-menu {
   grid-row: auto !important;
 }
 
+html.play-active .play-menu:not([hidden]):has(.studio-stage--herald),
+html.play-active .play-menu:not([hidden]):has(.studio-stage--ledger),
+html.play-active .play-menu:not([hidden]).play-menu--herald,
+html.play-active .play-menu:not([hidden]).play-menu--ledger {
+  grid-row: 1 / -1 !important;
+}
+
 html.play-active .play-hud {
   grid-area: hud !important;
 }

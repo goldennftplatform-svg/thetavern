@@ -9,6 +9,26 @@ function appBase(): string {
   return withSlash.endsWith("/") ? withSlash : `${withSlash}/`;
 }
 
+/** Dev-only: warn when trail server is not running (bigboard + live deeds need :3847). */
+function trailHealthPlugin(): Plugin {
+  return {
+    name: "trail-health-check",
+    configureServer(server) {
+      server.httpServer?.once("listening", () => {
+        void fetch("http://127.0.0.1:3847/health", { signal: AbortSignal.timeout(2000) })
+          .then((r) => (r.ok ? undefined : Promise.reject()))
+          .catch(() => {
+            console.warn(
+              "\n[thetavern] Trail server is not on :3847 — live hall + bigboard sync need:\n" +
+                "  npm run live     (server + Vite)\n" +
+                "  npm run dashboard (same, prints bigboard URL)\n",
+            );
+          });
+      });
+    },
+  };
+}
+
 /** Dev-only live X relay — pulls syndication server-side (no stale static JSON while iterating). */
 function xLiveFeedPlugin(): Plugin {
   return {
@@ -39,7 +59,7 @@ export default defineConfig({
   base: appBase(),
   root: ".",
   publicDir: "public",
-  plugins: [xLiveFeedPlugin()],
+  plugins: [trailHealthPlugin(), xLiveFeedPlugin()],
   server: {
     /** Avoid hijacking 5173 — many other Vite apps (e.g. social media) use the default. */
     port: 5174,

@@ -265,6 +265,16 @@ html.tavern-mobile .hub-pick {
   backdrop-filter: blur(6px);
 }
 
+.play-shell[data-phase="well"] .play-menu:has(.studio-stage--herald),
+.play-shell[data-phase="well"] .play-menu:has(.studio-stage--ledger),
+.play-shell[data-phase="well"] .play-menu.play-menu--herald,
+.play-shell[data-phase="well"] .play-menu.play-menu--ledger {
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 40%, rgba(18, 26, 38, 0.97), rgba(4, 6, 10, 0.99)),
+    rgba(4, 6, 10, 0.96);
+  backdrop-filter: blur(16px);
+}
+
 .play-shell[data-phase="well"] .play-menu-body {
   max-width: min(98vw, 720px);
 }

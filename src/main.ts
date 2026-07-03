@@ -65,7 +65,12 @@ import { primeWarriorSfx } from "./audio/warriorSfx";
 import { demplarEpigraphs } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
-import { getXLoreFeed, loadXLoreFeed, onXLoreFeedUpdate, refreshXLoreFeed } from "./lore/xFeed";
+import {
+  ensureXLoreFeed,
+  loadXLoreFeed,
+  onXLoreFeedUpdate,
+  refreshXLoreFeed,
+} from "./lore/xFeed";
 import { hallNoticeEntries, renderNoticeCardLi } from "./ui/notices";
 import {
   chanceHighLowHtml,
@@ -152,13 +157,21 @@ function showToast(msg: string, hideAfterMs = 0) {
 }
 
 function openMenu(html: string) {
+  const herald = html.includes("studio-stage--herald");
+  const ledger = html.includes("studio-stage--ledger");
   elPhase.innerHTML = html;
+  elPhase.classList.toggle("play-menu-body--herald", herald);
+  elPhase.classList.toggle("play-menu-body--ledger", ledger);
+  elPlayMenu.classList.toggle("play-menu--herald", herald);
+  elPlayMenu.classList.toggle("play-menu--ledger", ledger);
   elPlayMenu.hidden = false;
 }
 
 function closeMenu() {
   elPlayMenu.hidden = true;
   elPhase.innerHTML = "";
+  elPhase.classList.remove("play-menu-body--herald", "play-menu-body--ledger");
+  elPlayMenu.classList.remove("play-menu--herald", "play-menu--ledger");
 }
 
 function juicePlay(kind: "bite" | "catch") {
@@ -614,6 +627,16 @@ function wirePhaseHub() {
   ensureMenuClickDelegation();
 }
 
+function openNeighborLore() {
+  const snap = runSnapshot();
+  const show = (feed: ReturnType<typeof ensureXLoreFeed>) => {
+    openMenu(heraldScrollStudioHtml(snap, feed));
+    elPrimary.hidden = true;
+  };
+  show(ensureXLoreFeed());
+  void refreshXLoreFeed(true).then(show).catch(() => show(ensureXLoreFeed()));
+}
+
 function handleHubAction(action: string) {
   if (action === "fish") {
     if (state.tokens < 1) {
@@ -647,10 +670,7 @@ function handleHubAction(action: string) {
     return;
   }
   if (action === "herald_scroll") {
-    void refreshXLoreFeed(true).then((feed) => {
-      openMenu(heraldScrollStudioHtml(runSnapshot(), feed));
-      elPrimary.hidden = true;
-    });
+    openNeighborLore();
     return;
   }
   if (action === "charter") {

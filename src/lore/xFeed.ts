@@ -39,9 +39,12 @@ export type XLoreFeed = {
 
 let cached: XLoreFeed | null = null;
 let loadPromise: Promise<XLoreFeed> | null = null;
+let refreshPromise: Promise<XLoreFeed> | null = null;
 let lastFetchAt = 0;
 let refreshTimer = 0;
 const listeners = new Set<(feed: XLoreFeed) => void>();
+
+const FETCH_TIMEOUT_MS = 8_000;
 
 /** How often the client re-fetches while the tavern is open. */
 export const X_LORE_REFRESH_MS = 15 * 60_000;
@@ -105,7 +108,7 @@ function loreSeedPosts(): XLorePost[] {
 
 function buildFeed(remote: XLoreFeed | null): XLoreFeed {
   const base = seedData.posts as XLorePost[];
-  const posts = mergePostsById(base, loreSeedPosts(), ...(remote?.posts ?? [])).slice(0, X_LORE_FEED_CAP);
+  const posts = mergePostsById(base, loreSeedPosts(), remote?.posts ?? []).slice(0, X_LORE_FEED_CAP);
   return {
     version: 1,
     syncedAt: remote?.syncedAt ?? new Date(0).toISOString(),
@@ -133,21 +136,29 @@ export function onXLoreFeedUpdate(fn: (feed: XLoreFeed) => void): () => void {
   return () => listeners.delete(fn);
 }
 
+async function fetchJsonWithTimeout(url: string): Promise<XLoreFeed | null> {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) return null;
+    return (await res.json()) as XLoreFeed;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchRemoteFeed(): Promise<XLoreFeed | null> {
   const base = import.meta.env.BASE_URL || "/";
   const bust = Date.now();
-  const urls: string[] = [];
+  const urls: string[] = [`${base}lore/x-feed.json?t=${bust}`];
   if (import.meta.env.DEV) urls.push(`${LIVE_API}?t=${bust}`);
-  urls.push(`${base}lore/x-feed.json?t=${bust}`);
 
   for (const url of urls) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) continue;
-      return (await res.json()) as XLoreFeed;
-    } catch {
-      /* try next source */
-    }
+    const feed = await fetchJsonWithTimeout(url);
+    if (feed) return feed;
   }
   return null;
 }
@@ -155,12 +166,21 @@ async function fetchRemoteFeed(): Promise<XLoreFeed | null> {
 export async function refreshXLoreFeed(force = false): Promise<XLoreFeed> {
   const now = Date.now();
   if (!force && cached && now - lastFetchAt < 45_000) return cached;
+  if (refreshPromise) return refreshPromise;
 
-  const remote = await fetchRemoteFeed();
-  cached = buildFeed(remote);
-  lastFetchAt = now;
-  notifyUpdate(cached);
-  return cached;
+  refreshPromise = (async () => {
+    const remote = await fetchRemoteFeed();
+    cached = buildFeed(remote);
+    lastFetchAt = Date.now();
+    notifyUpdate(cached);
+    return cached;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
 }
 
 export function startXLoreFeedAutoRefresh(): void {
@@ -198,6 +218,11 @@ export async function loadXLoreFeed(): Promise<XLoreFeed> {
 
 export function getXLoreFeed(): XLoreFeed | null {
   return cached;
+}
+
+/** Cached relay, or charter seed — never blocks on network. */
+export function ensureXLoreFeed(): XLoreFeed {
+  return cached ?? seedFeed();
 }
 
 export function pickXPost(feed?: XLoreFeed | null): XLorePost | null {

@@ -16,7 +16,7 @@ import {
   knightHallWhispers,
 } from "../content/demplarKnights";
 import { formatCharterDayLabel } from "../game/charterDay";
-import { loadXLoreFeed, onXLoreFeedUpdate, pickXPost, pickXPostText, refreshXLoreFeed } from "../lore/xFeed";
+import { loadXLoreFeed, getXLoreFeed, onXLoreFeedUpdate, pickXPost, pickXPostText, refreshXLoreFeed } from "../lore/xFeed";
 import { bbTickerShell, mountBbTicker } from "./bbTicker";
 import { tonightUtc } from "../content/tavernNights";
 import { loadDailyMediaTheme } from "../media/loadTheme";
@@ -940,12 +940,42 @@ async function main() {
   window.setInterval(ensurePreviewPatrons, 10_000);
 
   try {
-    await document.fonts.load('400 10px "Press Start 2P"');
-    await document.fonts.load('400 24px "VT323"');
-    await document.fonts.load('400 20px "Pixelify Sans"');
-    await document.fonts.load('400 14px "Silkscreen"');
+    await Promise.race([
+      Promise.all([
+        document.fonts.load('400 10px "Press Start 2P"'),
+        document.fonts.load('400 24px "VT323"'),
+        document.fonts.load('400 20px "Pixelify Sans"'),
+        document.fonts.load('400 14px "Silkscreen"'),
+      ]),
+      new Promise((resolve) => window.setTimeout(resolve, 2500)),
+    ]);
   } catch {
     /* optional */
+  }
+
+  setLive(false, "Moonwell tavern");
+  const { url } = await resolveTrailServerUrl();
+
+  if (!url) {
+    await initCharterChrome();
+    bootPreviewHall("Offline build — run npm run live locally for a live hall feed.");
+    return;
+  }
+
+  setLive(false, "Joining live hall…");
+  patronsEl.textContent = "Connecting to Moonwell trail…";
+
+  let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
+  try {
+    client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true }, {
+      onSocket: bindTrailSocket,
+    });
+  } catch {
+    await initCharterChrome();
+    bootPreviewHall(
+      "Preview seats — run npm run live (trail :3847 + Vite :5174) then refresh both tabs.",
+    );
+    return;
   }
 
   await initCharterChrome();
@@ -972,36 +1002,10 @@ async function main() {
   rotateDockFact();
   setInterval(rotateDockFact, FACT_ROTATE_MS);
 
-  setLive(false, "Moonwell tavern");
-  const { url } = await resolveTrailServerUrl();
-
-  if (!url) {
-    bootPreviewHall("Offline build — run npm run live locally for a live hall feed.");
-    return;
-  }
-
-  setLive(false, "Joining live hall…");
-  patronsEl.textContent = "Connecting to Moonwell trail…";
-
-  let client = null as Awaited<ReturnType<typeof connectTrail>> | null;
-  try {
-    client = await connectTrail(url, "trailJson", { name: "Hall of the Angler", projector: true }, {
-      onSocket: bindTrailSocket,
-    });
-    goLiveHall(`Live hall · ${night.title}`);
-    patronList = [];
-    client.socket.emit("hall:deed:request");
-    setWhisper("Live hall online — cast in Play to light up the map.");
-  } catch {
-    bootPreviewHall(
-      "Preview seats — run npm run live (trail :3847 + Vite :5174) then refresh both tabs.",
-    );
-    return;
-  }
-
-  if (!client?.socket) {
-    bootPreviewHall("Preview seats at the Great Table.");
-  }
+  goLiveHall(`Live hall · ${night.title}`);
+  patronList = [];
+  client!.socket.emit("hall:deed:request");
+  setWhisper("Live hall online — cast in Play to light up the map.");
 }
 
 void main();

@@ -797,7 +797,8 @@ html.play-active .play-menu {
   flex-shrink: 0;
 }
 
-.play-menu-body:has(.studio-stage--herald) {
+.play-menu-body:has(.studio-stage--herald),
+.play-menu-body--herald {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -856,7 +857,8 @@ html.play-active .play-menu {
     max-height: min(78dvh, 840px);
   }
 
-  .play-menu-body:has(.studio-stage--herald) {
+  .play-menu-body:has(.studio-stage--herald),
+  .play-menu-body--herald {
     max-width: min(640px, 100%) !important;
     margin: 0 auto;
   }
