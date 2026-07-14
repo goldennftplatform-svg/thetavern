@@ -1,10 +1,25 @@
 /**
  * Moonwell fishing stage — cast arc, bobber, splash, bite flash, reel struggle.
+ * Angler body driven by ARDY-lite / CUDA-baked motion clips (hybrid root + body).
  */
 
 import type { FishingPole } from "../content/fishingPoles";
 import { poleById, STARTER_POLE_ID } from "../content/fishingPoles";
 import type { GamePhase } from "../game/types";
+import {
+  fishingClipId,
+  loadArdyClip,
+  preloadArdyFishingClips,
+} from "../motion/ardyClips";
+import {
+  promptForFishingPhase,
+  sampleClip,
+  synthesizeArdyLite,
+  type ArdyClip,
+} from "../motion/ardyLite";
+import { drawArdySkeleton } from "../motion/ardySkeleton";
+
+export { preloadArdyFishingClips };
 
 export type DrawCtx = {
   phase: GamePhase;
@@ -34,6 +49,36 @@ let strikeFlashUntil = 0;
 let landFlashUntil = 0;
 
 const poleSprites = new Map<string, HTMLImageElement | null>();
+const ardyClipCache = new Map<string, ArdyClip | null>();
+let ardyBooted = false;
+
+function ensureArdyBoot() {
+  if (ardyBooted) return;
+  ardyBooted = true;
+  preloadArdyFishingClips();
+  for (const id of ["idle", "cast", "wait", "strike", "reel", "fight"] as const) {
+    void loadArdyClip(id).then((clip) => ardyClipCache.set(id, clip));
+  }
+}
+
+function resolveAnglerPose(d: DrawCtx, now: number) {
+  ensureArdyBoot();
+  const fight =
+    d.phase === "fish_reel" && (d.reelTension < 0.34 || d.reelTension > 0.66);
+  const clipId = fight ? "fight" : fishingClipId(d.phase, d.biteOpen);
+  const clip = ardyClipCache.get(clipId) ?? null;
+  const t = now / 1000;
+  if (clip) return sampleClip(clip, t);
+  const prompt = promptForFishingPhase(d.phase, {
+    biteOpen: d.biteOpen,
+    tension: d.reelTension,
+  });
+  return synthesizeArdyLite(prompt, t, {
+    power: d.castPower,
+    tension: d.reelTension,
+    biteOpen: d.biteOpen,
+  });
+}
 
 function poleSpriteUrl(id: string): string {
   const base = import.meta.env.BASE_URL || "/";
@@ -242,9 +287,22 @@ function drawBobber(
     bobY = cy - 2 + Math.sin(now * 0.02) * 3 + (d.reelTension > 0.7 || d.reelTension < 0.3 ? 4 : 0);
   }
 
-  // Line from rod tip
-  const rodX = w * 0.16;
-  const rodY = h * 0.4;
+  // ARDY hybrid angler (root + body) — rod hangs from right wrist tip.
+  const pose = resolveAnglerPose(d, now);
+  const ox = w * 0.15;
+  const oy = h * 0.72;
+  const scale = Math.min(w, h) * 0.22;
+  const wrist = drawArdySkeleton(ctx, pose, {
+    ox,
+    oy,
+    scale,
+    ink: "#e0d2b0",
+    glow: "rgba(232, 176, 80, 0.22)",
+    line: Math.max(2, Math.floor(scale * 0.035)),
+    rodWrist: "R",
+  });
+  const rodX = wrist.x;
+  const rodY = wrist.y - scale * 0.12;
   const pole = poleById(d.poleId ?? STARTER_POLE_ID);
   const lo = d.greenLo ?? 0.34;
   const hi = d.greenHi ?? 0.66;

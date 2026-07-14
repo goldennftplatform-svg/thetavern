@@ -59,7 +59,7 @@ import {
   wornTitle,
 } from "./hall/hallAssets";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
-import { drawMoonwell, preloadPoleSprites, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
+import { drawMoonwell, preloadArdyFishingClips, preloadPoleSprites, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
@@ -1863,6 +1863,7 @@ preloadPoleSprites([
   "chronicle_lance",
   "moonshatter",
 ]);
+preloadArdyFishingClips();
 void loadDailyMediaTheme().then((theme) => {
   loadedTheme = theme;
   applyDailyMediaChrome(theme);

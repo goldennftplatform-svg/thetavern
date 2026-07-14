@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "skeleton": "moonwell-core16",
+  "notes": "Hybrid root+body fishing clips for Moonwell. Install https://github.com/nv-tlabs/ardy + HF Llama access for full CUDA ARDY.generate; current bake note: no torch/cuda (No module named 'torch')",
+  "clips": [
+    {
+      "id": "idle",
+      "file": "clips/idle.json",
+      "prompt": "angler stands ready at the moonwell rim"
+    },
+    {
+      "id": "cast",
+      "file": "clips/cast.json",
+      "prompt": "angler draws back and casts fishing rod toward moonlit water"
+    },
+    {
+      "id": "wait",
+      "file": "clips/wait.json",
+      "prompt": "angler waits patiently with rod tip over the well"
+    },
+    {
+      "id": "strike",
+      "file": "clips/strike.json",
+      "prompt": "angler strikes hard when the bobber dips"
+    },
+    {
+      "id": "reel",
+      "file": "clips/reel.json",
+      "prompt": "angler reels smoothly keeping tension in the green zone"
+    },
+    {
+      "id": "fight",
+      "file": "clips/fight.json",
+      "prompt": "angler fights a thrashing fish on the line"
+    }
+  ]
+}
