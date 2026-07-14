@@ -135,14 +135,24 @@ html.tavern-mobile .strike-cta {
 }
 
 html.tavern-mobile .reel-pair {
-  grid-template-columns: 1fr;
-  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 html.tavern-mobile .reel-tap {
   min-height: 3.5rem;
   font-size: clamp(0.46rem, 1.2vw + 0.35rem, 0.54rem);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px rgba(232, 196, 120, 0.22),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+html.tavern-mobile .play-shell[data-phase="fish_reel"] #btn-primary {
+  order: 3;
+  opacity: 0.85;
+  font-size: clamp(0.4rem, 1vw + 0.3rem, 0.48rem);
+  min-height: 2.75rem;
 }
 
 html.tavern-mobile .hud {

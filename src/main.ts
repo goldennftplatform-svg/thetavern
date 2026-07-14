@@ -44,7 +44,7 @@ import {
   wornTitle,
 } from "./hall/hallAssets";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
-import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
+import { drawMoonwell, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
@@ -68,6 +68,15 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass, isTavernMobile } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import {
+  playCastWhoosh,
+  playLandThump,
+  playNibble,
+  playReelCreak,
+  playSplash,
+  playStrikeHit,
+  primeFishingSfx,
+} from "./audio/fishingSfx";
 import { bindWarriorTouch } from "./warriorTouch";
 import { primeWarriorSfx } from "./audio/warriorSfx";
 import { demplarEpigraphs } from "./content/demplarKnights";
@@ -116,9 +125,9 @@ syncBoardDetails();
 document.documentElement.classList.add("gate-open");
 
 const PLAY_HINT = {
-  cast: "Hold ↓ release to cast",
-  wait: "STRIKE when it bites",
-  reel: "Hold SLACK / HEAVE — fill the bar",
+  cast: "Hold cast — release in the sweet marks",
+  wait: "Watch the bobber — STRIKE when it surges",
+  reel: "Slack · Heave — keep the gold peg in green",
 } as const;
 
 const SEASON_TAG: Record<string, string> = {
@@ -1035,6 +1044,7 @@ function drawWell(phaseOverride?: GamePhase) {
       reelProgress: state.reelProgress,
       seasonTint: seasonTints[state.season] ?? "#8cb8d8",
       banner: stageBanner,
+      now: performance.now(),
     },
     w,
     h,
@@ -1064,6 +1074,7 @@ function setPhase(next: GamePhase) {
       break;
     case "fish_cast":
       closeMenu();
+      primeFishingSfx();
       state.castPower = 0;
       elPrimary.textContent = "HOLD TO CAST";
       fishingBanner(PLAY_HINT.cast);
@@ -1209,8 +1220,9 @@ function setPhase(next: GamePhase) {
 }
 
 function startCastLoop() {
-  const tick = () => {
+  const tick = (now: number) => {
     if (state.phase !== "fish_cast") return;
+    waitPulse = now / 1000;
     if (chargeActive) {
       state.castPower = Math.min(1, state.castPower + 0.022 * FISH_PACE);
     } else {
@@ -1229,6 +1241,9 @@ function scheduleBiteWindow() {
     state.biteWindowOpen = true;
     elStrike.hidden = false;
     juicePlay("bite");
+    triggerBiteFlash();
+    playNibble();
+    if (navigator.vibrate) navigator.vibrate([12, 30, 18]);
     drawWell();
     broadcastFishing(true);
     biteOpenTimer = window.setTimeout(() => {
@@ -1245,6 +1260,8 @@ function finishReel(good: number, total: number) {
   clearFishingTimers();
   reelHoldDir = 0;
   reelQuality = Math.min(1, good / (total * 0.45));
+  triggerLandFlash();
+  playLandThump();
   try {
     const result = rollCatch({
       castQuality,
@@ -1303,6 +1320,10 @@ function startReelLoop() {
     if (inZone) good += dt;
     good += dt * 0.12 * FISH_PACE;
 
+    if (reelHoldDir && Math.floor(now / 180) !== Math.floor((now - dt) / 180)) {
+      playReelCreak(!inZone);
+    }
+
     state.reelProgress = Math.min(1, good / (total * 0.42));
 
     waitPulse = now / 1000;
@@ -1334,6 +1355,9 @@ function finishCast() {
   chargeActive = false;
   castQuality = Math.max(consumeCastFloor(), state.castPower);
   window.cancelAnimationFrame(rafCast);
+  triggerCastFx(castQuality);
+  playCastWhoosh();
+  window.setTimeout(() => playSplash(), 280);
   setPhase("fish_wait");
 }
 
@@ -1353,6 +1377,9 @@ elStrike.addEventListener("click", () => {
     state.biteWindowOpen = false;
     elStrike.hidden = true;
     window.clearTimeout(biteOpenTimer);
+    triggerStrikeFlash();
+    playStrikeHit();
+    if (navigator.vibrate) navigator.vibrate(28);
     setPhase("fish_reel");
   }
 });
@@ -1426,6 +1453,8 @@ window.addEventListener("keydown", (e) => {
     state.biteWindowOpen = false;
     elStrike.hidden = true;
     window.clearTimeout(biteOpenTimer);
+    triggerStrikeFlash();
+    playStrikeHit();
     setPhase("fish_reel");
   }
   if (state.phase === "fish_reel") {
@@ -1580,8 +1609,12 @@ window.addEventListener("beforeunload", () => {
 
 requestAnimationFrame(function tick(now: number) {
   waitPulse = now / 1000;
-  if (state.phase === "fish_wait") {
-    drawWell();
+  if (
+    state.phase === "fish_wait" ||
+    state.phase === "fish_cast" ||
+    state.phase === "fish_reel"
+  ) {
+    if (state.phase === "fish_wait") drawWell();
   }
   requestAnimationFrame(tick);
 });

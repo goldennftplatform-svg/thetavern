@@ -1,6 +1,10 @@
+/**
+ * Moonwell fishing stage — cast arc, bobber, splash, bite flash, reel struggle.
+ */
+
 import type { GamePhase } from "../game/types";
 
-type DrawCtx = {
+export type DrawCtx = {
   phase: GamePhase;
   castPower: number;
   biteOpen: boolean;
@@ -9,7 +13,51 @@ type DrawCtx = {
   reelProgress: number;
   seasonTint: string;
   banner?: string;
+  now?: number;
 };
+
+type Splash = { x: number; y: number; born: number; power: number };
+type Ripple = { born: number; maxR: number };
+
+let castArcUntil = 0;
+let castArcPower = 0.5;
+let castArcBorn = 0;
+let splashes: Splash[] = [];
+let ripples: Ripple[] = [];
+let biteFlashUntil = 0;
+let strikeFlashUntil = 0;
+let landFlashUntil = 0;
+
+export function triggerCastFx(power: number): void {
+  const now = performance.now();
+  castArcBorn = now;
+  castArcUntil = now + 520;
+  castArcPower = Math.max(0.2, Math.min(1, power));
+  const cy = 0; // resolved in draw from canvas size
+  splashes.push({ x: 0.5, y: 0.58, born: now + 280, power: castArcPower });
+  ripples.push({ born: now + 300, maxR: 28 + castArcPower * 36 });
+  if (splashes.length > 6) splashes.shift();
+  if (ripples.length > 8) ripples.shift();
+  void cy;
+}
+
+export function triggerBiteFlash(): void {
+  const now = performance.now();
+  biteFlashUntil = now + 900;
+  ripples.push({ born: now, maxR: 48 });
+  splashes.push({ x: 0.5 + (Math.random() - 0.5) * 0.08, y: 0.58, born: now, power: 0.85 });
+}
+
+export function triggerStrikeFlash(): void {
+  strikeFlashUntil = performance.now() + 420;
+  ripples.push({ born: performance.now(), maxR: 60 });
+}
+
+export function triggerLandFlash(): void {
+  landFlashUntil = performance.now() + 700;
+  ripples.push({ born: performance.now(), maxR: 70 });
+  splashes.push({ x: 0.5, y: 0.56, born: performance.now(), power: 1 });
+}
 
 function floorRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h));
@@ -51,22 +99,289 @@ function drawKnightHeraldry(ctx2d: CanvasRenderingContext2D, w: number, h: numbe
   ctx2d.textAlign = "center";
   ctx2d.fillText("MOONWELL TAVERN", w / 2, groundY - 52);
   ctx2d.textAlign = "left";
-
-  ctx2d.strokeStyle = `rgba(152, 144, 200, ${0.35 + shimmer * 0.2})`;
-  ctx2d.lineWidth = 1;
-  ctx2d.beginPath();
-  ctx2d.moveTo(w * 0.18, groundY - 8);
-  ctx2d.lineTo(w * 0.42, groundY - 18);
-  ctx2d.lineTo(w * 0.58, groundY - 18);
-  ctx2d.lineTo(w * 0.82, groundY - 8);
-  ctx2d.stroke();
 }
 
-/** Cohesive moonlit well — knightly charter rim, no scraped banner layers. */
+function wellCenter(w: number, h: number) {
+  return { cx: w / 2, cy: Math.floor(h * 0.58), rx: w * 0.36, ry: h * 0.1 };
+}
+
+function drawCastArc(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  now: number,
+) {
+  if (now > castArcUntil) return;
+  const { cx, cy } = wellCenter(w, h);
+  const t = Math.min(1, (now - castArcBorn) / 480);
+  const startX = w * 0.18;
+  const startY = h * 0.42;
+  const endX = cx + (castArcPower - 0.5) * w * 0.08;
+  const endY = cy - 4;
+  const midX = (startX + endX) / 2;
+  const midY = Math.min(startY, endY) - h * (0.14 + castArcPower * 0.1);
+
+  const bx =
+    (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * endX;
+  const by =
+    (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * endY;
+
+  ctx.strokeStyle = "rgba(232, 220, 180, 0.55)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.quadraticCurveTo(midX, midY, bx, by);
+  ctx.stroke();
+
+  ctx.fillStyle = "#e8b050";
+  ctx.beginPath();
+  ctx.arc(bx, by, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#1a1008";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawSplashRipples(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  now: number,
+) {
+  const { cx, cy, rx, ry } = wellCenter(w, h);
+  ripples = ripples.filter((r) => now - r.born < 900);
+  for (const r of ripples) {
+    const age = (now - r.born) / 900;
+    if (age < 0) continue;
+    const rad = r.maxR * age;
+    ctx.strokeStyle = `rgba(168, 216, 200, ${0.55 * (1 - age)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.min(rx * 0.95, rad), Math.min(ry * 0.95, rad * 0.35), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  splashes = splashes.filter((s) => now - s.born < 700);
+  for (const s of splashes) {
+    const age = (now - s.born) / 700;
+    if (age < 0) continue;
+    const sx = s.x * w;
+    const sy = s.y * h;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const dist = (10 + s.power * 18) * age;
+      const px = sx + Math.cos(a) * dist;
+      const py = sy - Math.abs(Math.sin(a)) * dist * 0.7 - age * 12;
+      ctx.fillStyle = `rgba(200, 230, 220, ${(1 - age) * 0.8})`;
+      floorRect(ctx, px, py, 3, 3);
+    }
+  }
+}
+
+function drawBobber(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  d: DrawCtx,
+  now: number,
+) {
+  const { cx, cy, ry } = wellCenter(w, h);
+  const fishing =
+    d.phase === "fish_wait" || d.phase === "fish_reel" || d.phase === "fish_cast";
+  if (!fishing) return;
+
+  let bobX = cx;
+  let bobY = cy - 2;
+  const pulse = d.waitPulse;
+
+  if (d.phase === "fish_cast") {
+    // Bobber sits at rim until cast lands
+    if (now < castArcUntil) return;
+    bobY = cy - 2;
+  }
+
+  if (d.phase === "fish_wait") {
+    const nibble = Math.sin(pulse * 3.2) * 2.5;
+    const preBite = d.biteOpen ? Math.sin(now * 0.04) * 5 : nibble;
+    bobY = cy - 2 + preBite;
+    if (d.biteOpen) bobX = cx + Math.sin(now * 0.03) * 6;
+  }
+
+  if (d.phase === "fish_reel") {
+    const tug = (d.reelTension - 0.5) * 28;
+    bobX = cx + tug;
+    bobY = cy - 2 + Math.sin(now * 0.02) * 3 + (d.reelTension > 0.7 || d.reelTension < 0.3 ? 4 : 0);
+  }
+
+  // Line from rod tip
+  const rodX = w * 0.16;
+  const rodY = h * 0.4;
+  const lineColor =
+    d.phase === "fish_reel"
+      ? d.reelTension >= 0.34 && d.reelTension <= 0.66
+        ? "rgba(104, 232, 168, 0.85)"
+        : "rgba(232, 120, 80, 0.9)"
+      : "rgba(220, 210, 180, 0.7)";
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = d.phase === "fish_reel" ? 2.5 : 1.5;
+  ctx.beginPath();
+  ctx.moveTo(rodX, rodY);
+  ctx.quadraticCurveTo((rodX + bobX) / 2, Math.min(rodY, bobY) - 18, bobX, bobY);
+  ctx.stroke();
+
+  // Rod
+  ctx.strokeStyle = "#c8a060";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(rodX - 8, rodY + 36);
+  ctx.lineTo(rodX, rodY);
+  ctx.stroke();
+
+  // Bobber body
+  const flash = now < biteFlashUntil || now < strikeFlashUntil;
+  ctx.fillStyle = flash ? "#ffd080" : "#e84840";
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, 7, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = "#f4f0e8";
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, 7, 0, Math.PI);
+  ctx.fill();
+  ctx.strokeStyle = "#1a1008";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, 7, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#e8b050";
+  floorRect(ctx, bobX - 1, bobY - 12, 2, 6);
+
+  // Soft reflection
+  ctx.fillStyle = "rgba(232, 200, 160, 0.18)";
+  drawEllipseFill(ctx, bobX, bobY + ry * 0.35, 10, 4);
+}
+
+function drawFishShadow(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  d: DrawCtx,
+  now: number,
+) {
+  if (d.phase !== "fish_reel") return;
+  const { cx, cy, ry } = wellCenter(w, h);
+  const tug = (d.reelTension - 0.5) * 40;
+  const fx = cx + tug * 1.2;
+  const fy = cy + 6 + Math.sin(now * 0.025) * 4;
+  const thrash = d.reelTension < 0.3 || d.reelTension > 0.7;
+
+  ctx.save();
+  ctx.translate(fx, fy);
+  ctx.rotate(Math.sin(now * 0.03) * (thrash ? 0.35 : 0.12));
+  ctx.fillStyle = thrash ? "rgba(232, 120, 80, 0.35)" : "rgba(40, 80, 90, 0.45)";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(18, 0);
+  ctx.lineTo(28, -8);
+  ctx.lineTo(28, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  if (thrash) {
+    ctx.fillStyle = "rgba(168, 216, 200, 0.35)";
+    for (let i = 0; i < 4; i++) {
+      floorRect(ctx, fx - 10 + i * 6, fy - ry * 0.6 - ((now / 40 + i * 7) % 10), 2, 2);
+    }
+  }
+}
+
+function drawMeters(ctx: CanvasRenderingContext2D, d: DrawCtx, w: number, h: number) {
+  const font = `${Math.max(10, Math.floor(w * 0.028))}px "VT323", monospace`;
+  const labelFont = `${Math.max(11, Math.floor(w * 0.032))}px "Press Start 2P", monospace`;
+
+  if (d.phase === "fish_cast") {
+    const barW = Math.floor(w * 0.72);
+    const bx = Math.floor((w - barW) / 2);
+    const by = Math.floor(h * 0.8);
+    const bh = 22;
+    ctx.fillStyle = "rgba(6, 10, 16, 0.85)";
+    floorRect(ctx, bx - 4, by - 22, barW + 8, bh + 30);
+    ctx.fillStyle = "#0a0e14";
+    floorRect(ctx, bx, by, barW, bh);
+    ctx.fillStyle = "#1a222c";
+    floorRect(ctx, bx + 2, by + 2, barW - 4, bh - 4);
+    const fillW = Math.floor((barW - 4) * d.castPower);
+    const hot = d.castPower > 0.72 && d.castPower < 0.92;
+    ctx.fillStyle = hot ? "#68e8a8" : "#e8a84a";
+    floorRect(ctx, bx + 2, by + 2, fillW, bh - 4);
+    // sweet spot marks
+    ctx.fillStyle = "rgba(104, 232, 168, 0.55)";
+    floorRect(ctx, bx + 2 + Math.floor((barW - 4) * 0.72), by + 1, 2, bh + 2);
+    floorRect(ctx, bx + 2 + Math.floor((barW - 4) * 0.92), by + 1, 2, bh + 2);
+    ctx.fillStyle = hot ? "#68e8a8" : "#c8d0dc";
+    ctx.font = labelFont;
+    ctx.fillText(hot ? "SWEET!" : "HOLD → RELEASE", bx, by - 6);
+  }
+
+  if (d.phase === "fish_wait") {
+    ctx.font = labelFont;
+    ctx.textAlign = "center";
+    if (d.biteOpen) {
+      const pulse = 0.7 + 0.3 * Math.sin((d.now ?? 0) * 0.02);
+      ctx.fillStyle = `rgba(232, 120, 80, ${pulse})`;
+      ctx.font = `${Math.max(16, Math.floor(w * 0.055))}px "Press Start 2P", monospace`;
+      ctx.fillText("STRIKE!", w / 2, h * 0.2);
+    } else {
+      ctx.fillStyle = "rgba(200, 210, 220, 0.8)";
+      ctx.fillText("Waiting on the mist…", w / 2, h * 0.2);
+    }
+    ctx.textAlign = "left";
+  }
+
+  if (d.phase === "fish_reel") {
+    const barW = Math.floor(w * 0.84);
+    const bx = Math.floor((w - barW) / 2);
+    const by = Math.floor(h * 0.74);
+    const bh = 32;
+    ctx.fillStyle = "rgba(6, 10, 16, 0.88)";
+    floorRect(ctx, bx - 4, by - 24, barW + 8, bh + 44);
+    ctx.fillStyle = "#0a0e14";
+    floorRect(ctx, bx, by, barW, bh);
+    ctx.fillStyle = "#1a222c";
+    floorRect(ctx, bx + 2, by + 2, barW - 4, bh - 4);
+    const g0 = bx + 2 + Math.floor((barW - 4) * 0.34);
+    const g1 = bx + 2 + Math.floor((barW - 4) * 0.66);
+    ctx.fillStyle = "#3a7868";
+    floorRect(ctx, g0, by + 2, g1 - g0, bh - 4);
+    const inZone = d.reelTension >= 0.34 && d.reelTension <= 0.66;
+    const tx = bx + 2 + Math.floor((barW - 4) * d.reelTension);
+    ctx.fillStyle = inZone ? "#68e8a8" : "#e87850";
+    floorRect(ctx, tx - 7, by, 14, bh + 4);
+    ctx.strokeStyle = "#f8f0ff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(tx - 7, by, 14, bh + 4);
+    ctx.fillStyle = inZone ? "#68e8a8" : "#e87850";
+    ctx.font = labelFont;
+    ctx.fillText(inZone ? "LINE HOLDS" : "FIGHT THE LINE", bx, by - 6);
+    const progH = 10;
+    const py = by + bh + 10;
+    floorRect(ctx, bx, py, barW, progH);
+    ctx.fillStyle = "#5eb8a8";
+    floorRect(ctx, bx + 1, py + 1, Math.floor((barW - 2) * d.reelProgress), progH - 2);
+    ctx.fillStyle = "#c8d0dc";
+    ctx.font = font;
+    ctx.fillText(`${Math.floor(d.reelProgress * 100)}%`, bx + barW - 36, py + 9);
+  }
+}
+
+/** Cohesive moonlit well — knightly charter rim + live fishing props. */
 export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: number, h: number) {
   ctx2d.imageSmoothingEnabled = false;
   ctx2d.clearRect(0, 0, w, h);
 
+  const now = d.now ?? performance.now();
   const pulse = d.waitPulse;
   const skyH = h * 0.64;
 
@@ -132,124 +447,95 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
     floorRect(ctx2d, px, groundY - 3, 3, 6);
   }
 
-  ctx2d.fillStyle = "rgba(232, 168, 74, 0.35)";
+  // Torch flicker
+  const torch = 0.3 + 0.15 * Math.sin(pulse * 5);
+  ctx2d.fillStyle = `rgba(232, 168, 74, ${torch})`;
   floorRect(ctx2d, w * 0.06, groundY - 28, 6, 10);
   floorRect(ctx2d, w * 0.9, groundY - 24, 5, 8);
 
-  const cy = Math.floor(h * 0.58);
-  const rx = w * 0.36;
-  const ry = h * 0.1;
+  const { cx, cy, rx, ry } = wellCenter(w, h);
 
   ctx2d.fillStyle = "rgba(70, 130, 120, 0.12)";
-  drawEllipseFill(ctx2d, w / 2, cy, rx * 1.08, ry * 1.15);
+  drawEllipseFill(ctx2d, cx, cy, rx * 1.08, ry * 1.15);
 
-  const water = ctx2d.createRadialGradient(w / 2, cy, 0, w / 2, cy, rx);
-  water.addColorStop(0, "#1a4858");
+  const water = ctx2d.createRadialGradient(cx, cy, 0, cx, cy, rx);
+  const biteHot = d.biteOpen || now < biteFlashUntil;
+  water.addColorStop(0, biteHot ? "#3a6878" : "#1a4858");
   water.addColorStop(0.55, "#123040");
   water.addColorStop(1, "#0a1824");
   ctx2d.fillStyle = water;
-  drawEllipseFill(ctx2d, w / 2, cy, rx, ry);
+  drawEllipseFill(ctx2d, cx, cy, rx, ry);
 
-  const shimmer = 0.04 + 0.03 * Math.sin(pulse * 4);
+  // Animated water bands
   ctx2d.save();
-  ctx2d.globalAlpha = shimmer;
-  ctx2d.fillStyle = "#88c8b8";
-  drawEllipseFill(ctx2d, w / 2 - rx * 0.15, cy - ry * 0.2, rx * 0.35, ry * 0.25);
+  ctx2d.globalAlpha = 0.08 + 0.05 * Math.sin(pulse * 3);
+  ctx2d.strokeStyle = "#88c8b8";
+  ctx2d.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const yOff = Math.sin(pulse * 2 + i) * 3;
+    ctx2d.beginPath();
+    ctx2d.ellipse(cx, cy + yOff, rx * (0.55 + i * 0.12), ry * (0.4 + i * 0.1), 0, 0, Math.PI * 2);
+    ctx2d.stroke();
+  }
   ctx2d.restore();
 
-  ctx2d.fillStyle = "rgba(200, 210, 220, 0.08)";
-  drawEllipseFill(ctx2d, mx - w * 0.12, cy + ry * 0.15, rx * 0.12, ry * 0.08);
+  if (now < biteFlashUntil || now < strikeFlashUntil || now < landFlashUntil) {
+    const flash =
+      now < strikeFlashUntil
+        ? "rgba(232, 120, 80, 0.28)"
+        : now < landFlashUntil
+          ? "rgba(104, 232, 168, 0.22)"
+          : "rgba(232, 176, 80, 0.2)";
+    ctx2d.fillStyle = flash;
+    drawEllipseFill(ctx2d, cx, cy, rx * 0.92, ry * 0.92);
+  }
 
   ctx2d.strokeStyle = d.seasonTint;
   ctx2d.lineWidth = 3;
   ctx2d.beginPath();
-  ctx2d.ellipse(w / 2, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx2d.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx2d.stroke();
   ctx2d.strokeStyle = "rgba(0,0,0,0.65)";
   ctx2d.lineWidth = 1;
   ctx2d.stroke();
 
+  // Well post
   ctx2d.fillStyle = "#2a2018";
-  floorRect(ctx2d, w / 2 - 2, cy - ry - 18, 4, 20);
+  floorRect(ctx2d, cx - 2, cy - ry - 18, 4, 20);
 
-  const font = '9px "Press Start 2P", monospace';
+  drawCastArc(ctx2d, w, h, now);
+  drawSplashRipples(ctx2d, w, h, now);
+  drawFishShadow(ctx2d, w, h, d, now);
+  drawBobber(ctx2d, w, h, d, now);
 
-  if (d.phase === "fish_cast") {
-    const barW = Math.floor(w * 0.68);
-    const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.78);
-    const bh = 18;
-    ctx2d.fillStyle = "#0a0e14";
-    floorRect(ctx2d, bx, by, barW, bh);
-    ctx2d.fillStyle = "#1a222c";
-    floorRect(ctx2d, bx + 2, by + 2, barW - 4, bh - 4);
-    const fillW = Math.floor((barW - 4) * d.castPower);
-    ctx2d.fillStyle = "#e8a84a";
-    floorRect(ctx2d, bx + 2, by + 2, fillW, bh - 4);
-    ctx2d.fillStyle = "#c8d0dc";
-    ctx2d.font = font;
-    ctx2d.fillText("HOLD / RELEASE", bx, by - 6);
-  }
-
-  if (d.phase === "fish_wait") {
-    const ringPulse = 0.5 + 0.5 * Math.sin(pulse * 6);
-    ctx2d.strokeStyle = d.biteOpen ? "rgba(232, 120, 80, 0.85)" : "rgba(94, 184, 168, 0.45)";
+  // Wait rings under bobber when biting
+  if (d.phase === "fish_wait" && d.biteOpen) {
+    const ringPulse = 0.5 + 0.5 * Math.sin(pulse * 8);
+    ctx2d.strokeStyle = `rgba(232, 120, 80, ${0.35 + ringPulse * 0.45})`;
     ctx2d.lineWidth = 2;
-    for (let r = 12; r < Math.min(w, h) * 0.32; r += 20) {
+    for (let r = 16; r < Math.min(rx, 90); r += 18) {
       ctx2d.beginPath();
-      ctx2d.arc(w / 2, cy, r + ringPulse * 8, 0, Math.PI * 2);
+      ctx2d.ellipse(cx, cy, r + ringPulse * 6, (r + ringPulse * 6) * 0.32, 0, 0, Math.PI * 2);
       ctx2d.stroke();
     }
-    ctx2d.fillStyle = d.biteOpen ? "#e87850" : "#c8d0dc";
-    ctx2d.font = font;
-    const msg = d.biteOpen ? "STRIKE!" : "WAIT...";
-    const tw = ctx2d.measureText(msg).width;
-    ctx2d.fillText(msg, (w - tw) / 2, h * 0.22);
   }
 
-  if (d.phase === "fish_reel") {
-    const barW = Math.floor(w * 0.8);
-    const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.72);
-    const bh = 28;
-    ctx2d.fillStyle = "#0a0e14";
-    floorRect(ctx2d, bx, by, barW, bh);
-    ctx2d.fillStyle = "#1a222c";
-    floorRect(ctx2d, bx + 2, by + 2, barW - 4, bh - 4);
-    const g0 = bx + 2 + Math.floor((barW - 4) * 0.36);
-    const g1 = bx + 2 + Math.floor((barW - 4) * 0.64);
-    ctx2d.fillStyle = "#3a7868";
-    floorRect(ctx2d, g0, by + 2, g1 - g0, bh - 4);
-    const tx = bx + 2 + Math.floor((barW - 4) * d.reelTension);
-    ctx2d.fillStyle = "#e8a84a";
-    floorRect(ctx2d, tx - 6, by + 1, 12, bh + 2);
-    ctx2d.strokeStyle = "#0a0e14";
-    ctx2d.lineWidth = 1;
-    ctx2d.strokeRect(tx - 6, by + 1, 12, bh + 2);
-    ctx2d.fillStyle = "#c8d0dc";
-    ctx2d.font = font;
-    ctx2d.fillText("KEEP IN GREEN", bx, by - 6);
-    const progH = 8;
-    const py = by + bh + 8;
-    floorRect(ctx2d, bx, py, barW, progH);
-    ctx2d.fillStyle = "#5eb8a8";
-    floorRect(ctx2d, bx + 1, py + 1, Math.floor((barW - 2) * d.reelProgress), progH - 2);
-  }
+  drawMeters(ctx2d, { ...d, now }, w, h);
 
   if (d.banner) {
     const label = d.banner.length > 28 ? `${d.banner.slice(0, 26)}…` : d.banner;
-    ctx2d.font = `${Math.max(8, w * 0.014)}px "Press Start 2P", monospace`;
+    ctx2d.font = `${Math.max(10, w * 0.026)}px "VT323", monospace`;
     const tw = ctx2d.measureText(label).width;
     const bx = Math.floor((w - tw) / 2) - 14;
-    const by = Math.floor(h * 0.44);
-    ctx2d.fillStyle = "rgba(0, 0, 0, 0.72)";
-    floorRect(ctx2d, bx, by, tw + 28, 28);
+    const by = Math.floor(h * 0.12);
+    ctx2d.fillStyle = "rgba(0, 0, 0, 0.7)";
+    floorRect(ctx2d, bx, by, tw + 28, 26);
     ctx2d.strokeStyle = "#e8b050";
     ctx2d.lineWidth = 2;
-    ctx2d.strokeRect(bx, by, tw + 28, 28);
+    ctx2d.strokeRect(bx, by, tw + 28, 26);
     ctx2d.fillStyle = "#e8b050";
     ctx2d.textAlign = "center";
-    ctx2d.fillText(label, w / 2, by + 18);
+    ctx2d.fillText(label, w / 2, by + 17);
     ctx2d.textAlign = "left";
   }
 }

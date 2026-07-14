@@ -438,7 +438,25 @@ html.tavern-mobile .chance-game-kicker {
   animation: epic-float-soft 4s ease-in-out infinite;
 }
 
-/* ——— Fishing dock ——— */
+/* Fishing stage presence */
+html.tavern-mobile .play-shell[data-phase="fish_cast"] .canvas-wrap,
+html.tavern-mobile .play-shell[data-phase="fish_wait"] .canvas-wrap,
+html.tavern-mobile .play-shell[data-phase="fish_reel"] .canvas-wrap {
+  box-shadow:
+    0 0 0 2px rgba(232, 196, 120, 0.25),
+    0 0 40px rgba(56, 120, 140, 0.22),
+    0 16px 36px rgba(0, 0, 0, 0.55);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+html.tavern-mobile .play-shell[data-phase="fish_wait"] .strike-float:not([hidden]) {
+  animation:
+    strike-pulse 0.9s ease-in-out infinite,
+    strike-hit-ring 0.9s ease-out infinite,
+    epic-float 2.4s ease-in-out infinite;
+}
+
 html.tavern-mobile .reel-tap:active {
   transform: var(--press-lift);
   filter: brightness(1.08);
