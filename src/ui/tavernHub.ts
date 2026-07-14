@@ -101,11 +101,13 @@ export function renderCardRow(cards: MoonwellCard[], opts?: { hideLast?: boolean
     .join("")}</div>`;
 }
 
-export function studioStageHtml(title: string, body: string, extraClass = ""): string {
+export function studioStageHtml(title: string, body: string, extraClass = "", footer = ""): string {
   const cls = extraClass ? ` ${extraClass}` : "";
+  const foot = footer ? `<footer class="studio-stage-footer">${footer}</footer>` : "";
   return `<div class="studio-stage${cls}">
     <header class="studio-stage-head">${title}</header>
     <div class="studio-stage-body">${body}</div>
+    ${foot}
   </div>`;
 }
 
@@ -115,7 +117,9 @@ export function chancePickHtml(): string {
     `<div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
       ${hubTileHtml("◆", "Red / Black", "chance:red_black", "jade")}
-    </div>${hubBackHtml()}`,
+    </div>`,
+    "studio-stage--pick",
+    hubBackHtml(),
   );
 }
 

@@ -680,19 +680,24 @@ html.tavern-mobile .hub-pick {
 
 .pole-rack {
   display: grid;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   width: 100%;
-  max-height: min(58vh, 520px);
-  overflow: auto;
-  padding: 4px 2px 12px;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
 }
 
 .pole-card {
   display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 12px;
-  align-items: start;
-  padding: 12px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
   border: 1px solid rgba(232, 176, 80, 0.28);
   background: linear-gradient(160deg, rgba(28, 22, 16, 0.92), rgba(12, 14, 20, 0.95));
 }
@@ -709,8 +714,9 @@ html.tavern-mobile .hub-pick {
 
 .pole-card__art {
   position: relative;
-  width: 72px;
-  height: 96px;
+  width: 56px;
+  height: 76px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   background: radial-gradient(circle at 50% 30%, rgba(80, 90, 120, 0.35), rgba(8, 10, 16, 0.9));
@@ -727,46 +733,84 @@ html.tavern-mobile .hub-pick {
 .pole-card__icon,
 .pole-card__lock {
   position: absolute;
-  bottom: 4px;
-  font-size: 1.25rem;
+  bottom: 2px;
+  font-size: 1rem;
+}
+
+.pole-card__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .pole-card__tier {
   margin: 0;
   color: var(--jade);
   font-family: var(--font-body, "VT323", monospace);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .pole-card__name {
-  margin: 2px 0 4px;
-  font-family: "Press Start 2P", monospace;
-  font-size: 0.72rem;
-  line-height: 1.35;
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(0.95rem, 2.8vw, 1.1rem);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--gold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pole-card__tag,
 .pole-card__lore {
-  margin: 0 0 6px;
+  margin: 0;
   font-family: var(--font-body, "VT323", monospace);
   font-size: 1.05rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.pole-card__lore {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .pole-card__equipped {
   display: inline-block;
+  margin-top: auto;
+  align-self: flex-start;
   color: #68e8a8;
   font-family: var(--font-body, "VT323", monospace);
   font-size: 1.05rem;
 }
 
 .pole-card__equip {
-  margin-top: 4px;
+  margin-top: auto;
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.studio-rack-progress {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.15rem;
+  color: #d8c090;
+}
+
+.studio-rack-progress strong {
+  color: var(--gold);
+  font-weight: 600;
 }
 
 .pole-unlock {
-  margin-bottom: 16px;
+  margin: 0;
   padding: 12px;
   border: 1px solid rgba(200, 160, 255, 0.35);
   background: linear-gradient(165deg, rgba(40, 24, 48, 0.9), rgba(10, 12, 20, 0.95));
@@ -781,8 +825,10 @@ html.tavern-mobile .hub-pick {
 .pole-unlock__name {
   margin: 6px 0;
   color: var(--gold);
-  font-family: "Press Start 2P", monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .pole-unlock__tag,
@@ -799,6 +845,7 @@ html.tavern-mobile .hub-pick {
   color: #c8e8a8;
   font-family: var(--font-body, "VT323", monospace);
   font-size: 1.1rem;
+  text-align: center;
 }
 
 @media (min-width: 640px) {
@@ -810,7 +857,9 @@ html.tavern-mobile .hub-pick {
     width: 128px;
     min-height: 80px;
   }
+}
 
+@media (min-width: 720px) {
   .pole-rack {
     grid-template-columns: 1fr 1fr;
   }

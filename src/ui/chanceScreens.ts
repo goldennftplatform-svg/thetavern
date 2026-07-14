@@ -95,8 +95,8 @@ export function chanceResultStudioHtml(r: ChanceResult): string {
     r.title,
     `<p class="studio-flourish studio-flourish--${cls}">${escapeHtml(r.detail)}</p>
     ${cards}
-    <p class="studio-reward">${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎ · +${r.renownDelta} ★</p>
-    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
-    stageClass,
+    <p class="studio-reward">${r.tokenDelta >= 0 ? "+" : ""}${r.tokenDelta} ◎ · +${r.renownDelta} ★</p>`,
+    `${stageClass} studio-stage--result`,
+    `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }

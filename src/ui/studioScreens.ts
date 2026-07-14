@@ -149,8 +149,9 @@ export function catchResolveHtml(
     <p class="studio-score-delta">+${c.renown} Legend · +${c.tokens} ◎</p>
     <p class="studio-flourish">${flourish}</p>
     <p class="studio-fish-lore">${escapeHtml(blurb)}</p>
-    ${omen}${demplar}${pole}
-    <button type="button" class="btn primary big studio-continue" data-continue="renown">Inscribe &amp; continue</button>`,
+    ${omen}${demplar}${pole}`,
+    "studio-stage--resolve",
+    `<button type="button" class="btn primary big studio-continue" data-continue="renown">Inscribe &amp; continue</button>`,
   );
 }
 
@@ -158,8 +159,9 @@ export function renownStudioHtml(s: RunSnapshot, hint: string): string {
   return studioStageHtml(
     "Legend grows",
     `${scoreboardHtml(s)}
-    <p class="studio-flourish">${escapeHtml(hint)}</p>
-    <button type="button" class="btn primary big studio-continue" data-continue="interlude">Face the well's trial</button>`,
+    <p class="studio-flourish">${escapeHtml(hint)}</p>`,
+    "studio-stage--renown",
+    `<button type="button" class="btn primary big studio-continue" data-continue="interlude">Face the well's trial</button>`,
   );
 }
 
@@ -174,6 +176,7 @@ export function perilStudioHtml(question: string, choices: string[]): string {
     "Crossroads",
     `<p class="studio-stage-lead">${escapeHtml(question)}</p>
     <div class="studio-choice-stack">${btns}</div>`,
+    "studio-stage--choice",
   );
 }
 
@@ -188,14 +191,16 @@ export function triviaStudioHtml(question: string, choices: string[]): string {
     "Well riddle",
     `<p class="studio-stage-lead">${escapeHtml(question)}</p>
     <div class="studio-choice-stack">${btns}</div>`,
+    "studio-stage--choice",
   );
 }
 
 export function triviaTeachHtml(teach: string): string {
   return studioStageHtml(
     "The well teaches",
-    `<p class="studio-flourish">${escapeHtml(teach)}</p>
-    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+    `<p class="studio-flourish">${escapeHtml(teach)}</p>`,
+    "studio-stage--choice",
+    `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }
 
@@ -219,8 +224,9 @@ export function demplarResultStudioHtml(
       <span class="studio-stat"><em>III</em> ${r.asteroids} <small>Dr Mario</small></span>
     </div>
     <p class="studio-reward">Total ${r.total} · +${renown} ★ · +${tokens} ◎</p>
-    ${bestLine}
-    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+    ${bestLine}`,
+    "studio-stage--result",
+    `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
   );
 }
 
@@ -232,7 +238,9 @@ export function chancePickStudioHtml(intro: string): string {
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
       ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
       ${hubTileHtml("◆", "Red / Black", "chance:red_black", "jade")}
-    </div>${hubBackHtml()}`,
+    </div>`,
+    "studio-stage--pick",
+    hubBackHtml(),
   );
 }
 
@@ -242,8 +250,9 @@ export function feastStudioHtml(intro: string, nightTitle: string, specials: Foo
     "Enchanted Kitchen",
     `<p class="studio-night">${escapeHtml(nightTitle)}</p>
     <p class="studio-lore-line">${escapeHtml(intro)}</p>
-    <div class="hub-grid hub-grid--feast" id="hub-grid">${grid}</div>
-    ${hubBackHtml()}`,
+    <div class="hub-grid hub-grid--feast" id="hub-grid">${grid}</div>`,
+    "studio-stage--feast",
+    hubBackHtml(),
   );
 }
 
@@ -255,16 +264,15 @@ export function poleRackStudioHtml(args: {
   const unlocked = new Set(args.unlockedIds);
   const next = nextPoleUnlock(args.xp);
   const progress = next
-    ? `<p class="studio-lore-line studio-lore-line--hint">Pole XP ${args.xp} · ${next.xpUnlock - args.xp} more casts-and-lands to wake <strong>${escapeHtml(next.name)}</strong></p>`
-    : `<p class="studio-lore-line studio-lore-line--hint">Pole XP ${args.xp} · rack complete. The well is scared of you.</p>`;
+    ? `<p class="studio-rack-progress">Pole XP <strong>${args.xp}</strong> · ${next.xpUnlock - args.xp} more to wake <strong>${escapeHtml(next.name)}</strong></p>`
+    : `<p class="studio-rack-progress">Pole XP <strong>${args.xp}</strong> · rack complete</p>`;
   const cards = FISHING_POLES.map((p) => poleRackCardHtml(p, unlocked.has(p.id), p.id === args.equippedId, args.xp)).join("");
   return studioStageHtml(
     "Pole Rack",
-    `<p class="studio-lore-line">Play the well. Feed the rack. Each rod keeps sticky XP across charter nights and spatters stranger lore as it wakes.</p>
-    ${progress}
-    <div class="pole-rack" role="list">${cards}</div>
-    ${hubBackHtml()}`,
+    `${progress}
+    <div class="pole-rack" role="list">${cards}</div>`,
     "studio-stage--pole-rack",
+    hubBackHtml(),
   );
 }
 
@@ -276,8 +284,7 @@ function poleRackCardHtml(p: FishingPole, unlocked: boolean, equipped: boolean, 
       <div class="pole-card__body">
         <p class="pole-card__tier">Tier ${p.tier}</p>
         <h3 class="pole-card__name">${escapeHtml(p.name)}</h3>
-        <p class="pole-card__tag muted">Unlock at XP ${p.xpUnlock} · need ${Math.max(0, p.xpUnlock - xp)}</p>
-        <p class="pole-card__lore muted">???</p>
+        <p class="pole-card__tag muted">XP ${p.xpUnlock} · need ${Math.max(0, p.xpUnlock - xp)}</p>
       </div>
     </article>`;
   }
@@ -315,9 +322,9 @@ export function poleUnlockStudioHtml(poles: FishingPole[]): string {
     .join("");
   return studioStageHtml(
     "The rack howls",
-    `${bodies}
-    <button type="button" class="btn ghost big studio-continue" data-continue="renown">Keep the old grip</button>`,
+    bodies,
     "studio-stage--pole-unlock",
+    `<button type="button" class="btn ghost big studio-continue" data-continue="renown">Keep the old grip</button>`,
   );
 }
 
@@ -333,11 +340,13 @@ export function ledgerStudioHtml(s: RunSnapshot, notices: NoticeEntry[], archive
     <p class="studio-stage-lead">Tavern archive</p>
     ${renderNoticeList(archiveEntries, "notice-list notice-list--ledger notice-list--archive")}
     <p class="studio-stage-lead">Hall notices</p>
-    ${renderNoticeList(notices, "notice-list notice-list--ledger")}
-    <button type="button" class="btn ghost studio-link-btn" data-hub-action="hall_view">📺 Hall view</button>
-    <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
-    <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+    ${renderNoticeList(notices, "notice-list notice-list--ledger")}`,
     "studio-stage--ledger",
+    `<div class="studio-hub-footer">
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="hall_view">📺 Hall view</button>
+      <button type="button" class="btn ghost studio-link-btn" data-hub-action="herald_scroll">Demplar on X — doom scroll ↓</button>
+      <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>
+    </div>`,
   );
 }
 
@@ -368,16 +377,17 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
     <section class="mobile-hall-block mobile-hall-block--feed" aria-labelledby="mobile-hall-feed-title">
       <h3 id="mobile-hall-feed-title" class="mobile-hall-block-title">Live chronicle</h3>
       <div class="mobile-hall-feed">${mobileHallFeedHtml(hall.deeds)}</div>
-    </section>
-    <div class="studio-hub-footer studio-hub-footer--scroll">
+    </section>`,
+    "studio-stage--hall",
+    `<div class="studio-hub-footer">
       <a class="btn ghost studio-link-btn" href="${escapeHtml(bigboardHref)}">Projector wall ↗</a>
       <button type="button" class="btn primary big studio-continue" data-hub-action="back:well">← Back to games</button>
     </div>`,
-    "studio-stage--hall",
   );
 }
 
 export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string {
+  void s;
   const posts = heraldScrollPosts(feed);
   const accounts = Array.isArray(feed.accounts) ? feed.accounts : [];
   const ally = accounts
@@ -409,12 +419,12 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
     "Overheard from X",
     `<p class="studio-stage-lead">Doom scroll neighbor lore — live relay from @DemplarOfficial (real posts only). ${ally}</p>
     <p class="studio-lore-line studio-lore-line--hint">${heraldScrollMeta(feed, posts)}</p>
-    <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>
-    <div class="studio-hub-footer studio-hub-footer--scroll">
+    <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>`,
+    "studio-stage--herald",
+    `<div class="studio-hub-footer">
       <a class="btn ghost studio-link-btn" href="https://x.com/DemplarOfficial" target="_blank" rel="noopener noreferrer">Follow on X</a>
       <button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>
     </div>`,
-    "studio-stage--herald",
   );
 }
 

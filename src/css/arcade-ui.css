@@ -538,6 +538,7 @@ html.play-active .play-dock .actions {
 .play-shell[data-phase="chance_pick"] .play-dock,
 .play-shell[data-phase="chance_play"] .play-dock,
 .play-shell[data-phase="feast"] .play-dock,
+.play-shell[data-phase="pole_rack"] .play-dock,
 .play-shell[data-phase="demplar_result"] .play-dock,
 .play-shell[data-phase="fish_wait"] .play-dock,
 .play-shell[data-phase="resolve"] .play-dock,

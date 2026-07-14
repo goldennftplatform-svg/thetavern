@@ -249,6 +249,20 @@ html.play-active .stage-copy {
   display: none;
 }
 
+html.play-active .studio-stage--feast .hub-grid--feast .hub-pick-body .muted {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+html.play-active .studio-stage--feast .hub-grid--feast .hub-pick-body strong {
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(0.8rem, 2.4vw, 0.95rem);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
 html.play-active .well-stack {
   display: flex;
   flex-direction: column;

@@ -41,13 +41,11 @@ html.play-active .play-menu {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
-    max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   background:
     radial-gradient(ellipse 100% 80% at 50% 40%, rgba(18, 26, 38, 0.97), rgba(4, 6, 10, 0.99)),
     rgba(4, 6, 10, 0.96);
@@ -64,28 +62,35 @@ html.play-active .play-menu {
 .play-shell[data-phase="peril"] .play-toast,
 .play-shell[data-phase="trivia"] .play-toast,
 .play-shell[data-phase="chance_result"] .play-toast,
-.play-shell[data-phase="feast"] .play-toast {
+.play-shell[data-phase="feast"] .play-toast,
+.play-shell[data-phase="pole_rack"] .play-toast {
   display: none !important;
 }
 
 .play-menu-body {
   width: 100%;
-  max-width: min(96vw, 680px);
+  max-width: min(96vw, 40rem);
   margin: 0 auto;
-  flex-shrink: 0;
-  padding-bottom: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
 }
 
 .studio-stage {
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0;
+  gap: 12px;
 }
 
 .studio-stage-head {
-  margin: 0 0 24px;
+  flex: 0 0 auto;
+  margin: 0;
   font-family: var(--font-display, "Pixelify Sans", sans-serif);
   font-size: clamp(1.25rem, 5vw, 1.65rem);
   font-weight: 600;
@@ -96,10 +101,45 @@ html.play-active .play-menu {
 }
 
 .studio-stage-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 22px;
+  align-items: stretch;
+  gap: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.studio-stage-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid rgba(232, 176, 80, 0.18);
+}
+
+.studio-stage-footer .hub-back-row,
+.studio-stage-footer .studio-hub-footer {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.studio-stage-footer .btn,
+.studio-stage-footer .hub-back-row .btn,
+.studio-stage-footer .studio-continue {
+  width: 100%;
+  max-width: none;
+  min-height: 52px;
 }
 
 .studio-stage-lead {
@@ -109,7 +149,8 @@ html.play-active .play-menu {
   color: var(--muted);
   text-align: center;
   line-height: 1.35;
-  max-width: 300px;
+  max-width: none;
+  width: 100%;
 }
 
 .studio-mark {
@@ -537,11 +578,8 @@ html.play-active .play-menu {
   line-height: 1.3;
   color: var(--muted);
   text-align: center;
-  max-width: 320px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  max-width: none;
+  width: 100%;
 }
 
 .studio-lore-line--verse {
@@ -639,7 +677,7 @@ html.play-active .play-menu {
 
 .studio-continue {
   width: 100%;
-  max-width: 280px;
+  max-width: none;
   min-height: 52px;
   margin-top: 4px;
   font-family: var(--font-display, "Pixelify Sans", sans-serif);
@@ -840,15 +878,14 @@ html.play-active .play-menu {
 
 .notice-list--ledger {
   width: 100%;
-  max-height: min(38dvh, 320px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  max-height: none;
+  overflow: visible;
   padding: 2px 2px 6px;
   box-sizing: border-box;
 }
 
 .notice-list--archive {
-  max-height: min(28dvh, 220px);
+  max-height: none;
 }
 
 .studio-stage--ledger .studio-ledger-list {
@@ -941,13 +978,9 @@ html.play-active .play-menu {
 }
 
 .studio-x-scroll {
-  flex: 1 1 auto;
-  min-height: min(58dvh, 520px);
-  max-height: min(72dvh, 720px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -955,15 +988,9 @@ html.play-active .play-menu {
   margin: 0 -2px;
   border-top: 1px solid rgba(152, 144, 200, 0.22);
   border-bottom: 1px solid rgba(152, 144, 200, 0.15);
-  scroll-snap-type: y proximity;
 }
 
 @media (min-width: 900px) {
-  .studio-x-scroll {
-    min-height: min(62dvh, 580px);
-    max-height: min(78dvh, 840px);
-  }
-
   .play-menu-body:has(.studio-stage--herald),
   .play-menu-body--herald {
     max-width: min(640px, 100%) !important;
@@ -1065,8 +1092,27 @@ html.play-active .play-menu {
 .chance-outcome-badge--lose { color: #c87878; }
 .chance-outcome-badge--push { color: var(--gold); }
 
-.studio-stage-body {
-  gap: 14px;
+/* Resolve / renown / chance stay visually centered inside the stretch column */
+.studio-stage--resolve .studio-stage-body,
+.studio-stage--renown .studio-stage-body,
+.studio-stage--result .studio-stage-body,
+.studio-stage--choice .studio-stage-body,
+.chance-stage .studio-stage-body {
+  align-items: center;
+  text-align: center;
+}
+
+.studio-stage--resolve .studio-stage-body > *,
+.studio-stage--renown .studio-stage-body > *,
+.studio-stage--result .studio-stage-body > *,
+.chance-stage .studio-stage-body > * {
+  max-width: 28rem;
+}
+
+.studio-stage--pick .hub-grid--studio,
+.studio-stage--feast .hub-grid--feast,
+.studio-stage--pole-rack .pole-rack {
+  width: 100%;
 }
 
 html.tavern-mobile .studio-stage--ledger .notice-card__body {
@@ -1080,11 +1126,14 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
 
 @media (min-width: 720px) {
   .play-menu-body {
-    max-width: min(520px, 100%);
+    max-width: min(34rem, 100%);
   }
 
   .play-menu-body:has(.studio-stage--ledger),
-  .play-menu-body:has(.studio-stage--hall) {
+  .play-menu-body:has(.studio-stage--hall),
+  .play-menu-body:has(.studio-stage--pole-rack),
+  .play-menu-body:has(.studio-stage--feast),
+  .play-menu-body:has(.studio-stage--herald) {
     max-width: min(720px, 92vw) !important;
     padding-left: 8px;
     padding-right: 8px;
@@ -1093,10 +1142,6 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
   .studio-stage--ledger .studio-ledger-list {
     font-size: 1.4rem;
     padding: 16px 20px 16px 1.5rem;
-  }
-
-  html.tavern-mobile .notice-list--ledger {
-    max-height: min(46dvh, 400px);
   }
 
   .play-menu .playing-card--hero {
@@ -1259,13 +1304,12 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
 }
 
 .mobile-hall-feed {
-  max-height: min(42vh, 320px);
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-right: 4px;
-  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-hall-deed {
@@ -1333,7 +1377,7 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
 }
 
 html.tavern-mobile .studio-stage--hall .mobile-hall-feed {
-  max-height: min(38vh, 280px);
+  max-height: none;
 }
 
 html.tavern-mobile .play-credits .btn.linkish {
