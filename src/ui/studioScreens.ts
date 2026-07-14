@@ -65,12 +65,16 @@ export function hubWellHtml(
   hubVerse: string,
   extraLore: string,
   charterNight: string,
+  crestSrc?: string,
 ): string {
   const tableBg = `${import.meta.env.BASE_URL}media/tavern-table-bg.png`;
   const titleLine =
     s.titles.length > 0
       ? `<p class="tavern-table-scene__titles">${escapeHtml(s.titles.slice(-2).join(" · "))}</p>`
       : "";
+  const crest = crestSrc
+    ? `<img class="tavern-table__crest" src="${escapeHtml(crestSrc)}" alt="" />`
+    : "";
   return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
     <div class="tavern-table-scene__veil" aria-hidden="true"></div>
     <header class="tavern-table-scene__head">
@@ -92,6 +96,7 @@ export function hubWellHtml(
       <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
         <div class="tavern-table__well" aria-hidden="true">
           <span class="tavern-table__well-glow"></span>
+          ${crest}
           <span class="tavern-table__well-label">☽ Moonwell</span>
           <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
         </div>

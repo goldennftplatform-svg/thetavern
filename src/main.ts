@@ -559,6 +559,7 @@ function addRenown(delta: number) {
 
 function buildWellHubHtml(): string {
   const night = tonightUtc();
+  const crestSrc = loadedTheme?.images.crest?.src;
   return hubWellHtml(
     runSnapshot(),
     night.title,
@@ -566,7 +567,31 @@ function buildWellHubHtml(): string {
     hubVerse,
     pickLine(hubLoreLines),
     formatCharterDayLabel(charterDayId()),
+    crestSrc,
   );
+}
+
+function applyDailyMediaChrome(theme: LoadedMediaTheme | null) {
+  const crest = theme?.images.crest;
+  const banner = theme?.images.banner;
+  const elGateCrest = document.getElementById("gate-crest") as HTMLImageElement | null;
+  if (elGateCrest) {
+    if (crest?.src) {
+      elGateCrest.src = crest.src;
+      elGateCrest.hidden = false;
+      elGateCrest.alt = theme?.platform.name ? `${theme.platform.name} crest` : "";
+    } else {
+      elGateCrest.hidden = true;
+    }
+  }
+  const gate = document.getElementById("nickname-gate");
+  if (gate) {
+    if (banner?.src) gate.style.setProperty("--gate-banner", `url("${banner.src}")`);
+    else gate.style.removeProperty("--gate-banner");
+  }
+  if (theme?.platform.name) {
+    document.documentElement.style.setProperty("--daily-deck-name", `"${theme.platform.name}"`);
+  }
 }
 
 function handleTriviaChoice(index: number) {
@@ -1210,7 +1235,7 @@ function scheduleBiteWindow() {
       state.biteWindowOpen = false;
       elStrike.hidden = true;
       if (state.phase === "fish_wait") setPhase("fish_reel");
-    }, touchFriendly ? 820 + biteWindowBonusMs() + Math.random() * 320 : 620 + biteWindowBonusMs() + Math.random() * 220);
+    }, touchFriendly ? 980 + biteWindowBonusMs() + Math.random() * 380 : 620 + biteWindowBonusMs() + Math.random() * 220);
   }, delay);
 }
 
@@ -1519,6 +1544,7 @@ async function startGameFromGate() {
   fillNotices();
   await ensurePixelFonts();
   loadedTheme = await loadDailyMediaTheme();
+  applyDailyMediaChrome(loadedTheme);
   await bootTrail();
   requestAnimationFrame(() => {
     resizeCanvas();
@@ -1544,6 +1570,10 @@ elBtnSkipGate.addEventListener("click", () => {
 });
 
 initNicknameGate();
+void loadDailyMediaTheme().then((theme) => {
+  loadedTheme = theme;
+  applyDailyMediaChrome(theme);
+});
 window.addEventListener("beforeunload", () => {
   if (state.phase !== "enter" && state.phase !== "herald") saveAnglerState(state);
 });

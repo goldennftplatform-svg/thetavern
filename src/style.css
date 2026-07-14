@@ -7,6 +7,7 @@
 @import "./css/arcade-ui.css";
 @import "./css/tavern-visual.css";
 @import "./css/studio-cards.css";
+@import "./css/mobile-polish.css";
 
 /* 8-bit / NES-adjacent tavern — chunky chrome, limited palette, pixel fonts (mobile-first base) */
 :root {

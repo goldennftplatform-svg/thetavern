@@ -74,7 +74,7 @@ export class KnightTetris {
     this.dropMs = BASE_GRAVITY_MS * 0.55;
     this.lockMs = 0;
     this.softDrop = false;
-    this.gravityMs = this.mobileEase ? BASE_GRAVITY_MS + 100 : BASE_GRAVITY_MS;
+    this.gravityMs = this.mobileEase ? BASE_GRAVITY_MS + 160 : BASE_GRAVITY_MS;
     this.flashMs = 0;
     this.spawn(false);
   }

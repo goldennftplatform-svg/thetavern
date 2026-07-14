@@ -1,0 +1,470 @@
+/**
+ * Mobile polish — floating assets, press feedback, epic stage presence.
+ * Loaded last so it wins over base studio/hub washes. Respects reduced motion.
+ */
+
+/* ——— Tokens ——— */
+html.tavern-mobile {
+  --float-gold: rgba(232, 196, 120, 0.45);
+  --float-jade: rgba(104, 232, 168, 0.4);
+  --press-lift: translateY(-2px) scale(1.02);
+}
+
+/* ——— Keyframes ——— */
+@keyframes epic-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes epic-float-soft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-1.5deg);
+  }
+}
+
+@keyframes crest-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 8px 18px rgba(232, 176, 80, 0.25));
+  }
+  50% {
+    transform: translateY(-8px) scale(1.03);
+    filter: drop-shadow(0 16px 28px rgba(232, 176, 80, 0.4));
+  }
+}
+
+@keyframes seat-aura {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(232, 196, 120, 0.2),
+      0 10px 24px rgba(0, 0, 0, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(232, 196, 120, 0.45),
+      0 14px 28px rgba(0, 0, 0, 0.5),
+      0 0 28px rgba(232, 176, 80, 0.18);
+  }
+}
+
+@keyframes card-hover-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(0.8deg);
+  }
+}
+
+@keyframes pad-cabinet-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 -8px 28px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(232, 196, 120, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 -10px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(232, 196, 120, 0.35),
+      0 0 24px rgba(104, 232, 168, 0.12);
+  }
+}
+
+@keyframes strike-hit-ring {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(248, 88, 56, 0.55),
+      0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+  100% {
+    box-shadow:
+      0 0 0 18px rgba(248, 88, 56, 0),
+      0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@keyframes banner-drift {
+  0%,
+  100% {
+    background-position: 50% 35%;
+  }
+  50% {
+    background-position: 50% 42%;
+  }
+}
+
+/* ——— Gate crest / banner ——— */
+.gate-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+.gate-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 20%, rgba(232, 176, 80, 0.12), transparent 55%),
+    var(--gate-banner, none) center 20% / cover no-repeat;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+  animation: banner-drift 18s ease-in-out infinite;
+}
+
+.gate-screen-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.gate-crest {
+  display: block;
+  width: clamp(72px, 22vw, 110px);
+  height: auto;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 196, 120, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  animation: crest-float 5.5s ease-in-out infinite;
+  background: rgba(8, 6, 4, 0.55);
+  object-fit: cover;
+  aspect-ratio: 1;
+}
+
+.gate-crest[hidden] {
+  display: none !important;
+}
+
+html.tavern-mobile .gate-screen {
+  border-radius: var(--mobile-panel-r, 14px);
+  margin-top: 8px;
+  box-shadow:
+    0 0 0 2px #000,
+    var(--mobile-glow, 0 0 36px rgba(248, 216, 32, 0.14)),
+    6px 6px 0 var(--line, #000);
+}
+
+html.tavern-mobile .gate-screen-inner {
+  padding-top: 8px;
+}
+
+/* ——— Great Table: show wood + crest ——— */
+.play-shell[data-phase="well"] .play-menu:has(.tavern-table-scene) {
+  background:
+    linear-gradient(180deg, rgba(10, 7, 5, 0.42) 0%, rgba(6, 4, 3, 0.72) 55%, rgba(4, 3, 2, 0.86) 100%),
+    var(--table-bg, none) center 22% / cover no-repeat !important;
+  backdrop-filter: blur(3px);
+  animation: banner-drift 22s ease-in-out infinite;
+}
+
+.tavern-table-scene {
+  --crest-url: none;
+}
+
+.tavern-table {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 36%, rgba(104, 232, 168, 0.08), transparent 60%),
+    radial-gradient(ellipse 80% 55% at 50% 38%, rgba(90, 58, 32, 0.35), transparent 70%),
+    var(--table-bg, none) center / cover no-repeat,
+    radial-gradient(ellipse 100% 88% at 50% 52%, #4a3020 0%, #2a1810 55%, #1a0e08 100%);
+}
+
+.tavern-table__crest {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(48px, 16vw, 72px);
+  height: clamp(48px, 16vw, 72px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(232, 196, 120, 0.55);
+  box-shadow:
+    0 0 0 3px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+  z-index: 2;
+  pointer-events: none;
+  animation: crest-float 6s ease-in-out infinite;
+}
+
+.tavern-table__crest[hidden] {
+  display: none !important;
+}
+
+.tavern-table__well-glow {
+  z-index: 1;
+}
+
+.tavern-table__well-label,
+.tavern-table__well-hint {
+  position: relative;
+  z-index: 3;
+}
+
+html.tavern-mobile .tavern-table__well-label {
+  margin-top: clamp(52px, 18vw, 78px);
+  font-size: 0.72rem;
+}
+
+html.tavern-mobile .tavern-table__well-hint {
+  opacity: 0.7;
+}
+
+/* Compact first viewport on short phones */
+html.tavern-mobile .tavern-table-scene__tag,
+html.tavern-mobile .tavern-table-scene__verse,
+html.tavern-mobile .tavern-table-scene__lore--extra {
+  display: none;
+}
+
+html.tavern-mobile .tavern-table-scene__lore {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 36em;
+}
+
+html.tavern-mobile .tavern-table {
+  min-height: clamp(280px, 58vw, 360px);
+}
+
+@media (max-height: 700px) {
+  html.tavern-mobile .tavern-table-scene__lore {
+    display: none;
+  }
+
+  html.tavern-mobile .tavern-table {
+    min-height: clamp(240px, 48vw, 300px);
+  }
+
+  html.tavern-mobile .tavern-table-scene__head {
+    gap: 2px;
+  }
+
+  html.tavern-mobile .tavern-table-scene__kicker {
+    font-size: 0.62rem;
+  }
+}
+
+/* Floating seat props */
+html.tavern-mobile .tavern-table__seat {
+  animation: seat-aura 4.8s ease-in-out infinite;
+  backdrop-filter: blur(4px);
+  background: rgba(12, 8, 6, 0.78);
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    background 0.12s ease;
+}
+
+html.tavern-mobile .tavern-table__seat--north {
+  animation-delay: 0s;
+}
+html.tavern-mobile .tavern-table__seat--east {
+  animation-delay: 0.6s;
+}
+html.tavern-mobile .tavern-table__seat--south {
+  animation-delay: 1.2s;
+}
+html.tavern-mobile .tavern-table__seat--west {
+  animation-delay: 1.8s;
+}
+
+html.tavern-mobile .tavern-table__prop-icon {
+  display: inline-block;
+  animation: epic-float 3.6s ease-in-out infinite;
+  font-size: clamp(1.35rem, 6vw, 1.7rem);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+}
+
+html.tavern-mobile .tavern-table__seat--east .tavern-table__prop-icon {
+  animation-delay: 0.4s;
+}
+html.tavern-mobile .tavern-table__seat--south .tavern-table__prop-icon {
+  animation-delay: 0.8s;
+}
+html.tavern-mobile .tavern-table__seat--west .tavern-table__prop-icon {
+  animation-delay: 1.2s;
+}
+
+html.tavern-mobile .tavern-table__seat:active:not(:disabled) {
+  transform: var(--press-lift);
+  filter: brightness(1.12);
+  background: rgba(32, 22, 14, 0.92);
+}
+
+html.tavern-mobile .tavern-table__seat--gold:active:not(:disabled) {
+  box-shadow:
+    0 0 0 3px rgba(232, 176, 80, 0.65),
+    0 0 24px rgba(232, 176, 80, 0.35);
+}
+
+html.tavern-mobile .tavern-table__seat--jade:active:not(:disabled) {
+  box-shadow:
+    0 0 0 3px rgba(104, 232, 168, 0.65),
+    0 0 24px rgba(104, 232, 168, 0.35);
+}
+
+/* ——— Chance: keep 2-col studio choices, float hero card ——— */
+html.tavern-mobile .chance-actions--studio {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+html.tavern-mobile .play-menu .playing-card--hero {
+  animation:
+    card-deal-hero 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    card-hover-float 4.2s ease-in-out 0.5s infinite;
+}
+
+html.tavern-mobile .studio-choice:active {
+  transform: var(--press-lift);
+  filter: brightness(1.08);
+}
+
+html.tavern-mobile .playing-card--back {
+  animation: epic-float-soft 3.8s ease-in-out infinite;
+}
+
+/* ——— Warrior pad cabinet ——— */
+html.tavern-mobile .warrior-puzzle-float {
+  animation: pad-cabinet-glow 3.2s ease-in-out infinite;
+  border: 1px solid rgba(232, 196, 120, 0.28);
+}
+
+html.tavern-mobile .warrior-tap {
+  transition:
+    transform 0.1s ease,
+    filter 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+html.tavern-mobile .warrior-tap:active {
+  transform: scale(0.94);
+  filter: brightness(1.15);
+  box-shadow:
+    0 0 0 2px rgba(232, 196, 120, 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+html.tavern-mobile .warrior-tap--slam:active {
+  box-shadow:
+    0 0 0 2px rgba(255, 160, 90, 0.7),
+    0 0 22px rgba(255, 120, 60, 0.45);
+}
+
+html.tavern-mobile .warrior-tap--action {
+  animation: epic-float 3.4s ease-in-out infinite;
+}
+
+html.tavern-mobile .warrior-jump-float {
+  animation: epic-float 2.8s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(104, 232, 168, 0.45),
+    0 8px 22px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(104, 232, 168, 0.2);
+}
+
+html.tavern-mobile .warrior-jump-float:active {
+  transform: scale(0.9);
+  filter: brightness(1.2);
+}
+
+/* ——— Strike float hit ——— */
+html.tavern-mobile .strike-float:not([hidden]) {
+  animation:
+    strike-pulse 1.1s ease-in-out infinite,
+    strike-hit-ring 1.1s ease-out infinite;
+}
+
+html.tavern-mobile .strike-float:active {
+  transform: scale(0.96);
+  filter: brightness(1.2);
+}
+
+/* ——— Studio tiles / feast / hall chips ——— */
+html.tavern-mobile .hub-tile {
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+
+html.tavern-mobile .hub-tile:active {
+  transform: var(--press-lift);
+  filter: brightness(1.1);
+}
+
+html.tavern-mobile .hub-tile-icon {
+  display: inline-block;
+  animation: epic-float 3.8s ease-in-out infinite;
+}
+
+html.tavern-mobile .mobile-hall-chip {
+  animation: epic-float-soft 4.5s ease-in-out infinite;
+}
+
+html.tavern-mobile .mobile-hall-chip:nth-child(2n) {
+  animation-delay: 0.5s;
+}
+
+html.tavern-mobile .bb-trophy-chip,
+html.tavern-mobile .bb-stake-chip {
+  animation: epic-float-soft 5s ease-in-out infinite;
+}
+
+/* ——— Studio stage entrance polish ——— */
+html.tavern-mobile .studio-stage {
+  animation: studio-in 0.35s ease-out;
+}
+
+html.tavern-mobile .studio-stage-head {
+  text-shadow: 0 0 24px rgba(232, 176, 80, 0.25);
+}
+
+html.tavern-mobile .chance-game-kicker {
+  animation: epic-float-soft 4s ease-in-out infinite;
+}
+
+/* ——— Fishing dock ——— */
+html.tavern-mobile .reel-tap:active {
+  transform: var(--press-lift);
+  filter: brightness(1.08);
+}
+
+html.tavern-mobile .play-hud {
+  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(8, 6, 4, 0.72), rgba(8, 6, 4, 0.35));
+}
+
+/* ——— Reduced motion ——— */
+@media (prefers-reduced-motion: reduce) {
+  .gate-screen::before,
+  .gate-crest,
+  .tavern-table__crest,
+  .tavern-table__prop-icon,
+  .tavern-table__seat,
+  .warrior-puzzle-float,
+  .warrior-tap--action,
+  .warrior-jump-float,
+  .hub-tile-icon,
+  .mobile-hall-chip,
+  .playing-card--back,
+  html.tavern-mobile .play-menu .playing-card--hero,
+  .play-shell[data-phase="well"] .play-menu:has(.tavern-table-scene),
+  .chance-game-kicker {
+    animation: none !important;
+  }
+}

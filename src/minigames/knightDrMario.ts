@@ -57,7 +57,7 @@ export class KnightDrMario {
     this.seedViruses();
     this.pill = null;
     this.dropMs = 0;
-    this.gravityMs = this.mobileEase ? 980 : 800;
+    this.gravityMs = this.mobileEase ? 1040 : 800;
     this.spawnPill();
   }
 
