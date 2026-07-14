@@ -8,7 +8,13 @@ import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
 import type { XLoreFeed } from "../lore/xFeed";
 import { formatXPostAge, heraldScrollMeta, heraldScrollPosts } from "../lore/xFeed";
 import type { MobileHallSnapshot } from "../hall/mobileHall";
-import { mobileHallFeedHtml, mobileHallLeaderboardHtml } from "../hall/mobileHall";
+import {
+  mobileHallFeedHtml,
+  mobileHallLeaderboardHtml,
+  mobileHallStakesHtml,
+  mobileHallTrophiesHtml,
+} from "../hall/mobileHall";
+import { formatPatronCaption } from "../hall/hallAssets";
 import {
   feastButtonHtml,
   hubBackHtml,
@@ -246,7 +252,7 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
   const liveCls = hall.live ? "mobile-hall-live" : "mobile-hall-live mobile-hall-live--off";
   const liveLabel = hall.live ? "Live hall connected" : "Solo / preview — run npm run live for a shared hall";
   const patrons = hall.patrons.length
-    ? escapeHtml(hall.patrons.join(" · "))
+    ? escapeHtml(formatPatronCaption(hall.patrons))
     : "Empty chairs — enter a name and cast to appear at the Great Table";
 
   return studioStageHtml(
@@ -254,6 +260,14 @@ export function mobileHallStudioHtml(hall: MobileHallSnapshot, bigboardHref: str
     `<p class="${liveCls}" role="status"><span class="mobile-hall-live-dot" aria-hidden="true"></span> ${liveLabel}</p>
     <p class="studio-charter-night">Tavern night ${escapeHtml(hall.charterNight)} <small>· resets 4am PT</small></p>
     <p class="mobile-hall-patrons"><strong>At the table</strong> ${patrons}</p>
+    <section class="mobile-hall-block" aria-labelledby="mobile-hall-trophy-title">
+      <h3 id="mobile-hall-trophy-title" class="mobile-hall-block-title">Trophy rail</h3>
+      ${mobileHallTrophiesHtml(hall.trophies)}
+    </section>
+    <section class="mobile-hall-block" aria-labelledby="mobile-hall-stake-title">
+      <h3 id="mobile-hall-stake-title" class="mobile-hall-block-title">Table money</h3>
+      ${mobileHallStakesHtml(hall.stakes)}
+    </section>
     <section class="mobile-hall-block" aria-labelledby="mobile-hall-lb-title">
       <h3 id="mobile-hall-lb-title" class="mobile-hall-block-title">Leaderboard</h3>
       ${mobileHallLeaderboardHtml(hall.leaderboard)}

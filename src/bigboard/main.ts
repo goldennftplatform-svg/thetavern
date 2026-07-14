@@ -41,6 +41,12 @@ import {
 } from "./hallLeaderboard";
 import { drawTavernMap, resizeMapCanvas, type FishingPhase, type ChancePhase, type MapPatron, type MapFx, type MapDrawTheme } from "./tavernMap";
 import type { SplashFx, TableFish } from "./tableFish";
+import {
+  formatPatronCaption,
+  type HallPatronIdentity,
+  type HallStakeSnap,
+  type HallTrophy,
+} from "../hall/hallAssets";
 import "./bigboard.css";
 
 initMobileShellClass();
@@ -48,6 +54,8 @@ initMobileShellClass();
 const feedEl = document.getElementById("feed")!;
 const patronsEl = document.getElementById("patrons")!;
 const statusEl = document.getElementById("status")!;
+const trophyRailEl = document.getElementById("bb-trophy-rail")!;
+const stakeRailEl = document.getElementById("bb-stake-rail")!;
 const liveDot = document.getElementById("bb-live-dot")!;
 const calloutEl = document.getElementById("bb-callout") as HTMLDivElement;
 const dockNight = document.getElementById("bb-dock-night")!;
@@ -94,7 +102,36 @@ const MOOD_LABEL: Record<HallMood, string> = {
 };
 
 /** Preview anglers when the hall server is offline — keeps the table alive. */
-const DEMO_PATRONS: MapPatron[] = [{ name: "Example" }, { name: "Angler" }, { name: "Guest" }];
+const DEMO_PATRONS: MapPatron[] = [
+  { name: "Example", title: "Moonwell Sharp", catalogSize: 4, tokens: 3 },
+  { name: "Angler", title: "Omen Reader", catalogSize: 7, tokens: 2 },
+  { name: "Guest", catalogSize: 2, tokens: 5 },
+];
+
+const DEMO_TROPHIES: HallTrophy[] = [
+  {
+    id: "demo-omen",
+    fish: "Veilfin Echo",
+    rarity: "omen",
+    from: "Angler",
+    ts: Date.now() - 60_000,
+  },
+  {
+    id: "demo-mythic",
+    fish: "Moonwell Leviathan",
+    rarity: "mythic",
+    from: "Example",
+    ts: Date.now() - 120_000,
+  },
+];
+
+const DEMO_STAKES: HallStakeSnap[] = [
+  { from: "Guest", kind: "chance", label: "Hi-Lo", stake: 1, tokensLeft: 4, ts: Date.now() - 20_000 },
+  { from: "Example", kind: "feast", label: "Charred Dock Bread", stake: 1, tokensLeft: 2, ts: Date.now() - 45_000 },
+];
+
+let trophyList: HallTrophy[] = [...DEMO_TROPHIES];
+let stakeList: HallStakeSnap[] = [...DEMO_STAKES];
 
 const director = createChronicleDirector(deedLines, flashForDeed);
 
@@ -529,6 +566,9 @@ function onChanceUpdate(d: {
   cards?: Array<{ label: string; rank: number; suit: string }>;
   target?: number;
   outcome?: string;
+  stake?: number;
+  tokens?: number;
+  title?: string;
 }) {
   if (!d.from) return;
   const phase = (d.phase ?? "idle") as ChancePhase;
@@ -538,25 +578,45 @@ function onChanceUpdate(d: {
     if (p.name !== d.from) return p;
     if (phase === "idle") {
       const { chance: _, ...rest } = p;
-      return rest;
+      return {
+        ...rest,
+        tokens: typeof d.tokens === "number" ? d.tokens : rest.tokens,
+        title: typeof d.title === "string" ? d.title : rest.title,
+      };
     }
     return {
       ...p,
+      tokens: typeof d.tokens === "number" ? d.tokens : p.tokens,
+      title: typeof d.title === "string" ? d.title : p.title,
       chance: {
         phase,
         game: d.game as "high_low" | "red_black" | undefined,
         cards: d.cards,
         target: d.target,
         outcome: d.outcome as "win" | "lose" | "push" | undefined,
+        stake: d.stake,
+        tokens: d.tokens,
         updatedAt,
       },
     };
   });
 
+  if (phase === "chance_play" && typeof d.stake === "number" && d.stake > 0) {
+    upsertStake({
+      from: d.from,
+      kind: "chance",
+      label: d.game === "red_black" ? "Red/Black" : d.game === "high_low" ? "Hi-Lo" : "Chance",
+      stake: d.stake,
+      tokensLeft: d.tokens,
+      ts: Date.now(),
+    });
+  }
+
   if (phase === "chance_result" && d.outcome === "win") {
     chanceFlashUntil = performance.now() + 1_400;
   }
   countLiveActivity();
+  refreshDockPatrons();
 }
 
 function addCatchToTable(d: Deed) {
@@ -612,8 +672,64 @@ function refreshDockPatrons() {
   const night = tonightUtc();
   dockNight.textContent = `${night.title} — ${night.tagline}`;
   dockPatrons.textContent = patronList.length
-    ? `${patronList.length} seated: ${patronList.map((x) => x.name).join(" · ")}`
+    ? `${patronList.length} seated: ${formatPatronCaption(
+        patronList.map((p) => ({
+          name: p.name,
+          title: p.title,
+          catalogSize: p.catalogSize,
+          tokens: p.tokens,
+        })),
+      )}`
     : "Empty chairs — the well waits.";
+}
+
+function renderTrophyRail() {
+  if (!trophyList.length) {
+    trophyRailEl.innerHTML =
+      '<p class="bb-asset-rail__empty">Mythic &amp; omen catches pin here for the hall.</p>';
+    return;
+  }
+  trophyRailEl.innerHTML = trophyList
+    .slice(0, 8)
+    .map(
+      (t) =>
+        `<span class="bb-trophy-chip bb-trophy-chip--${t.rarity}" title="${escapeHtml(t.from)} landed ${escapeHtml(t.fish)}">
+          <strong>${t.rarity === "mythic" ? "Mythic" : "Omen"}</strong>
+          ${escapeHtml(t.fish)}
+          <em>${escapeHtml(t.from)}</em>
+        </span>`,
+    )
+    .join("");
+}
+
+function renderStakeRail() {
+  if (!stakeList.length) {
+    stakeRailEl.innerHTML =
+      '<p class="bb-asset-rail__empty">◎ stakes chalk when patrons wager or feast.</p>';
+    return;
+  }
+  stakeRailEl.innerHTML = stakeList
+    .slice(0, 8)
+    .map(
+      (s) =>
+        `<span class="bb-stake-chip bb-stake-chip--${s.kind}">
+          <strong>◎${s.stake}</strong>
+          ${escapeHtml(s.from)} · ${escapeHtml(s.label)}
+          ${typeof s.tokensLeft === "number" ? `<em>left ◎${s.tokensLeft}</em>` : ""}
+        </span>`,
+    )
+    .join("");
+}
+
+function upsertTrophy(t: HallTrophy) {
+  if (trophyList.some((x) => x.id === t.id)) return;
+  trophyList = [t, ...trophyList].slice(0, 24);
+  renderTrophyRail();
+}
+
+function upsertStake(s: HallStakeSnap) {
+  stakeList = [s, ...stakeList.filter((x) => !(x.from === s.from && x.kind === s.kind && x.label === s.label && Math.abs(x.ts - s.ts) < 1500))].slice(0, 16);
+  renderStakeRail();
 }
 
 function rotateDockFact() {
@@ -631,7 +747,7 @@ function refreshDock() {
 function showDemoHall(caption: string) {
   const now = performance.now();
   patronList = DEMO_PATRONS.map((p, i) => ({
-    name: p.name,
+    ...p,
     pulseUntil: now + 2000 + i * 400,
     fishing:
       i === 0
@@ -640,9 +756,13 @@ function showDemoHall(caption: string) {
           ? { phase: "fish_wait" as const, biteOpen: true, updatedAt: now }
           : undefined,
   }));
+  trophyList = [...DEMO_TROPHIES];
+  stakeList = [...DEMO_STAKES];
   hallHasLivePatrons = false;
   setLive(false, `Preview · ${tonightUtc().title}`);
   patronsEl.textContent = caption;
+  renderTrophyRail();
+  renderStakeRail();
   refreshDock();
   countLiveActivity();
   redrawMap();
@@ -806,7 +926,7 @@ function flashForDeed(d: Deed): string {
   return `${who}${main}`;
 }
 
-function onPatrons(p: { patrons: { name: string }[] }) {
+function onPatrons(p: { patrons: HallPatronIdentity[] }) {
   if (p.patrons.length === 0) {
     hallHasLivePatrons = false;
     if (trailLive) {
@@ -827,6 +947,9 @@ function onPatrons(p: { patrons: { name: string }[] }) {
     const existing = patronList.find((e) => e.name === x.name);
     return {
       name: x.name,
+      title: x.title ?? existing?.title,
+      catalogSize: x.catalogSize ?? existing?.catalogSize,
+      tokens: x.tokens ?? existing?.tokens,
       pulseUntil: existing?.pulseUntil,
       fishing: existing?.fishing,
       chance: existing?.chance,
@@ -834,10 +957,19 @@ function onPatrons(p: { patrons: { name: string }[] }) {
   });
   const joined = patronList.filter((x) => !prev.has(x.name));
   if (joined.length === 1) {
-    setWhisper(`${joined[0]!.name} pulls up a chair at the Great Table.`);
-    pulsePatron(joined[0]!.name);
+    const who = joined[0]!;
+    const wear = who.title ? `${who.name} (${who.title})` : who.name;
+    setWhisper(`${wear} pulls up a chair at the Great Table.`);
+    pulsePatron(who.name);
   }
-  patronsEl.textContent = `${patronList.length} at the Great Table: ${patronList.map((x) => x.name).join(" · ")}`;
+  patronsEl.textContent = `${patronList.length} at the Great Table: ${formatPatronCaption(
+    patronList.map((x) => ({
+      name: x.name,
+      title: x.title,
+      catalogSize: x.catalogSize,
+      tokens: x.tokens,
+    })),
+  )}`;
   refreshDockPatrons();
   countLiveActivity();
   redrawMap();
@@ -891,6 +1023,10 @@ function goLiveHall(label: string) {
   stopDemoEvening();
   director.reset();
   hallHasLivePatrons = false;
+  trophyList = [];
+  stakeList = [];
+  renderTrophyRail();
+  renderStakeRail();
   if (feedEl.childElementCount === 0) feedEl.classList.add("bb-feed--waiting");
   feedHint.textContent = "Live hall — deeds chalk here as patrons play.";
   setLive(true, label);
@@ -912,7 +1048,51 @@ function bindTrailSocket(socket: import("socket.io-client").Socket) {
     if (!trailLive) goLiveHall(`Live hall · ${tonightUtc().title}`);
     stopDemoEvening();
     director.enqueue(d);
+    if (d.kind === "catch" && (d.rarity === "mythic" || d.rarity === "omen") && d.fish && d.from) {
+      upsertTrophy({
+        id: `${d.from}|${d.fish}|${d.ts ?? Date.now()}`,
+        fish: d.fish,
+        rarity: d.rarity,
+        from: d.from,
+        ts: d.ts ?? Date.now(),
+        charterNight: d.charterNight,
+      });
+    }
+    if (
+      (d.kind === "gamble" || d.kind === "feast") &&
+      typeof d.stake === "number" &&
+      d.stake > 0 &&
+      d.from
+    ) {
+      upsertStake({
+        from: d.from,
+        kind: d.kind === "feast" ? "feast" : "chance",
+        label:
+          d.kind === "feast"
+            ? d.food ?? "Kitchen"
+            : d.game === "red_black"
+              ? "Red/Black"
+              : d.game === "high_low"
+                ? "Hi-Lo"
+                : "Chance",
+        stake: d.stake,
+        tokensLeft: d.tokensLeft,
+        ts: d.ts ?? Date.now(),
+      });
+    }
   });
+  socket.on("hall:trophy:sync", (list: HallTrophy[]) => {
+    if (!Array.isArray(list)) return;
+    trophyList = list.slice(0, 24);
+    renderTrophyRail();
+  });
+  socket.on("hall:trophy", (t: HallTrophy) => upsertTrophy(t));
+  socket.on("hall:stake:sync", (list: HallStakeSnap[]) => {
+    if (!Array.isArray(list)) return;
+    stakeList = list.slice(0, 16);
+    renderStakeRail();
+  });
+  socket.on("hall:stake", (s: HallStakeSnap) => upsertStake(s));
   socket.on("connect", () => {
     socket.emit("hall:deed:request");
   });

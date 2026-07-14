@@ -58,6 +58,15 @@ type AnglerSaveV2 = {
   feastsEaten: FoodId[];
   deckIds: string[];
   demplarBest?: number;
+  /** Sticky wall trophies — survive charter night rollover. */
+  trophies?: Array<{
+    id: string;
+    fish: string;
+    rarity: "mythic" | "omen";
+    from: string;
+    ts: number;
+    charterNight?: string;
+  }>;
   archive: CharterDayArchive[];
   updatedAt: number;
 };
@@ -68,10 +77,13 @@ export type AnglerSavePeek = {
   tokens: number;
   catalogSize: number;
   titles: string[];
+  trophyCount: number;
   charterNight: string;
   archiveCount: number;
   updatedAt: number;
 };
+
+const TROPHY_VAULT_MAX = 24;
 
 type Vault = Record<string, AnglerSaveV1 | AnglerSaveV2>;
 
@@ -177,6 +189,7 @@ function applyCharterRollover(save: AnglerSaveV2): AnglerSaveV2 {
     perilIndex: 0,
     triviaIndex: 0,
     deckIds: freshDeckIds(),
+    trophies: [...(save.trophies ?? [])],
     archive,
     updatedAt: Date.now(),
   };
@@ -230,10 +243,41 @@ export function peekAnglerSave(name: string): AnglerSavePeek | null {
     tokens: save.tokens,
     catalogSize: save.catalog.length,
     titles: save.titles,
+    trophyCount: save.trophies?.length ?? 0,
     charterNight: formatCharterDayLabel(save.charterDayId),
     archiveCount: save.archive.length,
     updatedAt: save.updatedAt,
   };
+}
+
+export function loadAnglerTrophies(name: string) {
+  return prepareSave(name)?.trophies ?? [];
+}
+
+export function pinAnglerTrophy(
+  name: string,
+  trophy: {
+    id: string;
+    fish: string;
+    rarity: "mythic" | "omen";
+    from: string;
+    ts: number;
+    charterNight?: string;
+  },
+): void {
+  const key = nameKey(name);
+  if (!key) return;
+  const vault = readVault();
+  const existing = normalizeSave(vault[key]);
+  if (!existing) return;
+  const list = [...(existing.trophies ?? [])];
+  if (list.some((t) => t.id === trophy.id || (t.fish === trophy.fish && t.from === trophy.from))) {
+    return;
+  }
+  list.unshift(trophy);
+  if (list.length > TROPHY_VAULT_MAX) list.length = TROPHY_VAULT_MAX;
+  vault[key] = { ...existing, trophies: list, updatedAt: Date.now() };
+  writeVault(vault);
 }
 
 export function loadAnglerArchives(name: string): CharterDayArchive[] {
@@ -300,6 +344,7 @@ export function saveAnglerState(state: GameState): void {
     feastsEaten: [...state.feastsEaten],
     deckIds: state.deck.map((c) => c.id),
     demplarBest: state.demplarBest,
+    trophies: existing.trophies ?? [],
     updatedAt: Date.now(),
   };
   writeVault(vault);

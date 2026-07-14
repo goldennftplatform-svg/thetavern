@@ -6,6 +6,9 @@ export type ChancePhase = "idle" | "chance_pick" | "chance_play" | "chance_resul
 
 export type MapPatron = {
   name: string;
+  title?: string;
+  catalogSize?: number;
+  tokens?: number;
   pulseUntil?: number;
   fishing?: {
     phase: FishingPhase;
@@ -20,6 +23,8 @@ export type MapPatron = {
     cards?: ChanceCardSnap[];
     target?: number;
     outcome?: "win" | "lose" | "push";
+    stake?: number;
+    tokens?: number;
     updatedAt: number;
   };
 };
@@ -398,12 +403,13 @@ function drawPatronToken(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  name: string,
+  patron: MapPatron,
   tick: number,
   pulse: boolean,
-  fishing?: MapPatron["fishing"],
-  chance?: MapPatron["chance"],
 ) {
+  const name = patron.name;
+  const fishing = patron.fishing;
+  const chance = patron.chance;
   const fishingActive = fishing && fishing.phase !== "idle";
   const chanceActive = chance && chance.phase !== "idle";
   const active = fishingActive || chanceActive;
@@ -440,12 +446,16 @@ function drawPatronToken(
   ctx.strokeRect(px, py, 28, 28);
 
   if (chanceActive) {
+    const stakeBit =
+      typeof chance!.stake === "number" && chance!.stake > 0 ? `◎${chance!.stake}` : null;
     const badge =
       chance!.phase === "chance_pick"
         ? "PICK"
-        : chance!.game === "red_black"
-          ? "R/B"
-          : "HI-LO";
+        : stakeBit
+          ? stakeBit
+          : chance!.game === "red_black"
+            ? "R/B"
+            : "HI-LO";
     ctx.fillStyle = chance!.outcome === "win" ? "#68e8a8" : "#e8b050";
     ctx.font = '5px "Press Start 2P", monospace';
     ctx.textAlign = "center";
@@ -473,6 +483,18 @@ function drawPatronToken(
   const short = name.length > 9 ? `${name.slice(0, 7)}…` : name;
   ctx.textAlign = "center";
   ctx.fillText(short, x, py - 6);
+
+  const title = patron.title?.trim();
+  if (title) {
+    ctx.fillStyle = "rgba(232, 196, 120, 0.92)";
+    ctx.font = '5px "Press Start 2P", monospace';
+    const titleShort = title.length > 12 ? `${title.slice(0, 10)}…` : title;
+    ctx.fillText(titleShort, x, py + 38);
+  } else if (typeof patron.catalogSize === "number" && patron.catalogSize > 0) {
+    ctx.fillStyle = "rgba(184, 216, 200, 0.85)";
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.fillText(`${patron.catalogSize} codex`, x, py + 38);
+  }
   ctx.textAlign = "left";
 }
 
@@ -509,6 +531,8 @@ export function drawTavernMap(
       cards: p.chance!.cards,
       target: p.chance!.target,
       outcome: p.chance!.outcome,
+      stake: p.chance!.stake,
+      tokens: p.chance!.tokens,
       updatedAt: p.chance!.updatedAt,
     }));
 
@@ -539,7 +563,7 @@ export function drawTavernMap(
     const atChance = patronAtChance(p);
     const seat = seatForPatron(p, seats, atChance ? chanceIdx++ : 0, table);
     const pulse = (p.pulseUntil ?? 0) > now;
-    drawPatronToken(ctx, seat.x, seat.y, p.name, tick, pulse, p.fishing, p.chance);
+    drawPatronToken(ctx, seat.x, seat.y, p, tick, pulse);
   });
 
   const activeFishers = sorted.filter((p) => p.fishing && p.fishing.phase !== "idle").length;

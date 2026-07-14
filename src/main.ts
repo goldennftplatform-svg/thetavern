@@ -32,11 +32,17 @@ import {
   loadAnglerState,
   loadLastName,
   peekAnglerSave,
+  pinAnglerTrophy,
   rememberLastName,
   saveAnglerState,
   loadAnglerArchives,
   formatCharterArchives,
 } from "./game/anglerSave";
+import {
+  isTrophyRarity,
+  makeTrophyId,
+  wornTitle,
+} from "./hall/hallAssets";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
 import { drawMoonwell, seasonTints } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
@@ -363,6 +369,15 @@ function setPresence(atWell: boolean) {
   socket?.emit("moonwell:presence", { atWell });
 }
 
+function syncHallIdentity() {
+  if (!socket) return;
+  socket.emit("moonwell:identity", {
+    title: wornTitle(state.titles),
+    catalogSize: state.catalog.size,
+    tokens: state.tokens,
+  });
+}
+
 let lastFishBroadcast = 0;
 
 function broadcastFishing(force = false) {
@@ -392,12 +407,19 @@ function broadcastChance() {
   const isChance = chancePhases.includes(state.phase as (typeof chancePhases)[number]);
 
   if (!isChance) {
-    socket.emit("moonwell:chance", { phase: "idle" });
+    socket.emit("moonwell:chance", { phase: "idle", tokens: state.tokens });
     return;
   }
 
-  const payload: Record<string, unknown> = { phase: state.phase };
+  const game = state.chanceGame
+    ? CHANCE_GAMES.find((g) => g.id === state.chanceGame)
+    : undefined;
+  const payload: Record<string, unknown> = {
+    phase: state.phase,
+    tokens: state.tokens,
+  };
   if (state.chanceGame) payload.game = state.chanceGame;
+  if (game) payload.stake = game.stake;
   if (state.chanceCards.length > 0) {
     payload.cards = state.chanceCards.map((c) => ({
       label: c.label,
@@ -433,7 +455,20 @@ function announceCatch(c: CatchResult, feastBeforeCatch?: FoodBuff) {
     rarity: c.rarity,
     combo: !!foodName,
     demplar: fishDemplarHook(c.fishId) || c.demplarTease,
+    charterNight: formatCharterDayLabel(charterDayId()),
   });
+
+  if (isTrophyRarity(c.rarity)) {
+    const ts = Date.now();
+    pinAnglerTrophy(state.nickname, {
+      id: makeTrophyId(state.nickname, c.name, ts),
+      fish: c.name,
+      rarity: c.rarity,
+      from: state.nickname,
+      ts,
+      charterNight: formatCharterDayLabel(charterDayId()),
+    });
+  }
 }
 
 function ensureDeck(min = 8) {
@@ -753,7 +788,12 @@ function buyFeast(id: FoodId) {
     castFloor: f.castFloor,
   };
   const { chronicle, subtext } = composeFeastDeed(state.nickname, f.name, f.blurb, f.buffLabel);
-  announceDeed("feast", chronicle, subtext);
+  announceDeed("feast", chronicle, subtext, undefined, {
+    food: f.name,
+    stake: f.cost,
+    tokensLeft: state.tokens,
+  });
+  syncHallIdentity();
   hud();
   setPhase("well");
 }
@@ -801,7 +841,10 @@ function finishChance(guess: string) {
     game: result.game,
     outcome: result.outcome,
     cards: result.cards.map((c) => ({ label: c.label, rank: c.rank, suit: c.suit })),
+    stake: game.stake,
+    tokensLeft: state.tokens,
   });
+  syncHallIdentity();
   hud();
   setPhase("chance_result");
 }
@@ -870,6 +913,7 @@ function finishDemplarRun() {
   if (result.total >= 2500 && !state.titles.includes("Arcade Ace")) {
     state.titles.push("Arcade Ace");
   }
+  syncHallIdentity();
   const { chronicle, subtext } = composeDemplarDeed(
     state.nickname,
     result.platform,
@@ -1195,6 +1239,7 @@ function finishReel(good: number, total: number) {
       state.titles.push("Omen Reader");
     }
     announceCatch(state.lastCatch, feastBuff);
+    syncHallIdentity();
     hud();
     setPhase("resolve");
   } catch (err) {
@@ -1432,13 +1477,19 @@ async function bootTrail() {
   }
   elTrail.textContent = "Joining the live hall…";
   try {
-    const c = await connectTrail(url, "trailJson", { name: state.nickname });
+    const c = await connectTrail(url, "trailJson", {
+      name: state.nickname,
+      title: wornTitle(state.titles),
+      catalogSize: state.catalog.size,
+      tokens: state.tokens,
+    });
     socket = c.socket;
     mobileHall.bindSocket(socket);
     const syncLive = () => {
       mobileHall.bindSocket(socket);
       if (state.phase !== "enter" && state.phase !== "herald") {
         setPresence(true);
+        syncHallIdentity();
         broadcastFishing(true);
         broadcastChance();
       }

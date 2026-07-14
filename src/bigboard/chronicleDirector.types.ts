@@ -17,4 +17,8 @@ export type Deed = {
   milestone?: number;
   bold?: boolean;
   score?: number;
+  stake?: number;
+  tokensLeft?: number;
+  food?: string;
+  charterNight?: string;
 };

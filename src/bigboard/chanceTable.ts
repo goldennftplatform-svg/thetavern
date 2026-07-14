@@ -9,6 +9,8 @@ export type ChanceSession = {
   cards?: ChanceCardSnap[];
   target?: number;
   outcome?: "win" | "lose" | "push";
+  stake?: number;
+  tokens?: number;
   updatedAt: number;
 };
 
@@ -130,6 +132,12 @@ export function drawChanceCorner(
       ctx.fillStyle = "#88b8a8";
       ctx.fillText("PICK…", zoneX + 6, rowY + 10);
       return;
+    }
+
+    if (typeof s.stake === "number" && s.stake > 0) {
+      ctx.fillStyle = "#e8b050";
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.fillText(`◎${s.stake}`, zoneX + 58, rowY);
     }
 
     if (s.game === "red_black") {

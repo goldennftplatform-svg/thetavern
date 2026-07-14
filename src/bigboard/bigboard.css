@@ -873,6 +873,86 @@ body.bigboard-body {
   flex-shrink: 0;
 }
 
+.bb-asset-rails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.bb-asset-rail {
+  border: 1px solid rgba(232, 196, 120, 0.28);
+  border-radius: 10px;
+  background: rgba(10, 8, 14, 0.72);
+  padding: 8px 10px;
+  min-height: 64px;
+}
+
+.bb-asset-rail__title {
+  margin: 0 0 6px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: #e8c478;
+  text-transform: uppercase;
+}
+
+.bb-asset-rail__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+}
+
+.bb-asset-rail__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.bb-trophy-chip,
+.bb-stake-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  background: rgba(24, 18, 28, 0.9);
+  border: 1px solid rgba(232, 196, 120, 0.28);
+  color: #f4ece0;
+}
+
+.bb-trophy-chip--mythic {
+  border-color: rgba(232, 176, 80, 0.7);
+  color: #ffe8a8;
+}
+
+.bb-trophy-chip--omen {
+  border-color: rgba(168, 120, 232, 0.7);
+  color: #e0c8ff;
+}
+
+.bb-stake-chip--feast {
+  border-color: rgba(104, 232, 168, 0.45);
+  color: #b8f0d0;
+}
+
+.bb-stake-chip--chance {
+  border-color: rgba(232, 176, 80, 0.55);
+  color: #ffd898;
+}
+
+@media (max-width: 899px) {
+  .bb-asset-rails {
+    grid-template-columns: 1fr;
+  }
+}
+
 .bb-feed-col {
   display: flex;
   flex-direction: column;

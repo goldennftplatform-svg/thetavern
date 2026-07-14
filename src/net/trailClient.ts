@@ -13,7 +13,13 @@ export type TrailClient = {
 export async function connectTrail(
   trailUrl: string,
   source: TrailResolutionSource,
-  opts: { name: string; projector?: boolean },
+  opts: {
+    name: string;
+    projector?: boolean;
+    title?: string;
+    catalogSize?: number;
+    tokens?: number;
+  },
   hooks?: { onSocket?: (socket: Socket) => void },
 ): Promise<TrailClient> {
   if (!trailUrl) {
@@ -30,7 +36,14 @@ export async function connectTrail(
 
   hooks?.onSocket?.(socket);
 
-  const join = () => socket.emit("tavern:join", { name: opts.name, projector: opts.projector });
+  const joinPayload = () => ({
+    name: opts.name,
+    projector: opts.projector,
+    title: opts.title,
+    catalogSize: opts.catalogSize,
+    tokens: opts.tokens,
+  });
+  const join = () => socket.emit("tavern:join", joinPayload());
   socket.on("connect", join);
 
   await new Promise<void>((resolve, reject) => {

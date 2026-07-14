@@ -1,5 +1,5 @@
 /**
- * In-play hall view — live chronicle + leaderboard for mobile (mirrors bigboard feed).
+ * In-play hall view — live chronicle + leaderboard + assets for mobile (mirrors bigboard feed).
  */
 
 import type { Socket } from "socket.io-client";
@@ -15,17 +15,27 @@ import {
   type LeaderboardRow,
 } from "../bigboard/hallLeaderboard";
 import { charterDayId, formatCharterDayLabel } from "../game/charterDay";
+import {
+  formatPatronCaption,
+  type HallPatronIdentity,
+  type HallStakeSnap,
+  type HallTrophy,
+} from "./hallAssets";
 
 export type MobileHallSnapshot = {
   live: boolean;
-  patrons: string[];
+  patrons: HallPatronIdentity[];
   deeds: Deed[];
   leaderboard: LeaderboardRow[];
+  trophies: HallTrophy[];
+  stakes: HallStakeSnap[];
   charterNight: string;
 };
 
 const FEED_MAX = 28;
 const LB_CAP = 6;
+const TROPHY_CAP = 8;
+const STAKE_CAP = 8;
 
 function escapeHtml(s: string): string {
   return s
@@ -38,7 +48,9 @@ function escapeHtml(s: string): string {
 function deedMain(d: Deed): string {
   if (d.chronicle) {
     const tail = d.renown ? ` ★${d.renown}` : "";
-    return `${d.chronicle}${tail}`;
+    const stake =
+      typeof d.stake === "number" && d.stake > 0 ? ` · ◎${d.stake}` : "";
+    return `${d.chronicle}${tail}${stake}`;
   }
   const who = d.from ?? "A patron";
   if (d.kind === "catch" && d.fish) {
@@ -94,6 +106,32 @@ export function mobileHallLeaderboardHtml(rows: LeaderboardRow[]): string {
   </ol>`;
 }
 
+export function mobileHallTrophiesHtml(trophies: HallTrophy[]): string {
+  if (!trophies.length) {
+    return `<p class="mobile-hall-empty">Land a mythic or omen catch — it pins to the trophy rail.</p>`;
+  }
+  return `<div class="mobile-hall-chips" aria-label="Trophy rail">${trophies
+    .slice(0, TROPHY_CAP)
+    .map(
+      (t) =>
+        `<span class="mobile-hall-chip mobile-hall-chip--${t.rarity}"><strong>${t.rarity === "mythic" ? "Mythic" : "Omen"}</strong> ${escapeHtml(t.fish)} <em>${escapeHtml(t.from)}</em></span>`,
+    )
+    .join("")}</div>`;
+}
+
+export function mobileHallStakesHtml(stakes: HallStakeSnap[]): string {
+  if (!stakes.length) {
+    return `<p class="mobile-hall-empty">Wager or feast — ◎ stakes chalk for the table.</p>`;
+  }
+  return `<div class="mobile-hall-chips" aria-label="Table money">${stakes
+    .slice(0, STAKE_CAP)
+    .map(
+      (s) =>
+        `<span class="mobile-hall-chip mobile-hall-chip--${s.kind}"><strong>◎${s.stake}</strong> ${escapeHtml(s.from)} · ${escapeHtml(s.label)}${typeof s.tokensLeft === "number" ? ` · left ◎${s.tokensLeft}` : ""}</span>`,
+    )
+    .join("")}</div>`;
+}
+
 export type MobileHall = {
   bindSocket: (socket: Socket | null) => void;
   pushLocalDeed: (deed: Deed) => void;
@@ -101,8 +139,10 @@ export type MobileHall = {
 };
 
 export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
-  let patrons: string[] = [];
+  let patrons: HallPatronIdentity[] = [];
   let deeds: Deed[] = [];
+  let trophies: HallTrophy[] = [];
+  let stakes: HallStakeSnap[] = [];
   let live = false;
   let bound: Socket | null = null;
   const seen = new Set<string>();
@@ -110,10 +150,6 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
   const lbBoot = initHallLeaderboard();
   let lbDayId = lbBoot.dayId;
   let lbRows = lbBoot.rows;
-
-  function deedKey(d: Deed): string {
-    return `${d.ts ?? 0}|${d.from ?? ""}|${d.chronicle ?? ""}|${d.text ?? ""}|${d.kind ?? ""}`;
-  }
 
   function syncDay() {
     const today = charterDayId();
@@ -123,6 +159,45 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
       seen.clear();
       persistHallLeaderboard(lbDayId, lbRows);
     }
+  }
+
+  function ingestTrophyFromDeed(d: Deed) {
+    if (d.kind !== "catch" || (d.rarity !== "mythic" && d.rarity !== "omen") || !d.fish || !d.from) {
+      return;
+    }
+    const t: HallTrophy = {
+      id: `${d.from}|${d.fish}|${d.ts ?? Date.now()}`,
+      fish: d.fish,
+      rarity: d.rarity,
+      from: d.from,
+      ts: d.ts ?? Date.now(),
+      charterNight: d.charterNight,
+    };
+    if (trophies.some((x) => x.id === t.id)) return;
+    trophies = [t, ...trophies].slice(0, 24);
+  }
+
+  function ingestStakeFromDeed(d: Deed) {
+    if ((d.kind !== "gamble" && d.kind !== "feast") || typeof d.stake !== "number" || !d.from) {
+      return;
+    }
+    if (d.stake <= 0) return;
+    const s: HallStakeSnap = {
+      from: d.from,
+      kind: d.kind === "feast" ? "feast" : "chance",
+      label:
+        d.kind === "feast"
+          ? d.food ?? "Kitchen"
+          : d.game === "red_black"
+            ? "Red/Black"
+            : d.game === "high_low"
+              ? "Hi-Lo"
+              : "Chance",
+      stake: d.stake,
+      tokensLeft: d.tokensLeft,
+      ts: d.ts ?? Date.now(),
+    };
+    stakes = [s, ...stakes].slice(0, 16);
   }
 
   function ingest(d: Deed, skipDedup = false) {
@@ -139,6 +214,8 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
     }
     lbRows = bumpLeaderboardRow(lbRows, d);
     persistHallLeaderboard(lbDayId, lbRows);
+    ingestTrophyFromDeed(d);
+    ingestStakeFromDeed(d);
     opts?.onUpdate?.();
   }
 
@@ -152,6 +229,8 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
       seen.add(deedKey(item));
       deeds.unshift(item);
       lbRows = bumpLeaderboardRow(lbRows, item);
+      ingestTrophyFromDeed(item);
+      ingestStakeFromDeed(item);
     }
     if (deeds.length > FEED_MAX) deeds.length = FEED_MAX;
     persistHallLeaderboard(lbDayId, lbRows);
@@ -162,6 +241,10 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
     if (bound) {
       bound.off("hall:deed");
       bound.off("hall:deed:sync");
+      bound.off("hall:trophy");
+      bound.off("hall:trophy:sync");
+      bound.off("hall:stake");
+      bound.off("hall:stake:sync");
       bound.off("moonwell:patrons");
       bound.off("connect");
       bound.off("disconnect");
@@ -187,8 +270,33 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
       else opts?.onUpdate?.();
     });
     socket.on("hall:deed", (d: Deed) => ingest(d));
-    socket.on("moonwell:patrons", (p: { patrons: { name: string }[] }) => {
-      patrons = p.patrons.map((x) => x.name);
+    socket.on("hall:trophy:sync", (list: HallTrophy[]) => {
+      if (!Array.isArray(list)) return;
+      trophies = list.slice(0, 24);
+      opts?.onUpdate?.();
+    });
+    socket.on("hall:trophy", (t: HallTrophy) => {
+      if (!trophies.some((x) => x.id === t.id)) {
+        trophies = [t, ...trophies].slice(0, 24);
+        opts?.onUpdate?.();
+      }
+    });
+    socket.on("hall:stake:sync", (list: HallStakeSnap[]) => {
+      if (!Array.isArray(list)) return;
+      stakes = list.slice(0, 16);
+      opts?.onUpdate?.();
+    });
+    socket.on("hall:stake", (s: HallStakeSnap) => {
+      stakes = [s, ...stakes].slice(0, 16);
+      opts?.onUpdate?.();
+    });
+    socket.on("moonwell:patrons", (p: { patrons: HallPatronIdentity[] }) => {
+      patrons = (p.patrons ?? []).map((x) => ({
+        name: x.name,
+        title: x.title,
+        catalogSize: x.catalogSize,
+        tokens: x.tokens,
+      }));
       opts?.onUpdate?.();
     });
   }
@@ -203,6 +311,8 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
         patrons: [...patrons],
         deeds: [...deeds],
         leaderboard: sortLeaderboard(lbRows),
+        trophies: [...trophies],
+        stakes: [...stakes],
         charterNight: formatCharterDayLabel(lbDayId),
       };
     },
