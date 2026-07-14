@@ -9,9 +9,11 @@ import { charterDayId, formatCharterDayLabel, CHARTER_RESET_BLURB } from "./char
 import { buildMoonwellDeck, shuffleDeck, type MoonwellCard } from "../minigames/moonwellDeck";
 import { initialState } from "./state";
 import type { GameState } from "./types";
+import { normalizePoleProgress, type PoleProgress } from "./poleProgress";
+import type { PoleId } from "../content/fishingPoles";
 
 const VAULT_KEY = "moonwell_angler_vault";
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 const COOKIE_NAME = "moonwell_name";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
 const ARCHIVE_MAX = 40;
@@ -69,6 +71,41 @@ type AnglerSaveV2 = {
   }>;
   archive: CharterDayArchive[];
   updatedAt: number;
+  /** Older vaults may already carry pole scratch — keep if present. */
+  poleXp?: number;
+  equippedPoleId?: PoleId;
+  unlockedPoleIds?: PoleId[];
+};
+
+type AnglerSaveV3 = {
+  v: 3;
+  nickname: string;
+  charterDayId: string;
+  season: Season;
+  runCount: number;
+  renown: number;
+  tokens: number;
+  titles: string[];
+  catalog: string[];
+  perilIndex: number;
+  triviaIndex: number;
+  feastsEaten: FoodId[];
+  deckIds: string[];
+  demplarBest?: number;
+  trophies?: Array<{
+    id: string;
+    fish: string;
+    rarity: "mythic" | "omen";
+    from: string;
+    ts: number;
+    charterNight?: string;
+  }>;
+  /** Sticky pole ecosystem — survives charter night. */
+  poleXp: number;
+  equippedPoleId: PoleId;
+  unlockedPoleIds: PoleId[];
+  archive: CharterDayArchive[];
+  updatedAt: number;
 };
 
 export type AnglerSavePeek = {
@@ -80,12 +117,22 @@ export type AnglerSavePeek = {
   trophyCount: number;
   charterNight: string;
   archiveCount: number;
+  poleXp: number;
+  equippedPoleId: PoleId;
   updatedAt: number;
 };
 
 const TROPHY_VAULT_MAX = 24;
 
-type Vault = Record<string, AnglerSaveV1 | AnglerSaveV2>;
+type Vault = Record<string, AnglerSaveV1 | AnglerSaveV2 | AnglerSaveV3>;
+
+function poleFieldsFrom(raw: { poleXp?: number; equippedPoleId?: PoleId; unlockedPoleIds?: PoleId[] }): PoleProgress {
+  return normalizePoleProgress({
+    poleXp: raw.poleXp,
+    equippedPoleId: raw.equippedPoleId,
+    unlockedPoleIds: raw.unlockedPoleIds,
+  });
+}
 
 function nameKey(name: string): string {
   return name.trim().toLowerCase().slice(0, 28);
@@ -136,9 +183,10 @@ function freshDeckIds(): string[] {
   return shuffleDeck(buildMoonwellDeck()).map((c) => c.id);
 }
 
-function migrateV1(v1: AnglerSaveV1): AnglerSaveV2 {
+function migrateV1(v1: AnglerSaveV1): AnglerSaveV3 {
+  const poles = normalizePoleProgress(null);
   return {
-    v: 2,
+    v: 3,
     nickname: v1.nickname,
     charterDayId: charterDayId(),
     season: v1.season,
@@ -152,16 +200,41 @@ function migrateV1(v1: AnglerSaveV1): AnglerSaveV2 {
     feastsEaten: [...v1.feastsEaten],
     deckIds: [...v1.deckIds],
     demplarBest: v1.demplarBest,
+    ...poles,
     archive: [],
     updatedAt: v1.updatedAt,
   };
 }
 
-function hadDailyActivity(save: AnglerSaveV2): boolean {
+function migrateV2(v2: AnglerSaveV2): AnglerSaveV3 {
+  const poles = poleFieldsFrom(v2);
+  return {
+    v: 3,
+    nickname: v2.nickname,
+    charterDayId: v2.charterDayId,
+    season: v2.season,
+    runCount: v2.runCount,
+    renown: v2.renown,
+    tokens: v2.tokens,
+    titles: [...v2.titles],
+    catalog: [...v2.catalog],
+    perilIndex: v2.perilIndex,
+    triviaIndex: v2.triviaIndex,
+    feastsEaten: [...v2.feastsEaten],
+    deckIds: [...v2.deckIds],
+    demplarBest: v2.demplarBest,
+    trophies: v2.trophies ? [...v2.trophies] : [],
+    ...poles,
+    archive: [...(v2.archive ?? [])],
+    updatedAt: v2.updatedAt,
+  };
+}
+
+function hadDailyActivity(save: AnglerSaveV3): boolean {
   return save.runCount > 0 || save.renown > 0 || save.catalog.length > 0 || save.tokens > DAILY_TOKEN_STIPEND;
 }
 
-function applyCharterRollover(save: AnglerSaveV2): AnglerSaveV2 {
+function applyCharterRollover(save: AnglerSaveV3): AnglerSaveV3 {
   const today = charterDayId();
   if (save.charterDayId === today) return save;
 
@@ -178,6 +251,7 @@ function applyCharterRollover(save: AnglerSaveV2): AnglerSaveV2 {
     if (archive.length > ARCHIVE_MAX) archive.length = ARCHIVE_MAX;
   }
 
+  const poles = poleFieldsFrom(save);
   return {
     ...save,
     charterDayId: today,
@@ -190,21 +264,33 @@ function applyCharterRollover(save: AnglerSaveV2): AnglerSaveV2 {
     triviaIndex: 0,
     deckIds: freshDeckIds(),
     trophies: [...(save.trophies ?? [])],
+    poleXp: poles.poleXp,
+    equippedPoleId: poles.equippedPoleId,
+    unlockedPoleIds: [...poles.unlockedPoleIds],
     archive,
     updatedAt: Date.now(),
   };
 }
 
-function normalizeSave(raw: AnglerSaveV1 | AnglerSaveV2 | undefined): AnglerSaveV2 | null {
+function normalizeSave(raw: AnglerSaveV1 | AnglerSaveV2 | AnglerSaveV3 | undefined): AnglerSaveV3 | null {
   if (!raw) return null;
-  let save: AnglerSaveV2;
+  let save: AnglerSaveV3;
   if (raw.v === 1) save = migrateV1(raw);
-  else if (raw.v === 2) save = { ...raw, archive: [...(raw.archive ?? [])] };
-  else return null;
+  else if (raw.v === 2) save = migrateV2(raw);
+  else if (raw.v === 3) {
+    const poles = poleFieldsFrom(raw);
+    save = {
+      ...raw,
+      archive: [...(raw.archive ?? [])],
+      poleXp: poles.poleXp,
+      equippedPoleId: poles.equippedPoleId,
+      unlockedPoleIds: [...poles.unlockedPoleIds],
+    };
+  } else return null;
   return applyCharterRollover(save);
 }
 
-function prepareSave(name: string): AnglerSaveV2 | null {
+function prepareSave(name: string): AnglerSaveV3 | null {
   const key = nameKey(name);
   if (!key) return null;
   const vault = readVault();
@@ -246,6 +332,8 @@ export function peekAnglerSave(name: string): AnglerSavePeek | null {
     trophyCount: save.trophies?.length ?? 0,
     charterNight: formatCharterDayLabel(save.charterDayId),
     archiveCount: save.archive.length,
+    poleXp: save.poleXp,
+    equippedPoleId: save.equippedPoleId,
     updatedAt: save.updatedAt,
   };
 }
@@ -290,6 +378,7 @@ export function loadAnglerState(name: string): GameState | null {
   if (!save) return null;
 
   const base = initialState(save.nickname);
+  const poles = poleFieldsFrom(save);
   return {
     ...base,
     phase: "enter",
@@ -305,6 +394,9 @@ export function loadAnglerState(name: string): GameState | null {
     deck: restoreDeck(save.deckIds),
     nickname: save.nickname,
     demplarBest: save.demplarBest,
+    poleXp: poles.poleXp,
+    equippedPoleId: poles.equippedPoleId,
+    unlockedPoleIds: [...poles.unlockedPoleIds],
   };
 }
 
@@ -313,6 +405,11 @@ export function saveAnglerState(state: GameState): void {
   if (!key) return;
 
   const vault = readVault();
+  const poles = normalizePoleProgress({
+    poleXp: state.poleXp,
+    equippedPoleId: state.equippedPoleId,
+    unlockedPoleIds: state.unlockedPoleIds,
+  });
   const existing = normalizeSave(vault[key]) ?? migrateV1({
     v: 1,
     nickname: state.nickname.trim().slice(0, 28),
@@ -331,6 +428,7 @@ export function saveAnglerState(state: GameState): void {
 
   vault[key] = {
     ...existing,
+    v: 3,
     nickname: state.nickname.trim().slice(0, 28),
     charterDayId: charterDayId(),
     season: state.season,
@@ -345,6 +443,9 @@ export function saveAnglerState(state: GameState): void {
     deckIds: state.deck.map((c) => c.id),
     demplarBest: state.demplarBest,
     trophies: existing.trophies ?? [],
+    poleXp: poles.poleXp,
+    equippedPoleId: poles.equippedPoleId,
+    unlockedPoleIds: [...poles.unlockedPoleIds],
     updatedAt: Date.now(),
   };
   writeVault(vault);

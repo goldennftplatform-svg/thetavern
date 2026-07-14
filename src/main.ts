@@ -24,6 +24,15 @@ import {
   resolveFlourish,
   seasonArcane,
 } from "./content/arcaneLore";
+import { isPoleId, poleById, type PoleId } from "./content/fishingPoles";
+import {
+  awardCatchXp,
+  awardCastXp,
+  equipPole,
+  normalizePoleProgress,
+  poleRackBlurb,
+  type PoleProgress,
+} from "./game/poleProgress";
 import { composeCatchDeed, composeDemplarDeed, composeFeastDeed, composeGambleDeed, composePerilDeed, composeRenownDeed, composeTriviaDeed, crossedRenownMilestones } from "./content/deedLore";
 import type { FoodBuff } from "./game/types";
 import { foodItem, tonightUtc, type FoodId } from "./content/tavernNights";
@@ -44,7 +53,7 @@ import {
   wornTitle,
 } from "./hall/hallAssets";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
-import { drawMoonwell, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
+import { drawMoonwell, preloadPoleSprites, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
@@ -105,6 +114,8 @@ import {
   ledgerStudioHtml,
   mobileHallStudioHtml,
   perilStudioHtml,
+  poleRackStudioHtml,
+  poleUnlockStudioHtml,
   renownStudioHtml,
   triviaStudioHtml,
   triviaTeachHtml,
@@ -502,11 +513,47 @@ function applyFoodOnCatch(c: CatchResult): CatchResult {
 }
 
 function consumeCastFloor(): number {
-  return state.foodBuff?.castFloor ?? 0;
+  const food = state.foodBuff?.castFloor ?? 0;
+  const pole = currentPole().mods.castFloor ?? 0;
+  return Math.max(food, pole);
 }
 
 function biteWindowBonusMs(): number {
-  return state.foodBuff?.biteBonusMs ?? 0;
+  return (state.foodBuff?.biteBonusMs ?? 0) + (currentPole().mods.biteBonusMs ?? 0);
+}
+
+function poleProgressFromState(): PoleProgress {
+  return normalizePoleProgress({
+    poleXp: state.poleXp,
+    equippedPoleId: state.equippedPoleId,
+    unlockedPoleIds: state.unlockedPoleIds,
+  });
+}
+
+function writePoleProgress(p: PoleProgress) {
+  state.poleXp = p.poleXp;
+  state.equippedPoleId = p.equippedPoleId;
+  state.unlockedPoleIds = [...p.unlockedPoleIds];
+}
+
+function currentPole() {
+  return poleById(state.equippedPoleId);
+}
+
+function reelGreenZone(): { lo: number; hi: number } {
+  const pad = currentPole().mods.greenZonePad ?? 0;
+  return { lo: Math.max(0.18, 0.34 - pad), hi: Math.min(0.82, 0.66 + pad) };
+}
+
+function mergePoleUnlocks(unlocked: typeof state.pendingPoleUnlocks) {
+  if (!unlocked?.length) return;
+  const bag = [...(state.pendingPoleUnlocks ?? [])];
+  for (const p of unlocked) {
+    if (!bag.some((x) => x.id === p.id)) bag.push(p);
+    const title = `${p.name} Bearer`;
+    if (!state.titles.includes(title)) state.titles.push(title);
+  }
+  state.pendingPoleUnlocks = bag;
 }
 
 function runSnapshot(): RunSnapshot {
@@ -577,6 +624,7 @@ function buildWellHubHtml(): string {
     pickLine(hubLoreLines),
     formatCharterDayLabel(charterDayId()),
     crestSrc,
+    poleRackBlurb(poleProgressFromState()),
   );
 }
 
@@ -648,8 +696,16 @@ function ensureMenuClickDelegation() {
 
     const cont = btn.getAttribute("data-continue");
     if (cont) {
-      if (cont === "renown") setPhase("renown");
-      else if (cont === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
+      if (cont === "renown") {
+        if (state.pendingPoleUnlocks?.length) {
+          const unlocked = state.pendingPoleUnlocks;
+          state.pendingPoleUnlocks = undefined;
+          openMenu(poleUnlockStudioHtml(unlocked));
+          elPrimary.hidden = true;
+          return;
+        }
+        setPhase("renown");
+      } else if (cont === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
       else if (cont === "well") {
         closeHallView();
         setPhase("well");
@@ -737,6 +793,24 @@ function handleHubAction(action: string) {
   }
   if (action === "feast_menu") {
     setPhase("feast");
+    return;
+  }
+  if (action === "pole_rack") {
+    setPhase("pole_rack");
+    return;
+  }
+  if (action.startsWith("equip_pole:")) {
+    const id = action.slice("equip_pole:".length);
+    if (!isPoleId(id)) return;
+    const prog = poleProgressFromState();
+    if (equipPole(prog, id as PoleId)) {
+      writePoleProgress(prog);
+      showToast(`Equipped ${poleById(id).name}`);
+      scheduleSave();
+      if (state.phase === "pole_rack") setPhase("pole_rack");
+    } else {
+      showToast("That rod is still sleeping.");
+    }
     return;
   }
   if (action === "back:well") {
@@ -1033,6 +1107,7 @@ bindWarriorTouch({
 function drawWell(phaseOverride?: GamePhase) {
   const { w, h } = syncCanvasBuffer();
   const phase = phaseOverride ?? state.phase;
+  const green = reelGreenZone();
   drawMoonwell(
     ctx,
     {
@@ -1045,6 +1120,9 @@ function drawWell(phaseOverride?: GamePhase) {
       seasonTint: seasonTints[state.season] ?? "#8cb8d8",
       banner: stageBanner,
       now: performance.now(),
+      poleId: state.equippedPoleId,
+      greenLo: green.lo,
+      greenHi: green.hi,
     },
     w,
     h,
@@ -1112,7 +1190,11 @@ function setPhase(next: GamePhase) {
       juicePlay("catch");
       void playCatchFanfare();
       stageBanner = `${c.name.toUpperCase()}  +${c.renown}`;
-      openMenu(catchResolveHtml(c, pickLine(resolveFlourish[c.rarity]), fishBlurb(c.fishId)));
+      const poleNote =
+        state.lastPoleXpGain != null
+          ? `Pole XP +${state.lastPoleXpGain} · total ${state.poleXp} · ${currentPole().icon} ${currentPole().name}`
+          : undefined;
+      openMenu(catchResolveHtml(c, pickLine(resolveFlourish[c.rarity]), fishBlurb(c.fishId), poleNote));
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
@@ -1172,6 +1254,19 @@ function setPhase(next: GamePhase) {
     case "feast": {
       const night = tonightUtc();
       openMenu(feastStudioHtml(feastIntro, night.title, night.specials, state.feastsEaten));
+      showToast("");
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
+    case "pole_rack": {
+      openMenu(
+        poleRackStudioHtml({
+          xp: state.poleXp,
+          equippedId: state.equippedPoleId,
+          unlockedIds: state.unlockedPoleIds,
+        }),
+      );
       showToast("");
       elPrimary.hidden = true;
       wirePhaseHub();
@@ -1263,11 +1358,15 @@ function finishReel(good: number, total: number) {
   triggerLandFlash();
   playLandThump();
   try {
+    const pole = currentPole();
     const result = rollCatch({
       castQuality,
       struckBite,
       reelQuality,
       season: state.season,
+      rarityBias: pole.mods.rarityBias,
+      omenLuck: pole.mods.omenLuck,
+      renownMult: pole.mods.renownMult,
     });
     const feastBuff = state.foodBuff;
     state.lastCatch = applyFoodOnCatch(result);
@@ -1280,6 +1379,11 @@ function finishReel(good: number, total: number) {
     if (result.rarity === "omen" && !state.titles.includes("Omen Reader")) {
       state.titles.push("Omen Reader");
     }
+    const prog = poleProgressFromState();
+    const xpAward = awardCatchXp(prog, result.rarity, reelQuality);
+    writePoleProgress(prog);
+    state.lastPoleXpGain = xpAward.gained;
+    mergePoleUnlocks(xpAward.newlyUnlocked);
     announceCatch(state.lastCatch, feastBuff);
     syncHallIdentity();
     hud();
@@ -1297,6 +1401,7 @@ function startReelLoop() {
   const total = REEL_DURATION_MS;
   let good = 0;
   let last = t0;
+  const green = reelGreenZone();
 
   reelFailsafeTimer = window.setTimeout(() => {
     if (state.phase === "fish_reel" && !reelFinishing) {
@@ -1316,7 +1421,7 @@ function startReelLoop() {
     }
     state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension));
 
-    const inZone = state.reelTension >= 0.34 && state.reelTension <= 0.66;
+    const inZone = state.reelTension >= green.lo && state.reelTension <= green.hi;
     if (inZone) good += dt;
     good += dt * 0.12 * FISH_PACE;
 
@@ -1355,6 +1460,10 @@ function finishCast() {
   chargeActive = false;
   castQuality = Math.max(consumeCastFloor(), state.castPower);
   window.cancelAnimationFrame(rafCast);
+  const prog = poleProgressFromState();
+  const xpAward = awardCastXp(prog);
+  writePoleProgress(prog);
+  mergePoleUnlocks(xpAward.newlyUnlocked);
   triggerCastFx(castQuality);
   playCastWhoosh();
   window.setTimeout(() => playSplash(), 280);
@@ -1599,6 +1708,17 @@ elBtnSkipGate.addEventListener("click", () => {
 });
 
 initNicknameGate();
+preloadPoleSprites([
+  "whistler_stick",
+  "dockhand_reed",
+  "coppercoil_switch",
+  "mourningglass",
+  "boneflute",
+  "astral_wormwood",
+  "demon_spinner",
+  "chronicle_lance",
+  "moonshatter",
+]);
 void loadDailyMediaTheme().then((theme) => {
   loadedTheme = theme;
   applyDailyMediaChrome(theme);

@@ -24,12 +24,24 @@ export function rollCatch(args: {
   struckBite: boolean;
   reelQuality: number;
   season: Season;
+  rarityBias?: number;
+  omenLuck?: number;
+  renownMult?: number;
 }): CatchResult {
-  const tierIdx = tierFromSkill(args.castQuality, args.struckBite, args.reelQuality);
-  const pool = fishCatalog.filter((f) => {
+  const bias = args.rarityBias ?? 0;
+  const tierIdx = Math.min(
+    4,
+    Math.max(0, Math.floor(tierFromSkill(args.castQuality, args.struckBite, args.reelQuality) + bias)),
+  );
+  let pool = fishCatalog.filter((f) => {
     const ri = rarityOrder.indexOf(f.rarity);
     return ri <= tierIdx + 1 && ri >= Math.max(0, tierIdx - 1);
   });
+  const luck = args.omenLuck ?? 0;
+  if (luck > 0 && Math.random() < luck) {
+    const fancy = fishCatalog.filter((f) => f.rarity === "omen" || f.rarity === "mythic");
+    if (fancy.length) pool = fancy;
+  }
   const fish = pool.length ? pool[Math.floor(Math.random() * pool.length)]! : fishCatalog[0]!;
 
   const renownBase: Record<FishRarity, number> = {
@@ -41,6 +53,7 @@ export function rollCatch(args: {
   };
   let renown = renownBase[fish.rarity] + Math.floor(args.reelQuality * 6);
   if (args.season === "void" && fish.rarity !== "common") renown += 3;
+  renown = Math.max(1, Math.floor(renown * (args.renownMult ?? 1)));
 
   const tokens = fish.rarity === "mythic" ? 3 : fish.rarity === "omen" ? 2 : 1;
   const omen = fish.rarity === "omen" || fish.rarity === "mythic" ? omens[Math.floor(Math.random() * omens.length)] : undefined;

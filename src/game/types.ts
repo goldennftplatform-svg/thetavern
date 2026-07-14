@@ -1,5 +1,7 @@
 import type { FishRarity, Season } from "../content/lore";
 import type { FoodId } from "../content/tavernNights";
+import type { PoleId } from "../content/fishingPoles";
+import type { FishingPole } from "../content/fishingPoles";
 import type { ChanceGameId, ChanceResult } from "../minigames/chance";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 
@@ -18,6 +20,7 @@ export type GamePhase =
   | "chance_play"
   | "chance_result"
   | "feast"
+  | "pole_rack"
   | "demplar_warrior"
   | "demplar_result";
 
@@ -65,4 +68,11 @@ export type GameState = {
   foodBuff?: FoodBuff;
   feastsEaten: FoodId[];
   demplarBest?: number;
+  /** Sticky pole rack — survives charter night. */
+  poleXp: number;
+  equippedPoleId: PoleId;
+  unlockedPoleIds: PoleId[];
+  /** Transient unlock reveal after a cast/catch. */
+  pendingPoleUnlocks?: FishingPole[];
+  lastPoleXpGain?: number;
 };

@@ -4,6 +4,8 @@ import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { DemplarRunResult } from "../minigames/demplarWarrior";
 import type { FoodId } from "../content/tavernNights";
+import { FISHING_POLES, type FishingPole, type PoleId } from "../content/fishingPoles";
+import { nextPoleUnlock } from "../content/fishingPoles";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
 import type { XLoreFeed } from "../lore/xFeed";
 import { formatXPostAge, heraldScrollMeta, heraldScrollPosts } from "../lore/xFeed";
@@ -66,6 +68,7 @@ export function hubWellHtml(
   extraLore: string,
   charterNight: string,
   crestSrc?: string,
+  poleHint?: string,
 ): string {
   const tableBg = `${import.meta.env.BASE_URL}media/tavern-table-bg.png`;
   const titleLine =
@@ -74,6 +77,9 @@ export function hubWellHtml(
       : "";
   const crest = crestSrc
     ? `<img class="tavern-table__crest" src="${escapeHtml(crestSrc)}" alt="" />`
+    : "";
+  const poleLine = poleHint
+    ? `<p class="tavern-table-scene__pole">${escapeHtml(poleHint)}</p>`
     : "";
   return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
     <div class="tavern-table-scene__veil" aria-hidden="true"></div>
@@ -91,6 +97,7 @@ export function hubWellHtml(
       <span class="tavern-table-scene__name">${escapeHtml(s.nickname)} · ${escapeHtml(s.seasonName)}</span>
     </div>
     ${titleLine}
+    ${poleLine}
 
     <div class="tavern-table-wrap">
       <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
@@ -100,10 +107,10 @@ export function hubWellHtml(
           <span class="tavern-table__well-label">☽ Moonwell</span>
           <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
         </div>
-        ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown", "north", "gold")}
+        ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
         ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
         ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
-        ${hubTableSeatHtml("feast_menu", "🍖", "Kitchen Spread", "Buffs before you cast", "west", "jade")}
+        ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
         <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
         <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
         <span class="tavern-table__candle tavern-table__candle--c" aria-hidden="true"></span>
@@ -116,6 +123,7 @@ export function hubWellHtml(
 
     <footer class="tavern-table-scene__footer">
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="hall_view">📺 Hall view</button>
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="feast_menu">🍖 Kitchen</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="ledger">Ledger</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="herald_scroll">Neighbor lore ↓</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="charter">Rim notice</button>
@@ -123,11 +131,17 @@ export function hubWellHtml(
   </div>`;
 }
 
-export function catchResolveHtml(c: CatchResult, flourish: string, blurb: string): string {
+export function catchResolveHtml(
+  c: CatchResult,
+  flourish: string,
+  blurb: string,
+  poleNote?: string,
+): string {
   const omen = c.omen ? `<p class="studio-omen"><em>Omen:</em> ${escapeHtml(c.omen)}</p>` : "";
   const demplar = c.demplarTease
     ? `<p class="studio-demplar">Overheard rumor: the name <strong>Demplar</strong> rides this catch — neighbor lore, not our crest.</p>`
     : "";
+  const pole = poleNote ? `<p class="studio-pole-xp">${escapeHtml(poleNote)}</p>` : "";
   return studioStageHtml(
     "Catch inscribed",
     `<p class="rarity-badge rarity-badge--${c.rarity}">${c.rarity}</p>
@@ -135,7 +149,7 @@ export function catchResolveHtml(c: CatchResult, flourish: string, blurb: string
     <p class="studio-score-delta">+${c.renown} Legend · +${c.tokens} ◎</p>
     <p class="studio-flourish">${flourish}</p>
     <p class="studio-fish-lore">${escapeHtml(blurb)}</p>
-    ${omen}${demplar}
+    ${omen}${demplar}${pole}
     <button type="button" class="btn primary big studio-continue" data-continue="renown">Inscribe &amp; continue</button>`,
   );
 }
@@ -230,6 +244,80 @@ export function feastStudioHtml(intro: string, nightTitle: string, specials: Foo
     <p class="studio-lore-line">${escapeHtml(intro)}</p>
     <div class="hub-grid hub-grid--feast" id="hub-grid">${grid}</div>
     ${hubBackHtml()}`,
+  );
+}
+
+export function poleRackStudioHtml(args: {
+  xp: number;
+  equippedId: PoleId;
+  unlockedIds: PoleId[];
+}): string {
+  const unlocked = new Set(args.unlockedIds);
+  const next = nextPoleUnlock(args.xp);
+  const progress = next
+    ? `<p class="studio-lore-line studio-lore-line--hint">Pole XP ${args.xp} · ${next.xpUnlock - args.xp} more casts-and-lands to wake <strong>${escapeHtml(next.name)}</strong></p>`
+    : `<p class="studio-lore-line studio-lore-line--hint">Pole XP ${args.xp} · rack complete. The well is scared of you.</p>`;
+  const cards = FISHING_POLES.map((p) => poleRackCardHtml(p, unlocked.has(p.id), p.id === args.equippedId, args.xp)).join("");
+  return studioStageHtml(
+    "Pole Rack",
+    `<p class="studio-lore-line">Play the well. Feed the rack. Each rod keeps sticky XP across charter nights and spatters stranger lore as it wakes.</p>
+    ${progress}
+    <div class="pole-rack" role="list">${cards}</div>
+    ${hubBackHtml()}`,
+    "studio-stage--pole-rack",
+  );
+}
+
+function poleRackCardHtml(p: FishingPole, unlocked: boolean, equipped: boolean, xp: number): string {
+  const sprite = `${import.meta.env.BASE_URL}media/poles/${p.id}.png`;
+  if (!unlocked) {
+    return `<article class="pole-card pole-card--locked" role="listitem">
+      <div class="pole-card__art" aria-hidden="true"><span class="pole-card__lock">🔒</span></div>
+      <div class="pole-card__body">
+        <p class="pole-card__tier">Tier ${p.tier}</p>
+        <h3 class="pole-card__name">${escapeHtml(p.name)}</h3>
+        <p class="pole-card__tag muted">Unlock at XP ${p.xpUnlock} · need ${Math.max(0, p.xpUnlock - xp)}</p>
+        <p class="pole-card__lore muted">???</p>
+      </div>
+    </article>`;
+  }
+  const eq = equipped ? " pole-card--equipped" : "";
+  const action = equipped
+    ? `<span class="pole-card__equipped">Equipped</span>`
+    : `<button type="button" class="btn primary pole-card__equip" data-hub-action="equip_pole:${p.id}">Equip</button>`;
+  return `<article class="pole-card${eq}" role="listitem">
+    <div class="pole-card__art" aria-hidden="true">
+      <img src="${escapeHtml(sprite)}" alt="" loading="lazy" onerror="this.style.display='none'" />
+      <span class="pole-card__icon">${p.icon}</span>
+    </div>
+    <div class="pole-card__body">
+      <p class="pole-card__tier">Tier ${p.tier}</p>
+      <h3 class="pole-card__name">${escapeHtml(p.name)}</h3>
+      <p class="pole-card__tag">${escapeHtml(p.tagline)}</p>
+      <p class="pole-card__lore">${escapeHtml(p.lore)}</p>
+      ${action}
+    </div>
+  </article>`;
+}
+
+export function poleUnlockStudioHtml(poles: FishingPole[]): string {
+  const bodies = poles
+    .map(
+      (p) => `<article class="pole-unlock">
+        <p class="pole-unlock__kicker">${p.icon} Tier ${p.tier} wakes</p>
+        <h3 class="pole-unlock__name">${escapeHtml(p.name)}</h3>
+        <p class="pole-unlock__tag">${escapeHtml(p.tagline)}</p>
+        <p class="pole-unlock__lore">${escapeHtml(p.unlockLore)}</p>
+        <p class="pole-unlock__body muted">${escapeHtml(p.lore)}</p>
+        <button type="button" class="btn primary big" data-hub-action="equip_pole:${p.id}">Equip ${escapeHtml(p.name)}</button>
+      </article>`,
+    )
+    .join("");
+  return studioStageHtml(
+    "The rack howls",
+    `${bodies}
+    <button type="button" class="btn ghost big studio-continue" data-continue="renown">Keep the old grip</button>`,
+    "studio-stage--pole-unlock",
   );
 }
 

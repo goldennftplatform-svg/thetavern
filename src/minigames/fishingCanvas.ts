@@ -2,6 +2,8 @@
  * Moonwell fishing stage — cast arc, bobber, splash, bite flash, reel struggle.
  */
 
+import type { FishingPole } from "../content/fishingPoles";
+import { poleById, STARTER_POLE_ID } from "../content/fishingPoles";
 import type { GamePhase } from "../game/types";
 
 export type DrawCtx = {
@@ -14,6 +16,9 @@ export type DrawCtx = {
   seasonTint: string;
   banner?: string;
   now?: number;
+  poleId?: string;
+  greenLo?: number;
+  greenHi?: number;
 };
 
 type Splash = { x: number; y: number; born: number; power: number };
@@ -27,6 +32,30 @@ let ripples: Ripple[] = [];
 let biteFlashUntil = 0;
 let strikeFlashUntil = 0;
 let landFlashUntil = 0;
+
+const poleSprites = new Map<string, HTMLImageElement | null>();
+
+function poleSpriteUrl(id: string): string {
+  const base = import.meta.env.BASE_URL || "/";
+  return `${base}media/poles/${id}.png`;
+}
+
+function ensurePoleSprite(id: string): HTMLImageElement | null {
+  if (poleSprites.has(id)) return poleSprites.get(id) ?? null;
+  const img = new Image();
+  img.decoding = "async";
+  img.src = poleSpriteUrl(id);
+  poleSprites.set(id, img);
+  img.onerror = () => {
+    poleSprites.set(id, null);
+  };
+  return img;
+}
+
+/** Warm the Blender-rendered pole sheet once at boot. */
+export function preloadPoleSprites(ids: string[]): void {
+  for (const id of ids) ensurePoleSprite(id);
+}
 
 export function triggerCastFx(power: number): void {
   const now = performance.now();
@@ -216,12 +245,15 @@ function drawBobber(
   // Line from rod tip
   const rodX = w * 0.16;
   const rodY = h * 0.4;
+  const pole = poleById(d.poleId ?? STARTER_POLE_ID);
+  const lo = d.greenLo ?? 0.34;
+  const hi = d.greenHi ?? 0.66;
   const lineColor =
     d.phase === "fish_reel"
-      ? d.reelTension >= 0.34 && d.reelTension <= 0.66
+      ? d.reelTension >= lo && d.reelTension <= hi
         ? "rgba(104, 232, 168, 0.85)"
         : "rgba(232, 120, 80, 0.9)"
-      : "rgba(220, 210, 180, 0.7)";
+      : pole.accents.line;
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = d.phase === "fish_reel" ? 2.5 : 1.5;
   ctx.beginPath();
@@ -229,13 +261,7 @@ function drawBobber(
   ctx.quadraticCurveTo((rodX + bobX) / 2, Math.min(rodY, bobY) - 18, bobX, bobY);
   ctx.stroke();
 
-  // Rod
-  ctx.strokeStyle = "#c8a060";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(rodX - 8, rodY + 36);
-  ctx.lineTo(rodX, rodY);
-  ctx.stroke();
+  drawEquippedPole(ctx, rodX, rodY, pole, now);
 
   // Bobber body
   const flash = now < biteFlashUntil || now < strikeFlashUntil;
@@ -252,12 +278,70 @@ function drawBobber(
   ctx.beginPath();
   ctx.arc(bobX, bobY, 7, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = "#e8b050";
+  ctx.fillStyle = pole.accents.tip;
   floorRect(ctx, bobX - 1, bobY - 12, 2, 6);
 
   // Soft reflection
   ctx.fillStyle = "rgba(232, 200, 160, 0.18)";
   drawEllipseFill(ctx, bobX, bobY + ry * 0.35, 10, 4);
+}
+
+function drawEquippedPole(
+  ctx: CanvasRenderingContext2D,
+  tipX: number,
+  tipY: number,
+  pole: FishingPole,
+  now: number,
+) {
+  const gripX = tipX - 10 - pole.tier * 0.4;
+  const gripY = tipY + 40 + pole.tier * 1.2;
+  const sprite = ensurePoleSprite(pole.id);
+  if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+    const h = 72 + pole.tier * 3;
+    const w = h * 0.42;
+    ctx.save();
+    ctx.translate(gripX + 4, gripY);
+    ctx.rotate(-0.55);
+    if (pole.accents.glow) {
+      ctx.shadowColor = pole.accents.glow;
+      ctx.shadowBlur = 12 + Math.sin(now * 0.006) * 4;
+    }
+    ctx.drawImage(sprite, -w * 0.35, -h, w, h);
+    ctx.restore();
+    return;
+  }
+
+  // Procedural fallback — looks distinct per rack tier without sprites.
+  if (pole.accents.glow) {
+    ctx.strokeStyle = pole.accents.glow;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(gripX, gripY);
+    ctx.quadraticCurveTo(gripX + 4, tipY + 18, tipX, tipY);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = pole.accents.grip;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(gripX, gripY);
+  ctx.lineTo(gripX + 3, gripY - 14);
+  ctx.stroke();
+  ctx.strokeStyle = pole.accents.shaft;
+  ctx.lineWidth = 3 + Math.min(2, pole.tier * 0.15);
+  ctx.beginPath();
+  ctx.moveTo(gripX + 3, gripY - 14);
+  ctx.quadraticCurveTo(gripX + 6, tipY + 16, tipX, tipY);
+  ctx.stroke();
+  ctx.fillStyle = pole.accents.tip;
+  ctx.beginPath();
+  ctx.arc(tipX, tipY, 3 + (pole.tier >= 7 ? 1 : 0), 0, Math.PI * 2);
+  ctx.fill();
+  if (pole.tier >= 5) {
+    ctx.fillStyle = pole.accents.line;
+    for (let i = 0; i < 3; i++) {
+      floorRect(ctx, tipX - 10 - i * 5, tipY + 8 + i * 6, 2, 2);
+    }
+  }
 }
 
 function drawFishShadow(
@@ -345,17 +429,19 @@ function drawMeters(ctx: CanvasRenderingContext2D, d: DrawCtx, w: number, h: num
     const bx = Math.floor((w - barW) / 2);
     const by = Math.floor(h * 0.74);
     const bh = 32;
+    const lo = d.greenLo ?? 0.34;
+    const hi = d.greenHi ?? 0.66;
     ctx.fillStyle = "rgba(6, 10, 16, 0.88)";
     floorRect(ctx, bx - 4, by - 24, barW + 8, bh + 44);
     ctx.fillStyle = "#0a0e14";
     floorRect(ctx, bx, by, barW, bh);
     ctx.fillStyle = "#1a222c";
     floorRect(ctx, bx + 2, by + 2, barW - 4, bh - 4);
-    const g0 = bx + 2 + Math.floor((barW - 4) * 0.34);
-    const g1 = bx + 2 + Math.floor((barW - 4) * 0.66);
+    const g0 = bx + 2 + Math.floor((barW - 4) * lo);
+    const g1 = bx + 2 + Math.floor((barW - 4) * hi);
     ctx.fillStyle = "#3a7868";
     floorRect(ctx, g0, by + 2, g1 - g0, bh - 4);
-    const inZone = d.reelTension >= 0.34 && d.reelTension <= 0.66;
+    const inZone = d.reelTension >= lo && d.reelTension <= hi;
     const tx = bx + 2 + Math.floor((barW - 4) * d.reelTension);
     ctx.fillStyle = inZone ? "#68e8a8" : "#e87850";
     floorRect(ctx, tx - 7, by, 14, bh + 4);
