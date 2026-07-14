@@ -28,6 +28,21 @@
         <div class="gate-screen-inner">
           <img id="gate-crest" class="gate-crest" alt="" hidden />
           <p class="gate-kicker">The Moonwell Tavern · Anglers welcome</p>
+          <div class="gate-avatar-block">
+            <button type="button" id="gate-avatar-btn" class="avatar-face avatar-face--lg avatar-face--house gate-avatar" aria-label="Choose login face" style="--avatar-ink:#2a4860;--avatar-glow:#8cb8d8">
+              <span class="avatar-face__glyph" id="gate-avatar-glyph">🎣</span>
+              <img id="gate-avatar-img" class="avatar-face__img" alt="" hidden />
+            </button>
+            <p class="gate-avatar-hint muted">Login face · tap to change</p>
+          </div>
+          <div id="gate-avatar-picker" class="gate-avatar-picker" hidden></div>
+          <div class="gate-avatar-upload-row">
+            <label class="btn ghost gate-upload-btn">
+              Upload
+              <input id="gate-avatar-upload" type="file" accept="image/*" hidden />
+            </label>
+            <button type="button" id="gate-avatar-clear" class="btn ghost" hidden>House face</button>
+          </div>
           <input
             id="nickname"
             type="text"

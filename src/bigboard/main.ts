@@ -950,6 +950,7 @@ function onPatrons(p: { patrons: HallPatronIdentity[] }) {
       title: x.title ?? existing?.title,
       catalogSize: x.catalogSize ?? existing?.catalogSize,
       tokens: x.tokens ?? existing?.tokens,
+      avatarId: x.avatarId ?? existing?.avatarId,
       pulseUntil: existing?.pulseUntil,
       fishing: existing?.fishing,
       chance: existing?.chance,

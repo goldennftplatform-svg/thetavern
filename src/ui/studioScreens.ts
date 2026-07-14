@@ -24,6 +24,8 @@ import {
   hubTileHtml,
   studioStageHtml,
 } from "./tavernHub";
+import { avatarFaceHtml, avatarLabel, houseAvatarPickerHtml } from "./avatarFace";
+import type { HouseAvatarId } from "../content/houseAvatars";
 import { type NoticeEntry, renderNoticeList } from "./notices";
 
 export type RunSnapshot = {
@@ -36,6 +38,8 @@ export type RunSnapshot = {
   seasonName: string;
   seasonVerse: string;
   seasonNote: string;
+  avatarId: HouseAvatarId;
+  avatarCustom?: string;
 };
 
 export function scoreboardHtml(s: RunSnapshot): string {
@@ -81,6 +85,11 @@ export function hubWellHtml(
   const poleLine = poleHint
     ? `<p class="tavern-table-scene__pole">${escapeHtml(poleHint)}</p>`
     : "";
+  const face = avatarFaceHtml(s.avatarId, s.avatarCustom, {
+    size: "md",
+    className: "tavern-table-scene__avatar",
+    interactive: true,
+  });
   return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
     <div class="tavern-table-scene__veil" aria-hidden="true"></div>
     <header class="tavern-table-scene__head">
@@ -90,11 +99,14 @@ export function hubWellHtml(
       <p class="tavern-table-scene__tag">${escapeHtml(nightTagline)}</p>
     </header>
 
-    <div class="tavern-table-scene__stats" aria-label="Your run">
-      <span class="tavern-table-scene__stat"><em>★</em> ${s.renown} <small>Legend</small></span>
-      <span class="tavern-table-scene__stat"><em>◎</em> ${s.tokens} <small>Tokens</small></span>
-      <span class="tavern-table-scene__stat"><em>🐟</em> ${s.catalogSize} <small>Caught</small></span>
-      <span class="tavern-table-scene__name">${escapeHtml(s.nickname)} · ${escapeHtml(s.seasonName)}</span>
+    <div class="tavern-table-scene__identity">
+      ${face}
+      <div class="tavern-table-scene__stats" aria-label="Your run">
+        <span class="tavern-table-scene__stat"><em>★</em> ${s.renown} <small>Legend</small></span>
+        <span class="tavern-table-scene__stat"><em>◎</em> ${s.tokens} <small>Tokens</small></span>
+        <span class="tavern-table-scene__stat"><em>🐟</em> ${s.catalogSize} <small>Caught</small></span>
+        <span class="tavern-table-scene__name">${escapeHtml(s.nickname)} · ${escapeHtml(s.seasonName)}</span>
+      </div>
     </div>
     ${titleLine}
     ${poleLine}
@@ -122,6 +134,7 @@ export function hubWellHtml(
     <p class="tavern-table-scene__lore tavern-table-scene__lore--extra">${escapeHtml(extraLore)}</p>
 
     <footer class="tavern-table-scene__footer">
+      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="avatar_closet">☺ Face</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="hall_view">📺 Hall view</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="feast_menu">🍖 Kitchen</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="ledger">Ledger</button>
@@ -272,6 +285,36 @@ export function poleRackStudioHtml(args: {
     `${progress}
     <div class="pole-rack" role="list">${cards}</div>`,
     "studio-stage--pole-rack",
+    hubBackHtml(),
+  );
+}
+
+export function avatarClosetStudioHtml(args: {
+  avatarId: HouseAvatarId;
+  avatarCustom?: string;
+}): string {
+  const preview = avatarFaceHtml(args.avatarId, args.avatarCustom, { size: "lg" });
+  const label = avatarLabel(args.avatarId, !!args.avatarCustom);
+  return studioStageHtml(
+    "Login face",
+    `<div class="avatar-closet-head">
+      ${preview}
+      <p class="studio-rack-progress">Wearing <strong>${escapeHtml(label)}</strong></p>
+      <p class="studio-lore-line">Pick a house face, or upload a quiet portrait. Halls see the house mark; custom stays on your seat.</p>
+    </div>
+    ${houseAvatarPickerHtml(args.avatarId, args.avatarCustom)}
+    <div class="avatar-closet-actions">
+      <label class="btn ghost big avatar-upload-btn">
+        Upload portrait
+        <input id="avatar-upload-input" type="file" accept="image/*" hidden />
+      </label>
+      ${
+        args.avatarCustom
+          ? `<button type="button" class="btn ghost big" data-hub-action="avatar_clear_custom">Use house face</button>`
+          : ""
+      }
+    </div>`,
+    "studio-stage--avatar-closet",
     hubBackHtml(),
   );
 }

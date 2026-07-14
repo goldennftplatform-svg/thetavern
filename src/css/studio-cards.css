@@ -17,6 +17,7 @@ html.play-active .play-menu {
 .play-shell[data-phase="chance_play"] .canvas-wrap,
 .play-shell[data-phase="feast"] .canvas-wrap,
 .play-shell[data-phase="pole_rack"] .canvas-wrap,
+.play-shell[data-phase="avatar_closet"] .canvas-wrap,
 .play-shell[data-phase="resolve"] .canvas-wrap,
 .play-shell[data-phase="renown"] .canvas-wrap,
 .play-shell[data-phase="peril"] .canvas-wrap,
@@ -30,6 +31,7 @@ html.play-active .play-menu {
 .play-shell[data-phase="chance_play"] .play-menu,
 .play-shell[data-phase="feast"] .play-menu,
 .play-shell[data-phase="pole_rack"] .play-menu,
+.play-shell[data-phase="avatar_closet"] .play-menu,
 .play-shell[data-phase="resolve"] .play-menu,
 .play-shell[data-phase="renown"] .play-menu,
 .play-shell[data-phase="peril"] .play-menu,
@@ -63,7 +65,8 @@ html.play-active .play-menu {
 .play-shell[data-phase="trivia"] .play-toast,
 .play-shell[data-phase="chance_result"] .play-toast,
 .play-shell[data-phase="feast"] .play-toast,
-.play-shell[data-phase="pole_rack"] .play-toast {
+.play-shell[data-phase="pole_rack"] .play-toast,
+.play-shell[data-phase="avatar_closet"] .play-toast {
   display: none !important;
 }
 
@@ -1132,6 +1135,7 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
   .play-menu-body:has(.studio-stage--ledger),
   .play-menu-body:has(.studio-stage--hall),
   .play-menu-body:has(.studio-stage--pole-rack),
+  .play-menu-body:has(.studio-stage--avatar-closet),
   .play-menu-body:has(.studio-stage--feast),
   .play-menu-body:has(.studio-stage--herald) {
     max-width: min(720px, 92vw) !important;

@@ -2,6 +2,7 @@ import type { FishRarity, Season } from "../content/lore";
 import type { FoodId } from "../content/tavernNights";
 import type { PoleId } from "../content/fishingPoles";
 import type { FishingPole } from "../content/fishingPoles";
+import type { HouseAvatarId } from "../content/houseAvatars";
 import type { ChanceGameId, ChanceResult } from "../minigames/chance";
 import type { MoonwellCard } from "../minigames/moonwellDeck";
 
@@ -21,6 +22,7 @@ export type GamePhase =
   | "chance_result"
   | "feast"
   | "pole_rack"
+  | "avatar_closet"
   | "demplar_warrior"
   | "demplar_result";
 
@@ -72,6 +74,10 @@ export type GameState = {
   poleXp: number;
   equippedPoleId: PoleId;
   unlockedPoleIds: PoleId[];
+  /** Sticky login face — in-house id. */
+  avatarId: HouseAvatarId;
+  /** Optional local upload (data URL). Prefer house if empty. */
+  avatarCustom?: string;
   /** Transient unlock reveal after a cast/catch. */
   pendingPoleUnlocks?: FishingPole[];
   lastPoleXpGain?: number;

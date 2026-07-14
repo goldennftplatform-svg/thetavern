@@ -19,6 +19,7 @@ export async function connectTrail(
     title?: string;
     catalogSize?: number;
     tokens?: number;
+    avatarId?: string;
   },
   hooks?: { onSocket?: (socket: Socket) => void },
 ): Promise<TrailClient> {
@@ -42,6 +43,7 @@ export async function connectTrail(
     title: opts.title,
     catalogSize: opts.catalogSize,
     tokens: opts.tokens,
+    avatarId: opts.avatarId,
   });
   const join = () => socket.emit("tavern:join", joinPayload());
   socket.on("connect", join);

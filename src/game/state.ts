@@ -1,4 +1,5 @@
 import { SEASONS } from "../content/lore";
+import { DEFAULT_AVATAR_ID } from "../content/houseAvatars";
 import { buildMoonwellDeck, shuffleDeck } from "../minigames/moonwellDeck";
 import { defaultPoleProgress } from "./poleProgress";
 import type { GameState } from "./types";
@@ -27,5 +28,6 @@ export function initialState(nickname: string): GameState {
     poleXp: poles.poleXp,
     equippedPoleId: poles.equippedPoleId,
     unlockedPoleIds: [...poles.unlockedPoleIds],
+    avatarId: DEFAULT_AVATAR_ID,
   };
 }

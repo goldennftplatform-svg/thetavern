@@ -1,5 +1,6 @@
 import { drawCatchBurst, drawSplashFx, drawTableFish, type SplashFx, type TableFish } from "./tableFish";
 import { drawChanceCorner, type ChanceCardSnap } from "./chanceTable";
+import { houseAvatarById, isHouseAvatarId } from "../content/houseAvatars";
 
 export type FishingPhase = "idle" | "fish_cast" | "fish_wait" | "fish_reel";
 export type ChancePhase = "idle" | "chance_pick" | "chance_play" | "chance_result";
@@ -9,6 +10,7 @@ export type MapPatron = {
   title?: string;
   catalogSize?: number;
   tokens?: number;
+  avatarId?: string;
   pulseUntil?: number;
   fishing?: {
     phase: FishingPhase;
@@ -440,6 +442,10 @@ function drawPatronToken(
   }
 
   ctx.fillStyle = `hsl(${hue} 42% 48%)`;
+  if (patron.avatarId && isHouseAvatarId(patron.avatarId)) {
+    const face = houseAvatarById(patron.avatarId);
+    ctx.fillStyle = face.ink;
+  }
   ctx.fillRect(px, py, 28, 28);
   ctx.strokeStyle = chanceActive ? "#e8b050" : active ? "#e8b050" : "#000";
   ctx.lineWidth = 3;
@@ -471,11 +477,14 @@ function drawPatronToken(
     ctx.textAlign = "left";
   }
 
-  ctx.fillStyle = "#0c1018";
-  ctx.font = '10px "Press Start 2P", monospace';
-  const ini = (name.trim()[0] ?? "?").toUpperCase();
+  ctx.fillStyle = "#f8f0ff";
+  ctx.font = '11px "VT323", monospace';
+  const mark =
+    patron.avatarId && isHouseAvatarId(patron.avatarId)
+      ? houseAvatarById(patron.avatarId).glyph
+      : (name.trim()[0] ?? "?").toUpperCase();
   ctx.textAlign = "center";
-  ctx.fillText(ini, x, py + 18);
+  ctx.fillText(mark, x, py + 18);
   ctx.textAlign = "left";
 
   ctx.fillStyle = "#f8f0ff";

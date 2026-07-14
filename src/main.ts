@@ -26,6 +26,12 @@ import {
 } from "./content/arcaneLore";
 import { isPoleId, poleById, type PoleId } from "./content/fishingPoles";
 import {
+  DEFAULT_AVATAR_ID,
+  houseAvatarById,
+  isHouseAvatarId,
+  type HouseAvatarId,
+} from "./content/houseAvatars";
+import {
   awardCatchXp,
   awardCastXp,
   equipPole,
@@ -77,6 +83,7 @@ import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass, isTavernMobile } from "./mobile-detect";
 import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import { compressAvatarFile, houseAvatarPickerHtml } from "./ui/avatarFace";
 import {
   playCastWhoosh,
   playLandThump,
@@ -116,6 +123,7 @@ import {
   perilStudioHtml,
   poleRackStudioHtml,
   poleUnlockStudioHtml,
+  avatarClosetStudioHtml,
   renownStudioHtml,
   triviaStudioHtml,
   triviaTeachHtml,
@@ -253,6 +261,15 @@ const elBtnCloseModal = $("btn-close-modal");
 const elBtnModalX = $("btn-modal-x");
 const elBtnSkipGate = $("btn-skip-gate");
 const elGateRecall = $("gate-recall");
+const elGateAvatarBtn = $("gate-avatar-btn");
+const elGateAvatarGlyph = $("gate-avatar-glyph");
+const elGateAvatarImg = $("gate-avatar-img") as HTMLImageElement;
+const elGateAvatarPicker = $("gate-avatar-picker");
+const elGateAvatarUpload = $("gate-avatar-upload") as HTMLInputElement;
+const elGateAvatarClear = $("gate-avatar-clear");
+
+let gateAvatarId: HouseAvatarId = DEFAULT_AVATAR_ID;
+let gateAvatarCustom: string | undefined;
 
 function openDemplarModal() {
   elModalBody.textContent = demplarModalIntro;
@@ -357,6 +374,33 @@ function scheduleSave() {
   }, 350);
 }
 
+function paintGateAvatar() {
+  const face = houseAvatarById(gateAvatarId);
+  elGateAvatarBtn.style.setProperty("--avatar-ink", face.ink);
+  elGateAvatarBtn.style.setProperty("--avatar-glow", face.glow);
+  if (gateAvatarCustom) {
+    elGateAvatarBtn.classList.add("avatar-face--custom");
+    elGateAvatarBtn.classList.remove("avatar-face--house");
+    elGateAvatarImg.src = gateAvatarCustom;
+    elGateAvatarImg.hidden = false;
+    elGateAvatarGlyph.hidden = true;
+    elGateAvatarClear.hidden = false;
+  } else {
+    elGateAvatarBtn.classList.remove("avatar-face--custom");
+    elGateAvatarBtn.classList.add("avatar-face--house");
+    elGateAvatarImg.hidden = true;
+    elGateAvatarImg.removeAttribute("src");
+    elGateAvatarGlyph.hidden = false;
+    elGateAvatarGlyph.textContent = face.glyph;
+    elGateAvatarClear.hidden = true;
+  }
+}
+
+function renderGateAvatarPicker() {
+  elGateAvatarPicker.innerHTML = houseAvatarPickerHtml(gateAvatarId, gateAvatarCustom);
+  elGateAvatarPicker.hidden = false;
+}
+
 function updateGateRecall() {
   const raw = elNick.value.trim();
   if (!raw) {
@@ -368,6 +412,9 @@ function updateGateRecall() {
     elGateRecall.hidden = true;
     return;
   }
+  gateAvatarId = peek.avatarId;
+  gateAvatarCustom = peek.avatarCustom;
+  paintGateAvatar();
   const title =
     peek.titles.length > 0 ? peek.titles[peek.titles.length - 1]! : "returning angler";
   const archiveBit =
@@ -381,8 +428,44 @@ function initNicknameGate() {
   if (last) {
     elNick.value = last;
     updateGateRecall();
+  } else {
+    paintGateAvatar();
   }
   elNick.addEventListener("input", updateGateRecall);
+  elGateAvatarBtn.addEventListener("click", () => {
+    if (elGateAvatarPicker.hidden) renderGateAvatarPicker();
+    else elGateAvatarPicker.hidden = true;
+  });
+  elGateAvatarPicker.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-avatar-id]");
+    if (!btn) return;
+    const id = btn.getAttribute("data-avatar-id");
+    if (!isHouseAvatarId(id)) return;
+    gateAvatarId = id;
+    gateAvatarCustom = undefined;
+    paintGateAvatar();
+    renderGateAvatarPicker();
+  });
+  elGateAvatarUpload.addEventListener("change", () => {
+    const file = elGateAvatarUpload.files?.[0];
+    elGateAvatarUpload.value = "";
+    if (!file) return;
+    void compressAvatarFile(file)
+      .then((data) => {
+        gateAvatarCustom = data;
+        paintGateAvatar();
+        if (!elGateAvatarPicker.hidden) renderGateAvatarPicker();
+      })
+      .catch((err) => {
+        elGateRecall.textContent = err instanceof Error ? err.message : "Upload failed.";
+        elGateRecall.hidden = false;
+      });
+  });
+  elGateAvatarClear.addEventListener("click", () => {
+    gateAvatarCustom = undefined;
+    paintGateAvatar();
+    if (!elGateAvatarPicker.hidden) renderGateAvatarPicker();
+  });
 }
 
 function setPresence(atWell: boolean) {
@@ -395,6 +478,7 @@ function syncHallIdentity() {
     title: wornTitle(state.titles),
     catalogSize: state.catalog.size,
     tokens: state.tokens,
+    avatarId: state.avatarId,
   });
 }
 
@@ -568,6 +652,8 @@ function runSnapshot(): RunSnapshot {
     seasonName: arc.name,
     seasonVerse: arc.verse,
     seasonNote: arc.anglerNote,
+    avatarId: state.avatarId,
+    avatarCustom: state.avatarCustom,
   };
 }
 
@@ -755,6 +841,37 @@ function wirePhaseHub() {
   ensureMenuClickDelegation();
 }
 
+function wireAvatarCloset() {
+  elPhase.querySelectorAll<HTMLElement>("[data-avatar-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-avatar-id");
+      if (!isHouseAvatarId(id)) return;
+      state.avatarId = id;
+      state.avatarCustom = undefined;
+      scheduleSave();
+      syncHallIdentity();
+      setPhase("avatar_closet");
+    });
+  });
+  const input = elPhase.querySelector<HTMLInputElement>("#avatar-upload-input");
+  input?.addEventListener("change", () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    void compressAvatarFile(file)
+      .then((data) => {
+        state.avatarCustom = data;
+        scheduleSave();
+        syncHallIdentity();
+        showToast("Portrait stamped.");
+        setPhase("avatar_closet");
+      })
+      .catch((err) => {
+        showToast(err instanceof Error ? err.message : "Upload failed.", 4000);
+      });
+  });
+}
+
 function openNeighborLore() {
   const snap = runSnapshot();
   const show = (feed: ReturnType<typeof ensureXLoreFeed>) => {
@@ -797,6 +914,17 @@ function handleHubAction(action: string) {
   }
   if (action === "pole_rack") {
     setPhase("pole_rack");
+    return;
+  }
+  if (action === "avatar_closet") {
+    setPhase("avatar_closet");
+    return;
+  }
+  if (action === "avatar_clear_custom") {
+    state.avatarCustom = undefined;
+    scheduleSave();
+    syncHallIdentity();
+    setPhase("avatar_closet");
     return;
   }
   if (action.startsWith("equip_pole:")) {
@@ -1272,6 +1400,19 @@ function setPhase(next: GamePhase) {
       wirePhaseHub();
       break;
     }
+    case "avatar_closet": {
+      openMenu(
+        avatarClosetStudioHtml({
+          avatarId: state.avatarId,
+          avatarCustom: state.avatarCustom,
+        }),
+      );
+      showToast("");
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      wireAvatarCloset();
+      break;
+    }
     case "demplar_warrior":
       closeMenu();
       showToast("");
@@ -1645,6 +1786,7 @@ async function bootTrail() {
       title: wornTitle(state.titles),
       catalogSize: state.catalog.size,
       tokens: state.tokens,
+      avatarId: state.avatarId,
     });
     socket = c.socket;
     mobileHall.bindSocket(socket);
@@ -1672,6 +1814,8 @@ async function startGameFromGate() {
   const display = raw.slice(0, 28);
   const peek = peekAnglerSave(display);
   state = loadAnglerState(display) ?? initialState(display);
+  state.avatarId = gateAvatarId;
+  state.avatarCustom = gateAvatarCustom;
   rememberLastName(state.nickname);
   elGate.hidden = true;
   elGame.hidden = false;

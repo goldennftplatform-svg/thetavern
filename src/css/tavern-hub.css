@@ -848,6 +848,153 @@ html.tavern-mobile .hub-pick {
   text-align: center;
 }
 
+/* ——— Login faces ——— */
+.avatar-face {
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid rgba(232, 176, 80, 0.45);
+  background: var(--avatar-ink, #2a4860);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 18px color-mix(in srgb, var(--avatar-glow, #8cb8d8) 35%, transparent);
+  color: var(--avatar-glow, #8cb8d8);
+  overflow: hidden;
+  padding: 0;
+  cursor: default;
+}
+
+button.avatar-face {
+  cursor: pointer;
+}
+
+.avatar-face--sm {
+  width: 40px;
+  height: 40px;
+}
+
+.avatar-face--md {
+  width: 56px;
+  height: 56px;
+}
+
+.avatar-face--lg {
+  width: 84px;
+  height: 84px;
+}
+
+.avatar-face__glyph {
+  font-size: 1.35em;
+  line-height: 1;
+}
+
+.avatar-face--lg .avatar-face__glyph {
+  font-size: 2rem;
+}
+
+.avatar-face__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gate-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.gate-avatar-hint {
+  margin: 0;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1rem;
+}
+
+.gate-avatar-picker {
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto 10px;
+}
+
+.gate-avatar-upload-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.gate-upload-btn,
+.avatar-upload-btn {
+  cursor: pointer;
+}
+
+.avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.avatar-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid rgba(232, 176, 80, 0.22);
+  background: rgba(8, 10, 16, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.avatar-pick--on {
+  border-color: rgba(104, 232, 168, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(104, 232, 168, 0.25);
+}
+
+.avatar-pick__label {
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 0.95rem;
+  text-align: center;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.tavern-table-scene__identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 36rem;
+}
+
+.tavern-table-scene__identity .tavern-table-scene__stats {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.avatar-closet-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.avatar-closet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 @media (min-width: 640px) {
   .tavern-table {
     min-height: 360px;
@@ -856,6 +1003,10 @@ html.tavern-mobile .hub-pick {
   .tavern-table__seat {
     width: 128px;
     min-height: 80px;
+  }
+
+  .avatar-picker {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

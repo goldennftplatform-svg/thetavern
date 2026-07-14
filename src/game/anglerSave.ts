@@ -11,6 +11,7 @@ import { initialState } from "./state";
 import type { GameState } from "./types";
 import { normalizePoleProgress, type PoleProgress } from "./poleProgress";
 import type { PoleId } from "../content/fishingPoles";
+import { DEFAULT_AVATAR_ID, isHouseAvatarId, type HouseAvatarId } from "../content/houseAvatars";
 
 const VAULT_KEY = "moonwell_angler_vault";
 const SAVE_VERSION = 3;
@@ -104,6 +105,9 @@ type AnglerSaveV3 = {
   poleXp: number;
   equippedPoleId: PoleId;
   unlockedPoleIds: PoleId[];
+  /** Sticky login face. */
+  avatarId?: HouseAvatarId;
+  avatarCustom?: string;
   archive: CharterDayArchive[];
   updatedAt: number;
 };
@@ -119,6 +123,8 @@ export type AnglerSavePeek = {
   archiveCount: number;
   poleXp: number;
   equippedPoleId: PoleId;
+  avatarId: HouseAvatarId;
+  avatarCustom?: string;
   updatedAt: number;
 };
 
@@ -132,6 +138,18 @@ function poleFieldsFrom(raw: { poleXp?: number; equippedPoleId?: PoleId; unlocke
     equippedPoleId: raw.equippedPoleId,
     unlockedPoleIds: raw.unlockedPoleIds,
   });
+}
+
+function avatarFieldsFrom(raw: { avatarId?: string; avatarCustom?: string }): {
+  avatarId: HouseAvatarId;
+  avatarCustom?: string;
+} {
+  const avatarId = isHouseAvatarId(raw.avatarId) ? raw.avatarId : DEFAULT_AVATAR_ID;
+  const custom =
+    typeof raw.avatarCustom === "string" && raw.avatarCustom.startsWith("data:image/")
+      ? raw.avatarCustom
+      : undefined;
+  return { avatarId, avatarCustom: custom };
 }
 
 function nameKey(name: string): string {
@@ -201,6 +219,7 @@ function migrateV1(v1: AnglerSaveV1): AnglerSaveV3 {
     deckIds: [...v1.deckIds],
     demplarBest: v1.demplarBest,
     ...poles,
+    avatarId: DEFAULT_AVATAR_ID,
     archive: [],
     updatedAt: v1.updatedAt,
   };
@@ -225,6 +244,7 @@ function migrateV2(v2: AnglerSaveV2): AnglerSaveV3 {
     demplarBest: v2.demplarBest,
     trophies: v2.trophies ? [...v2.trophies] : [],
     ...poles,
+    avatarId: DEFAULT_AVATAR_ID,
     archive: [...(v2.archive ?? [])],
     updatedAt: v2.updatedAt,
   };
@@ -252,6 +272,7 @@ function applyCharterRollover(save: AnglerSaveV3): AnglerSaveV3 {
   }
 
   const poles = poleFieldsFrom(save);
+  const avatar = avatarFieldsFrom(save);
   return {
     ...save,
     charterDayId: today,
@@ -267,6 +288,8 @@ function applyCharterRollover(save: AnglerSaveV3): AnglerSaveV3 {
     poleXp: poles.poleXp,
     equippedPoleId: poles.equippedPoleId,
     unlockedPoleIds: [...poles.unlockedPoleIds],
+    avatarId: avatar.avatarId,
+    avatarCustom: avatar.avatarCustom,
     archive,
     updatedAt: Date.now(),
   };
@@ -279,12 +302,15 @@ function normalizeSave(raw: AnglerSaveV1 | AnglerSaveV2 | AnglerSaveV3 | undefin
   else if (raw.v === 2) save = migrateV2(raw);
   else if (raw.v === 3) {
     const poles = poleFieldsFrom(raw);
+    const avatar = avatarFieldsFrom(raw);
     save = {
       ...raw,
       archive: [...(raw.archive ?? [])],
       poleXp: poles.poleXp,
       equippedPoleId: poles.equippedPoleId,
       unlockedPoleIds: [...poles.unlockedPoleIds],
+      avatarId: avatar.avatarId,
+      avatarCustom: avatar.avatarCustom,
     };
   } else return null;
   return applyCharterRollover(save);
@@ -323,6 +349,7 @@ export function formatCharterArchives(archive: CharterDayArchive[]): string[] {
 export function peekAnglerSave(name: string): AnglerSavePeek | null {
   const save = prepareSave(name);
   if (!save) return null;
+  const avatar = avatarFieldsFrom(save);
   return {
     nickname: save.nickname,
     renown: save.renown,
@@ -334,6 +361,8 @@ export function peekAnglerSave(name: string): AnglerSavePeek | null {
     archiveCount: save.archive.length,
     poleXp: save.poleXp,
     equippedPoleId: save.equippedPoleId,
+    avatarId: avatar.avatarId,
+    avatarCustom: avatar.avatarCustom,
     updatedAt: save.updatedAt,
   };
 }
@@ -379,6 +408,7 @@ export function loadAnglerState(name: string): GameState | null {
 
   const base = initialState(save.nickname);
   const poles = poleFieldsFrom(save);
+  const avatar = avatarFieldsFrom(save);
   return {
     ...base,
     phase: "enter",
@@ -397,6 +427,8 @@ export function loadAnglerState(name: string): GameState | null {
     poleXp: poles.poleXp,
     equippedPoleId: poles.equippedPoleId,
     unlockedPoleIds: [...poles.unlockedPoleIds],
+    avatarId: avatar.avatarId,
+    avatarCustom: avatar.avatarCustom,
   };
 }
 
@@ -409,6 +441,10 @@ export function saveAnglerState(state: GameState): void {
     poleXp: state.poleXp,
     equippedPoleId: state.equippedPoleId,
     unlockedPoleIds: state.unlockedPoleIds,
+  });
+  const avatar = avatarFieldsFrom({
+    avatarId: state.avatarId,
+    avatarCustom: state.avatarCustom,
   });
   const existing = normalizeSave(vault[key]) ?? migrateV1({
     v: 1,
@@ -446,6 +482,8 @@ export function saveAnglerState(state: GameState): void {
     poleXp: poles.poleXp,
     equippedPoleId: poles.equippedPoleId,
     unlockedPoleIds: [...poles.unlockedPoleIds],
+    avatarId: avatar.avatarId,
+    avatarCustom: avatar.avatarCustom,
     updatedAt: Date.now(),
   };
   writeVault(vault);

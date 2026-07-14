@@ -296,6 +296,7 @@ export function createMobileHall(opts?: { onUpdate?: () => void }): MobileHall {
         title: x.title,
         catalogSize: x.catalogSize,
         tokens: x.tokens,
+        avatarId: x.avatarId,
       }));
       opts?.onUpdate?.();
     });

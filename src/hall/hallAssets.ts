@@ -8,6 +8,7 @@ export type HallPatronIdentity = {
   title?: string;
   catalogSize?: number;
   tokens?: number;
+  avatarId?: string;
 };
 
 export type HallTrophy = {

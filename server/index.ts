@@ -25,6 +25,7 @@ type Patron = {
   title?: string;
   catalogSize?: number;
   tokens?: number;
+  avatarId?: string;
 };
 
 type Trophy = {
@@ -61,6 +62,7 @@ function patronSnapshot() {
       title: p.title,
       catalogSize: p.catalogSize,
       tokens: p.tokens,
+      avatarId: p.avatarId,
     }));
 }
 
@@ -167,6 +169,7 @@ io.on("connection", (socket) => {
       title?: string;
       catalogSize?: number;
       tokens?: number;
+      avatarId?: string;
     }) => {
       const name = (payload?.name ?? `Angler ${socket.id.slice(0, 4)}`).slice(0, 32);
       const atWell = !payload?.projector;
@@ -178,6 +181,7 @@ io.on("connection", (socket) => {
         catalogSize:
           typeof payload?.catalogSize === "number" ? Math.max(0, payload.catalogSize) : undefined,
         tokens: typeof payload?.tokens === "number" ? Math.max(0, payload.tokens) : undefined,
+        avatarId: typeof payload?.avatarId === "string" ? payload.avatarId.slice(0, 24) : undefined,
       });
       await socket.join(defaultRoom);
       sendPatronsTo(socket);
@@ -193,12 +197,13 @@ io.on("connection", (socket) => {
 
   socket.on(
     "moonwell:identity",
-    (payload: { title?: string; catalogSize?: number; tokens?: number }) => {
+    (payload: { title?: string; catalogSize?: number; tokens?: number; avatarId?: string }) => {
       const p = patrons.get(socket.id);
       if (!p) return;
       if (typeof payload?.title === "string") p.title = payload.title.slice(0, 48) || undefined;
       if (typeof payload?.catalogSize === "number") p.catalogSize = Math.max(0, payload.catalogSize);
       if (typeof payload?.tokens === "number") p.tokens = Math.max(0, payload.tokens);
+      if (typeof payload?.avatarId === "string") p.avatarId = payload.avatarId.slice(0, 24) || undefined;
       patrons.set(socket.id, p);
       broadcastPatrons(defaultRoom);
     },
