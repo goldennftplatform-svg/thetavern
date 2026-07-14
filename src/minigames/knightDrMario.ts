@@ -1,18 +1,24 @@
 /**
  * Charter Dr. Mario — trial III pill puzzle for Demplar Warrior.
+ * Shorter burst trial: fewer viruses, clearer capsules, match flash.
  */
 
 export type PillColor = "R" | "B" | "Y";
 
 const COLS = 8;
 const ROWS = 16;
-const VIRUS_COUNT = 6;
+const VIRUS_COUNT = 4;
 const MAX_MATCH_CHAINS = 6;
 const COLORS: PillColor[] = ["R", "B", "Y"];
 const PALETTE: Record<PillColor, string> = {
-  R: "#e87850",
-  B: "#6898e8",
-  Y: "#e8b050",
+  R: "#e86058",
+  B: "#5898e8",
+  Y: "#e8b048",
+};
+const PALETTE_HI: Record<PillColor, string> = {
+  R: "#ffb0a0",
+  B: "#a8d0ff",
+  Y: "#ffe090",
 };
 
 type Cell = PillColor | "vR" | "vB" | "vY" | null;
@@ -45,8 +51,11 @@ export class KnightDrMario {
 
   private grid: Cell[][] = [];
   private pill: FallingPill | null = null;
+  private nextPill: { a: PillColor; b: PillColor; horiz: boolean } | null = null;
   private dropMs = 0;
   private gravityMs = 720;
+  private flashMs = 0;
+  private flashCells: Array<{ x: number; y: number; color: PillColor; virus: boolean }> = [];
   mobileEase = false;
 
   reset() {
@@ -56,20 +65,21 @@ export class KnightDrMario {
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null) as Cell[]);
     this.seedViruses();
     this.pill = null;
+    this.nextPill = null;
     this.dropMs = 0;
-    this.gravityMs = this.mobileEase ? 1040 : 800;
+    this.flashMs = 0;
+    this.flashCells = [];
+    this.gravityMs = this.mobileEase ? 980 : 780;
+    this.queueNext();
     this.spawnPill();
   }
 
   private seedViruses() {
-    /** Fixed lower-board layout — viruses never move after spawn. */
     const slots: [number, number][] = [
-      [1, 12],
-      [4, 12],
-      [6, 12],
-      [2, 13],
-      [5, 13],
-      [3, 14],
+      [2, 12],
+      [5, 12],
+      [1, 14],
+      [6, 14],
     ];
     for (let i = 0; i < VIRUS_COUNT; i++) {
       const c = COLORS[i % 3]!;
@@ -87,11 +97,22 @@ export class KnightDrMario {
     return n;
   }
 
+  private queueNext() {
+    this.nextPill = {
+      a: COLORS[Math.floor(Math.random() * 3)]!,
+      b: COLORS[Math.floor(Math.random() * 3)]!,
+      horiz: Math.random() < 0.55,
+    };
+  }
+
   private spawnPill() {
-    const a = COLORS[Math.floor(Math.random() * 3)]!;
-    const b = COLORS[Math.floor(Math.random() * 3)]!;
-    const horiz = Math.random() < 0.55;
-    const pill: FallingPill = { x: 3, y: 0, horiz, a, b };
+    const next = this.nextPill ?? {
+      a: COLORS[Math.floor(Math.random() * 3)]!,
+      b: COLORS[Math.floor(Math.random() * 3)]!,
+      horiz: Math.random() < 0.55,
+    };
+    this.queueNext();
+    const pill: FallingPill = { x: 3, y: 0, horiz: next.horiz, a: next.a, b: next.b };
     if (this.pillBlocked(pill)) {
       this.pill = null;
       this.endTrialBoardFull();
@@ -101,7 +122,6 @@ export class KnightDrMario {
     this.dropMs = 0;
   }
 
-  /** Board topped out — finish with partial credit instead of a punishing game over. */
   private endTrialBoardFull() {
     this.pill = null;
     this.score += Math.max(0, 100 - this.virusesLeft * 12);
@@ -146,10 +166,9 @@ export class KnightDrMario {
   }
 
   setSoftDrop(_on: boolean) {
-    /* Dr Mario uses tap-to-step (stepDown) — no hold-soft-drop. */
+    /* tap-to-step */
   }
 
-  /** One row down per tap — not a held turbo drop. */
   stepDown(): void {
     if (!this.pill || this.finished) return;
     this.dropMs = 0;
@@ -170,6 +189,13 @@ export class KnightDrMario {
     }
     this.score += dropped;
     this.lockPill();
+  }
+
+  private ghostY(): number {
+    if (!this.pill) return 0;
+    let drop = 0;
+    while (!this.pillBlocked(this.pill, 0, drop + 1)) drop += 1;
+    return this.pill.y + drop;
   }
 
   private lockPill() {
@@ -211,15 +237,19 @@ export class KnightDrMario {
       }
       if (toClear.size === 0) break;
       chain += 1;
+      this.flashCells = [];
       let viruses = 0;
       for (const key of toClear) {
         const [xs, ys] = key.split(",");
         const x = Number(xs);
         const y = Number(ys);
         const cell = this.grid[y]![x];
+        const col = cellColor(cell);
+        if (col) this.flashCells.push({ x, y, color: col, virus: isVirus(cell) });
         if (isVirus(cell)) viruses += 1;
         this.grid[y]![x] = null;
       }
+      this.flashMs = 180;
       this.virusesLeft = this.countViruses();
       const mult = 1 + (chain - 1) * 0.35;
       this.score += Math.floor((toClear.size * 18 + viruses * 90) * mult);
@@ -228,7 +258,6 @@ export class KnightDrMario {
     }
   }
 
-  /** Only loose pill halves fall — viruses stay anchored in place. */
   private settlePillGravity() {
     for (let pass = 0; pass < ROWS; pass++) {
       let moved = false;
@@ -257,6 +286,7 @@ export class KnightDrMario {
 
   update(dt: number, elapsed: number, timeLimitMs: number): boolean {
     if (this.finished) return true;
+    if (this.flashMs > 0) this.flashMs = Math.max(0, this.flashMs - dt);
 
     if (elapsed >= timeLimitMs) {
       this.finishTrial(timeLimitMs, elapsed);
@@ -278,23 +308,74 @@ export class KnightDrMario {
   }
 
   hudLine(): string {
-    return `♥${this.virusesLeft} virus${this.virusesLeft === 1 ? "" : "es"}`;
+    return `♥${this.virusesLeft} · ${this.score}`;
   }
 
-  draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number, footReserve = 28, touchPad = false) {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    hudTop: number,
+    footReserve = 28,
+    touchPad = false,
+    timeLeftSec?: number,
+    timeLimitSec = 38,
+  ) {
     const pad = 8;
-    const playH = h - hudTop - footReserve - pad * 2;
-    const cell = Math.floor(Math.min((w - pad * 2) / COLS, playH / ROWS));
+    const timerBand = typeof timeLeftSec === "number" ? 28 : 0;
+    const playH = h - hudTop - footReserve - pad * 2 - timerBand;
+    const cell = Math.floor(Math.min((w - pad * 2) / (COLS + 2.4), playH / ROWS));
     const boardW = cell * COLS;
     const boardH = cell * ROWS;
-    const ox = Math.floor((w - boardW) / 2);
-    const oy = hudTop + Math.floor((playH - boardH) / 2) + pad;
+    const ox = Math.floor((w - boardW) / 2) - Math.floor(cell);
+    const oy = hudTop + timerBand + Math.floor((playH - boardH) / 2) + pad;
 
-    ctx.fillStyle = "#101828";
-    ctx.fillRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+    if (typeof timeLeftSec === "number") {
+      const pct = Math.max(0, Math.min(1, timeLeftSec / Math.max(1, timeLimitSec)));
+      const barY = hudTop + 4;
+      const barW = w - 24;
+      ctx.fillStyle = "#1a1420";
+      ctx.fillRect(12, barY, barW, 10);
+      ctx.fillStyle = timeLeftSec <= 5 ? "#e87850" : "#c878e8";
+      ctx.fillRect(12, barY, barW * pct, 10);
+      ctx.strokeStyle = "#e8b050";
+      ctx.strokeRect(12, barY, barW, 10);
+      ctx.fillStyle = timeLeftSec <= 5 ? "#ffb898" : "#f8f0ff";
+      ctx.font = `${Math.max(14, Math.floor(w * 0.036))}px "VT323", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `TRIAL III · ${Math.max(0, timeLeftSec).toFixed(0)}s · ♥${this.virusesLeft} viruses`,
+        w / 2,
+        barY + 24,
+      );
+      ctx.textAlign = "left";
+    }
+
+    // Board frame
+    ctx.fillStyle = "#0c101c";
+    ctx.fillRect(ox - 6, oy - 6, boardW + 12, boardH + 12);
     ctx.strokeStyle = "#c878e8";
     ctx.lineWidth = 3;
-    ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
+    ctx.strokeRect(ox - 6, oy - 6, boardW + 12, boardH + 12);
+    ctx.strokeStyle = "rgba(232, 176, 80, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox - 2, oy - 2, boardW + 4, boardH + 4);
+
+    // Soft grid
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.lineWidth = 1;
+    for (let x = 1; x < COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(ox + x * cell, oy);
+      ctx.lineTo(ox + x * cell, oy + boardH);
+      ctx.stroke();
+    }
+    for (let y = 1; y < ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + y * cell);
+      ctx.lineTo(ox + boardW, oy + y * cell);
+      ctx.stroke();
+    }
 
     ctx.fillStyle = "#e8b050";
     ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
@@ -307,23 +388,66 @@ export class KnightDrMario {
         const c = this.grid[y]![x];
         if (!c) continue;
         const color = cellColor(c)!;
-        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[color], isVirus(c));
+        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, color, isVirus(c), false);
+      }
+    }
+
+    if (this.flashMs > 0) {
+      for (const f of this.flashCells) {
+        this.drawCell(ctx, ox + f.x * cell, oy + f.y * cell, cell, f.color, f.virus, true);
       }
     }
 
     if (this.pill) {
+      const ghost = this.ghostY();
+      if (ghost > this.pill.y) {
+        for (const [x, y, color] of this.pillCells({ ...this.pill, y: ghost })) {
+          if (y < 0) continue;
+          this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, color, false, false, true);
+        }
+      }
       for (const [x, y, color] of this.pillCells(this.pill)) {
         if (y < 0) continue;
-        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[color], false);
+        this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, color, false, false);
       }
+    }
+
+    this.drawNext(ctx, ox + boardW + 10, oy + 4, cell);
+
+    if (this.combo > 1 && this.flashMs > 0) {
+      ctx.fillStyle = "#68e8a8";
+      ctx.font = `${Math.max(18, Math.floor(w * 0.05))}px "VT323", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(`x${this.combo} CLEAR!`, w / 2, oy + boardH / 2);
+      ctx.textAlign = "left";
     }
 
     if (!touchPad) {
       ctx.fillStyle = "rgba(248,240,255,0.7)";
       ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
       ctx.textAlign = "center";
-      ctx.fillText("← → MOVE · ↑ ROTATE · ↓ STEP · F SLAM · CLEAR VIRUSES", w / 2, h - 8);
+      ctx.fillText("← → MOVE · ↑ ROTATE · ↓ STEP · F SLAM", w / 2, h - 8);
       ctx.textAlign = "left";
+    }
+  }
+
+  private drawNext(ctx: CanvasRenderingContext2D, x: number, y: number, cell: number) {
+    if (!this.nextPill) return;
+    const pc = Math.max(8, Math.floor(cell * 0.7));
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillRect(x - 4, y - 2, pc * 3 + 16, pc * 3 + 28);
+    ctx.strokeStyle = "rgba(200,120,232,0.5)";
+    ctx.strokeRect(x - 4, y - 2, pc * 3 + 16, pc * 3 + 28);
+    ctx.fillStyle = "rgba(248,240,255,0.6)";
+    ctx.font = `${Math.max(11, pc)}px "VT323", monospace`;
+    ctx.fillText("NEXT", x + 2, y + 12);
+    const n = this.nextPill;
+    if (n.horiz) {
+      this.drawCell(ctx, x + 4, y + 20, pc, n.a, false);
+      this.drawCell(ctx, x + 4 + pc, y + 20, pc, n.b, false);
+    } else {
+      this.drawCell(ctx, x + 4 + Math.floor(pc / 2), y + 18, pc, n.a, false);
+      this.drawCell(ctx, x + 4 + Math.floor(pc / 2), y + 18 + pc, pc, n.b, false);
     }
   }
 
@@ -332,20 +456,70 @@ export class KnightDrMario {
     x: number,
     y: number,
     size: number,
-    color: string,
+    color: PillColor,
     virus: boolean,
+    clearing = false,
+    ghost = false,
   ) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    if (virus) {
-      ctx.arc(x + size / 2, y + size / 2, size * 0.38, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.4)";
-      ctx.stroke();
-    } else {
-      ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
-      ctx.strokeStyle = "rgba(0,0,0,0.35)";
-      ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    const fill = clearing ? "#ffffff" : ghost ? "transparent" : PALETTE[color];
+    const hi = PALETTE_HI[color];
+    const m = Math.max(1, Math.floor(size * 0.08));
+
+    if (ghost) {
+      ctx.strokeStyle = `${PALETTE[color]}88`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + m, y + m, size - m * 2, size - m * 2);
+      return;
     }
+
+    if (virus) {
+      const cx = x + size / 2;
+      const cy = y + size / 2;
+      const r = size * 0.38;
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // eyes
+      ctx.fillStyle = "#0a0e14";
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.28, cy - r * 0.1, r * 0.16, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.28, cy - r * 0.1, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hi;
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.22, cy - r * 0.16, r * 0.07, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.34, cy - r * 0.16, r * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      // grin
+      ctx.strokeStyle = "#0a0e14";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy + r * 0.15, r * 0.28, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+      return;
+    }
+
+    // Capsule half
+    const rad = Math.max(3, Math.floor(size * 0.22));
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x + m + rad, y + m);
+    ctx.arcTo(x + size - m, y + m, x + size - m, y + size - m, rad);
+    ctx.arcTo(x + size - m, y + size - m, x + m, y + size - m, rad);
+    ctx.arcTo(x + m, y + size - m, x + m, y + m, rad);
+    ctx.arcTo(x + m, y + m, x + size - m, y + m, rad);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = hi;
+    ctx.globalAlpha = 0.45;
+    ctx.fillRect(x + m + 2, y + m + 2, Math.floor(size * 0.35), Math.floor(size * 0.22));
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
 }

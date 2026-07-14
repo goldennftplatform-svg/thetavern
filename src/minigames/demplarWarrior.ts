@@ -27,8 +27,8 @@ type Plat = { x: number; y: number; w: number; h: number };
 const STAGE_MS = {
   brief: 2800,
   platform: 48_000,
-  tetris: 35_000,
-  drmario: 75_000,
+  tetris: 70_000,
+  drmario: 38_000,
 } as const;
 
 const STAGE_BREAK_MS = 1800;
@@ -1000,7 +1000,9 @@ export class DemplarWarrior {
       this.tetris.draw(ctx, w, h, WARRIOR_HUD_H + timerBand, footReserve, touchPad);
       this.drawTetrisTimer(ctx, w, h, now);
     } else if (this.stage === "drmario") {
-      this.drMario.draw(ctx, w, h, WARRIOR_HUD_H, footReserve, touchPad);
+      const elapsed = this.stageElapsed(now);
+      const left = Math.max(0, (STAGE_MS.drmario - elapsed) / 1000);
+      this.drMario.draw(ctx, w, h, WARRIOR_HUD_H, footReserve, touchPad, left, STAGE_MS.drmario / 1000);
     } else this.drawDone(ctx, w, h);
 
     if (this.stageBreak && now < this.stageBreak.until) {
@@ -1026,7 +1028,7 @@ export class DemplarWarrior {
     ctx.fillText(
       this.mobileEase
         ? `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines`
-        : `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then DR MARIO`,
+        : `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then VEIL CURE`,
       w / 2,
       barY + 24,
     );
@@ -1290,10 +1292,10 @@ export class DemplarWarrior {
     if (this.stage === "brief") return "";
     if (this.stage === "platform") return "Sprint the causeway — leap the pits to the finish gate";
     if (this.stage === "tetris") {
-      return `35s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure / Dr Mario`;
+      return `70s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure`;
     }
     if (this.stage === "drmario") {
-      return `${this.drMario.virusesLeft} viruses left — match 4 · pills cure the veil`;
+      return `${this.drMario.virusesLeft} viruses · ${Math.ceil(STAGE_MS.drmario / 1000)}s · match 4 to clear`;
     }
     return "Tavern arcade — three back-room trials";
   }

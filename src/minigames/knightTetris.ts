@@ -24,8 +24,8 @@ const LOCK_DELAY_MS = 60;
 const BASE_GRAVITY_MS = 480;
 const MIN_GRAVITY_MS = 140;
 const SOFT_DROP_MS = 42;
-export const TETRIS_WIN_LINES = 6;
-export const TETRIS_MAX_PIECES = 14;
+export const TETRIS_WIN_LINES = 12;
+export const TETRIS_MAX_PIECES = 28;
 
 type ActivePiece = {
   shape: number;
