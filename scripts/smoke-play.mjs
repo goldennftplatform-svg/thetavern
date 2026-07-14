@@ -80,6 +80,14 @@ async function run() {
   }
 
   await page.click("[data-continue='renown']");
+  // Pole unlock interstitial also uses data-continue=renown ("Keep the old grip").
+  for (let i = 0; i < 3; i++) {
+    const interlude = page.locator("[data-continue='interlude']");
+    if (await interlude.isVisible().catch(() => false)) break;
+    const again = page.locator("[data-continue='renown']");
+    if (await again.isVisible().catch(() => false)) await again.click();
+    else break;
+  }
   await page.waitForSelector("[data-continue='interlude']", { timeout: 5000 });
   await page.click("[data-continue='interlude']");
 
