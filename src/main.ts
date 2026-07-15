@@ -181,14 +181,18 @@ function fishingBanner(msg: string) {
   showToast(msg, 0);
 }
 
-function showToast(msg: string, hideAfterMs = 0) {
+function showToast(msg: string, hideAfterMs = 0, opts?: { force?: boolean }) {
   if (toastTimer) window.clearTimeout(toastTimer);
   elPlayToast.textContent = msg;
   elPlayToast.hidden = !msg;
+  elPlayToast.classList.toggle("play-toast--force", !!(msg && opts?.force));
   if (msg && hideAfterMs > 0) {
     toastTimer = window.setTimeout(() => {
       elPlayToast.hidden = true;
+      elPlayToast.classList.remove("play-toast--force");
     }, hideAfterMs);
+  } else if (!msg) {
+    elPlayToast.classList.remove("play-toast--force");
   }
 }
 
@@ -930,14 +934,27 @@ function handleHubAction(action: string) {
   if (action.startsWith("equip_pole:")) {
     const id = action.slice("equip_pole:".length);
     if (!isPoleId(id)) return;
+    const poleId = id as PoleId;
+    const unlocking = !!elPhase.querySelector(".studio-stage--pole-unlock");
     const prog = poleProgressFromState();
-    if (equipPole(prog, id as PoleId)) {
+    // Unlock reveal is authority that this rod woke — don't strand the Equip button
+    // if unlockedIds somehow lagged the interstitial.
+    if (unlocking && !prog.unlockedPoleIds.includes(poleId)) {
+      prog.unlockedPoleIds = [...prog.unlockedPoleIds, poleId];
+    }
+    if (equipPole(prog, poleId)) {
       writePoleProgress(prog);
-      showToast(`Equipped ${poleById(id).name}`);
       scheduleSave();
+      const equipped = poleById(poleId);
+      if (unlocking) {
+        setPhase("renown");
+        showToast(`⚡ Equipped ${equipped.name}`, 3200, { force: true });
+        return;
+      }
       if (state.phase === "pole_rack") setPhase("pole_rack");
+      showToast(`Equipped ${equipped.name}`, 2800, { force: true });
     } else {
-      showToast("That rod is still sleeping.");
+      showToast("That rod is still sleeping.", 2800, { force: true });
     }
     return;
   }

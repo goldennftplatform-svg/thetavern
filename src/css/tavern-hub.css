@@ -780,6 +780,15 @@ html.tavern-mobile .hub-pick {
   overflow: hidden;
 }
 
+.pole-card__equip {
+  margin-top: auto;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 8px 14px;
+  position: relative;
+  z-index: 2;
+}
+
 .pole-card__equipped {
   display: inline-block;
   margin-top: auto;
@@ -787,13 +796,6 @@ html.tavern-mobile .hub-pick {
   color: #68e8a8;
   font-family: var(--font-body, "VT323", monospace);
   font-size: 1.05rem;
-}
-
-.pole-card__equip {
-  margin-top: auto;
-  align-self: flex-start;
-  min-height: 40px;
-  padding: 8px 14px;
 }
 
 .studio-rack-progress {

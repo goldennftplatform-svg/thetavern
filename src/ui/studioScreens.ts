@@ -359,7 +359,7 @@ export function poleUnlockStudioHtml(poles: FishingPole[]): string {
         <p class="pole-unlock__tag">${escapeHtml(p.tagline)}</p>
         <p class="pole-unlock__lore">${escapeHtml(p.unlockLore)}</p>
         <p class="pole-unlock__body muted">${escapeHtml(p.lore)}</p>
-        <button type="button" class="btn primary big" data-hub-action="equip_pole:${p.id}">Equip ${escapeHtml(p.name)}</button>
+        <button type="button" class="btn primary big" data-hub-action="equip_pole:${p.id}">Equip ${escapeHtml(p.name)} &amp; continue</button>
       </article>`,
     )
     .join("");

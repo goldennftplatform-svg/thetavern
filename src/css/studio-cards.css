@@ -70,6 +70,12 @@ html.play-active .play-menu {
   display: none !important;
 }
 
+/* Forced equip / system feedback must punch through studio toast hides */
+.play-toast.play-toast--force {
+  display: block !important;
+  z-index: 40;
+}
+
 .play-menu-body {
   width: 100%;
   max-width: min(96vw, 40rem);
