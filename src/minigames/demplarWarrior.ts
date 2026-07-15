@@ -7,7 +7,12 @@
 
 import { warriorBriefLines, warriorTrialNames } from "../content/demplarKnights";
 import { pickLine } from "../content/arcaneLore";
-import { playWarriorImpact } from "../audio/warriorSfx";
+import {
+  playPlatformJump,
+  playPlatformLand,
+  playPlatformPickup,
+  playWarriorImpact,
+} from "../audio/warriorSfx";
 import { drawKnightPlatformer, drawKnightPortrait } from "../sprites/knightSprite";
 import { KnightDrMario } from "./knightDrMario";
 import { KnightTetris, TETRIS_MAX_PIECES, TETRIS_WIN_LINES } from "./knightTetris";
@@ -23,6 +28,7 @@ export type DemplarRunResult = {
 
 type Pickup = { x: number; y: number; kind: "coin" | "blade"; taken?: boolean };
 type Plat = { x: number; y: number; w: number; h: number };
+type Dust = { x: number; y: number; vx: number; vy: number; life: number; max: number };
 
 const STAGE_MS = {
   brief: 2800,
@@ -91,61 +97,68 @@ function wrapBriefLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
 }
 
 const PLAYER_SCREEN_X = 148;
-const RUN_SPEED = 4.35;
-const GRAVITY = 0.58;
-const JUMP_VEL = -12.8;
-const COYOTE_MS = 140;
+/** World units / second — frame-rate independent (old per-frame vars tunneled floors at 120Hz). */
+const RUN_PX_S = 268;
+const GRAVITY_PX_S2 = 1980;
+const JUMP_VEL_PX_S = -640;
+const MAX_FALL_PX_S = 900;
+const COYOTE_MS = 150;
+const JUMP_BUFFER_MS = 130;
+const LAND_SNAP = 10;
 
-/** Hand-built platform course — gaps are intentional pits. */
+/**
+ * Hand-built causeway — long y=0 floor strips read as solid ground;
+ * gaps are clear pits. Floating decks are bonus height.
+ */
 const PLATFORM_PLATS: Plat[] = [
-  { x: -60, y: 0, w: 520, h: 40 },
-  { x: 520, y: 0, w: 280, h: 40 },
-  { x: 920, y: -36, w: 200, h: 28 },
-  { x: 1180, y: -72, w: 160, h: 28 },
-  { x: 1420, y: -36, w: 220, h: 28 },
-  { x: 1720, y: 0, w: 300, h: 40 },
-  { x: 2120, y: 0, w: 180, h: 40 },
-  { x: 2380, y: -48, w: 140, h: 28 },
-  { x: 2580, y: -96, w: 120, h: 28 },
-  { x: 2760, y: -48, w: 160, h: 28 },
-  { x: 2980, y: 0, w: 240, h: 40 },
-  { x: 3300, y: 0, w: 420, h: 40 },
+  { x: -120, y: 0, w: 720, h: 52 },
+  { x: 760, y: 0, w: 280, h: 52 },
+  { x: 1120, y: 0, w: 360, h: 52 },
+  { x: 1560, y: -52, w: 200, h: 36 },
+  { x: 1840, y: 0, w: 300, h: 52 },
+  { x: 2220, y: 0, w: 220, h: 52 },
+  { x: 2520, y: -56, w: 170, h: 36 },
+  { x: 2760, y: -108, w: 150, h: 36 },
+  { x: 2980, y: -56, w: 190, h: 36 },
+  { x: 3260, y: 0, w: 280, h: 52 },
+  { x: 3620, y: 0, w: 520, h: 52 },
 ];
 
 const PLATFORM_PICKUPS: Pickup[] = [
-  { x: 280, y: -44, kind: "coin" },
-  { x: 340, y: -44, kind: "coin" },
-  { x: 600, y: -44, kind: "coin" },
-  { x: 980, y: -80, kind: "blade" },
-  { x: 1240, y: -116, kind: "coin" },
-  { x: 1500, y: -80, kind: "coin" },
-  { x: 1880, y: -44, kind: "blade" },
-  { x: 2200, y: -44, kind: "coin" },
-  { x: 2440, y: -92, kind: "coin" },
-  { x: 2620, y: -140, kind: "blade" },
-  { x: 2820, y: -92, kind: "coin" },
-  { x: 3100, y: -44, kind: "coin" },
-  { x: 3500, y: -44, kind: "blade" },
-  { x: 3600, y: -44, kind: "coin" },
+  { x: 220, y: -48, kind: "coin" },
+  { x: 300, y: -48, kind: "coin" },
+  { x: 380, y: -48, kind: "coin" },
+  { x: 880, y: -48, kind: "coin" },
+  { x: 1260, y: -48, kind: "blade" },
+  { x: 1640, y: -96, kind: "coin" },
+  { x: 1720, y: -96, kind: "coin" },
+  { x: 1980, y: -48, kind: "blade" },
+  { x: 2320, y: -48, kind: "coin" },
+  { x: 2580, y: -100, kind: "coin" },
+  { x: 2820, y: -152, kind: "blade" },
+  { x: 3060, y: -100, kind: "coin" },
+  { x: 3400, y: -48, kind: "coin" },
+  { x: 3800, y: -48, kind: "blade" },
+  { x: 3920, y: -48, kind: "coin" },
 ];
 
-const GOAL_X = 3650;
+const GOAL_X = 3980;
 const WARRIOR_HUD_H = 44;
 
 /** Sargaano charter causeway — parallax props (no collision). */
 type SargaanoProp = { x: number; y: number; kind: "banner" | "torch" | "pillar" | "well" | "swords" };
 const SARGAANO_PROPS: SargaanoProp[] = [
-  { x: 120, y: 0, kind: "banner" },
-  { x: 400, y: 0, kind: "torch" },
-  { x: 780, y: -36, kind: "pillar" },
-  { x: 1050, y: -72, kind: "swords" },
-  { x: 1350, y: -36, kind: "banner" },
-  { x: 1680, y: 0, kind: "well" },
-  { x: 2050, y: 0, kind: "torch" },
-  { x: 2480, y: -96, kind: "pillar" },
-  { x: 2850, y: -48, kind: "banner" },
-  { x: 3180, y: 0, kind: "swords" },
-  { x: 3480, y: 0, kind: "torch" },
+  { x: 140, y: 0, kind: "banner" },
+  { x: 420, y: 0, kind: "torch" },
+  { x: 880, y: 0, kind: "pillar" },
+  { x: 1280, y: 0, kind: "swords" },
+  { x: 1640, y: -52, kind: "banner" },
+  { x: 1980, y: 0, kind: "well" },
+  { x: 2360, y: 0, kind: "torch" },
+  { x: 2600, y: -108, kind: "pillar" },
+  { x: 3060, y: -56, kind: "banner" },
+  { x: 3400, y: 0, kind: "swords" },
+  { x: 3800, y: 0, kind: "torch" },
 ];
 
 const SARGAANO = {
@@ -306,45 +319,105 @@ function drawCharterPlat(
   platIndex: number,
 ) {
   const py = groundY + plat.y;
-  const tileW = 32;
-  const tiles = Math.ceil(plat.w / tileW);
+  const tileW = 28;
+  const tiles = Math.max(1, Math.ceil(plat.w / tileW));
+  const isFloor = plat.y === 0;
+
+  // Deep earth under solid floors so the ground never "vanishes" into a thin top edge
+  if (isFloor) {
+    ctx.fillStyle = "#1a1018";
+    ctx.fillRect(sx, py + plat.h - 4, plat.w, 36);
+    ctx.fillStyle = "#2a1828";
+    for (let d = 0; d < plat.w; d += 22) {
+      ctx.fillRect(sx + d, py + plat.h + 8, 14, 18);
+    }
+  }
 
   for (let t = 0; t < tiles; t++) {
     const tx = sx + t * tileW;
     const tw = Math.min(tileW, plat.w - t * tileW);
     if (tw <= 0) continue;
+    const shade = (t + platIndex) % 2 === 0;
 
     ctx.fillStyle = SARGAANO.stoneDark;
-    ctx.fillRect(tx, py + 6, tw, plat.h - 6);
-    ctx.fillStyle = (t + platIndex) % 2 === 0 ? SARGAANO.stone : SARGAANO.stoneCap;
-    ctx.fillRect(tx + 1, py + 4, tw - 2, plat.h - 8);
+    ctx.fillRect(tx, py + 6, tw, plat.h - 4);
+    ctx.fillStyle = shade ? SARGAANO.stone : SARGAANO.stoneCap;
+    ctx.fillRect(tx + 1, py + 5, Math.max(1, tw - 2), plat.h - 10);
     ctx.fillStyle = SARGAANO.mortar;
-    ctx.fillRect(tx, py + plat.h - 4, tw, 2);
+    ctx.fillRect(tx, py + plat.h - 6, tw, 3);
 
-    ctx.fillStyle = SARGAANO.goldDim;
-    ctx.fillRect(tx, py, tw, 4);
+    // Mario-style bright top cap
+    ctx.fillStyle = "#5a4868";
+    ctx.fillRect(tx, py, tw, 6);
     ctx.fillStyle = SARGAANO.gold;
-    ctx.fillRect(tx + 2, py, tw - 4, 2);
+    ctx.fillRect(tx, py, tw, 3);
+    ctx.fillStyle = "#f0d878";
+    ctx.fillRect(tx + 2, py + 1, Math.max(1, tw - 4), 1);
 
-    if (t === 0 || t === tiles - 1) {
+    if (t === 0) {
       ctx.fillStyle = SARGAANO.charter;
-      ctx.fillRect(tx + 4, py - 10, tw - 8, 8);
+      ctx.fillRect(tx, py - 8, 10, 8);
       ctx.fillStyle = SARGAANO.gold;
-      ctx.fillRect(tx + 6, py - 8, tw - 12, 2);
+      ctx.fillRect(tx + 2, py - 6, 6, 2);
+    }
+    if (t === tiles - 1) {
+      ctx.fillStyle = SARGAANO.charter;
+      ctx.fillRect(tx + tw - 10, py - 8, 10, 8);
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.fillRect(tx + tw - 8, py - 6, 6, 2);
     }
   }
 
-  if (platIndex % 3 === 1 && plat.w > 80) {
-    ctx.font = '8px "VT323", monospace';
+  if (platIndex % 3 === 1 && plat.w > 90) {
+    ctx.font = '9px "VT323", monospace';
     ctx.fillStyle = SARGAANO.gold;
     ctx.textAlign = "center";
     ctx.fillText("⚔", sx + plat.w / 2, py - 2);
     ctx.textAlign = "left";
   }
 
-  ctx.strokeStyle = "rgba(232, 176, 80, 0.45)";
+  ctx.strokeStyle = "rgba(232, 176, 80, 0.5)";
   ctx.lineWidth = 1;
-  ctx.strokeRect(sx, py, plat.w, plat.h);
+  ctx.strokeRect(sx + 0.5, py + 0.5, plat.w - 1, plat.h - 1);
+}
+
+/** Draw danger lips / void markers between ground segments so pits read clearly. */
+function drawPitLips(
+  ctx: CanvasRenderingContext2D,
+  plats: Plat[],
+  cam: number,
+  groundY: number,
+  w: number,
+  tick: number,
+) {
+  const floors = plats.filter((p) => p.y === 0).sort((a, b) => a.x - b.x);
+  for (let i = 0; i < floors.length - 1; i++) {
+    const left = floors[i]!;
+    const right = floors[i + 1]!;
+    const gapStart = left.x + left.w;
+    const gapEnd = right.x;
+    if (gapEnd - gapStart < 28) continue;
+    const sx0 = gapStart - cam;
+    const sx1 = gapEnd - cam;
+    if (sx1 < -40 || sx0 > w + 40) continue;
+
+    const pulse = 0.35 + Math.sin(tick * 0.005 + i) * 0.15;
+    ctx.fillStyle = `rgba(200, 80, 90, ${pulse})`;
+    ctx.fillRect(sx0 - 4, groundY - 6, 8, 12);
+    ctx.fillRect(sx1 - 4, groundY - 6, 8, 12);
+
+    const mist = ctx.createLinearGradient(0, groundY + 8, 0, groundY + 70);
+    mist.addColorStop(0, "rgba(120, 40, 60, 0.35)");
+    mist.addColorStop(1, "rgba(20, 8, 16, 0)");
+    ctx.fillStyle = mist;
+    ctx.fillRect(sx0, groundY + 8, sx1 - sx0, 70);
+
+    ctx.font = '10px "VT323", monospace';
+    ctx.fillStyle = `rgba(248, 180, 160, ${0.45 + pulse})`;
+    ctx.textAlign = "center";
+    ctx.fillText("▼ PIT ▼", (sx0 + sx1) / 2, groundY + 22);
+    ctx.textAlign = "left";
+  }
 }
 
 function drawCharterPickup(
@@ -430,6 +503,9 @@ export class DemplarWarrior {
 
   private jumpHeld = false;
   private coyoteUntil = 0;
+  private jumpBufferUntil = 0;
+  private dust: Dust[] = [];
+  private wasOnGround = true;
 
   platform = {
     x: 64,
@@ -549,18 +625,21 @@ export class DemplarWarrior {
 
   private resetPlatform() {
     this.platform = {
-      x: 64,
+      x: 80,
       y: 0,
       vy: 0,
       cam: 0,
       score: 0,
-      onGround: false,
+      onGround: true,
       deaths: 0,
       pickups: PLATFORM_PICKUPS.map((p) => ({ ...p })),
       plats: PLATFORM_PLATS.map((p) => ({ ...p })),
     };
     this.jumpHeld = false;
     this.coyoteUntil = 0;
+    this.jumpBufferUntil = 0;
+    this.dust = [];
+    this.wasOnGround = true;
   }
 
   private stageElapsed(now: number): number {
@@ -675,10 +754,8 @@ export class DemplarWarrior {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak(now)) return;
     if (this.stage === "platform") {
       this.jumpHeld = true;
-      if (this.platform.onGround || now < this.coyoteUntil) {
-        this.platform.vy = JUMP_VEL;
-        this.platform.onGround = false;
-      }
+      this.jumpBufferUntil = now + JUMP_BUFFER_MS;
+      this.tryPlatformJump(now);
       return;
     }
     if (this.stage === "tetris") {
@@ -690,10 +767,35 @@ export class DemplarWarrior {
     }
   }
 
+  private tryPlatformJump(now: number): boolean {
+    if (!(this.platform.onGround || now < this.coyoteUntil)) return false;
+    this.platform.vy = JUMP_VEL_PX_S;
+    this.platform.onGround = false;
+    this.coyoteUntil = 0;
+    this.jumpBufferUntil = 0;
+    this.wasOnGround = false;
+    playPlatformJump();
+    this.spawnDust(this.platform.x, this.platform.y, 5);
+    return true;
+  }
+
   releaseJump() {
     this.jumpHeld = false;
-    if (this.stage === "platform" && this.platform.vy < -4) {
-      this.platform.vy *= 0.45;
+    if (this.stage === "platform" && this.platform.vy < JUMP_VEL_PX_S * 0.45) {
+      this.platform.vy *= 0.48;
+    }
+  }
+
+  private spawnDust(x: number, y: number, n: number) {
+    for (let i = 0; i < n; i++) {
+      this.dust.push({
+        x: x + (Math.random() - 0.5) * 18,
+        y,
+        vx: (Math.random() - 0.5) * 90,
+        vy: -40 - Math.random() * 80,
+        life: 0.22 + Math.random() * 0.18,
+        max: 0.4,
+      });
     }
   }
 
@@ -905,34 +1007,40 @@ export class DemplarWarrior {
   private respawnPlatform(now: number) {
     const p = this.platform;
     p.deaths += 1;
-    p.score = Math.max(0, p.score - 50);
+    p.score = Math.max(0, p.score - 40);
     const plat = this.findRespawnPlatform(p.x);
-    p.x = Math.max(plat.x + 22, Math.min(p.x, plat.x + plat.w - 22));
+    p.x = Math.max(plat.x + 28, Math.min(p.x, plat.x + plat.w - 28));
     p.y = plat.y;
     p.vy = 0;
     p.onGround = true;
+    this.wasOnGround = true;
     this.coyoteUntil = now + COYOTE_MS;
-    this.respawnUntil = now + 1100;
+    this.respawnUntil = now + 900;
+    this.spawnDust(p.x, p.y, 8);
+    playPlatformLand();
   }
 
   private tickPlatform(dt: number, elapsed: number, now: number) {
     const p = this.platform;
-    p.x += RUN_SPEED + dt * 0.0025;
-    p.vy += GRAVITY;
-    if (!this.jumpHeld && p.vy < 0) p.vy += GRAVITY * 0.35;
-    p.y += p.vy;
+    const t = Math.min(0.05, Math.max(0.001, dt / 1000));
 
+    if (now < this.jumpBufferUntil) this.tryPlatformJump(now);
+
+    p.x += RUN_PX_S * t;
+    p.vy = Math.min(MAX_FALL_PX_S, p.vy + GRAVITY_PX_S2 * t);
+    // Variable jump height — release cuts ascent
+    if (!this.jumpHeld && p.vy < 0) p.vy += GRAVITY_PX_S2 * 0.55 * t;
+
+    const prevY = p.y;
+    p.y += p.vy * t;
+
+    const wasGround = this.wasOnGround;
     p.onGround = false;
+    const halfW = 14;
     for (const plat of p.plats) {
-      const feet = p.y;
-      const head = p.y - 38;
-      if (
-        p.x + 12 > plat.x &&
-        p.x - 12 < plat.x + plat.w &&
-        feet >= plat.y - 4 &&
-        head <= plat.y + plat.h &&
-        p.vy >= 0
-      ) {
+      if (p.x + halfW <= plat.x || p.x - halfW >= plat.x + plat.w) continue;
+      // Swept landing — catches high-refresh tunneling through thin floors
+      if (p.vy >= 0 && prevY <= plat.y + LAND_SNAP && p.y >= plat.y - 2) {
         p.y = plat.y;
         p.vy = 0;
         p.onGround = true;
@@ -940,25 +1048,43 @@ export class DemplarWarrior {
       }
     }
 
-    if (p.y > 120 && now > this.respawnUntil) {
+    if (p.onGround && !wasGround) {
+      playPlatformLand();
+      this.spawnDust(p.x, p.y, 6);
+    }
+    this.wasOnGround = p.onGround;
+
+    if (p.y > 140 && now > this.respawnUntil) {
       this.respawnPlatform(now);
     }
 
-    p.cam = Math.max(0, p.x - PLAYER_SCREEN_X);
+    const targetCam = Math.max(0, p.x - PLAYER_SCREEN_X);
+    p.cam += (targetCam - p.cam) * Math.min(1, 12 * t);
 
     for (const pick of p.pickups) {
       if (pick.taken) continue;
-      if (Math.abs(p.x - pick.x) < 22 && Math.abs(p.y - pick.y) < 40) {
+      if (Math.abs(p.x - pick.x) < 24 && Math.abs(p.y - pick.y) < 44) {
         pick.taken = true;
-        p.score += pick.kind === "coin" ? 60 : 140;
+        p.score += pick.kind === "coin" ? 70 : 150;
+        playPlatformPickup(pick.kind);
+        this.spawnDust(pick.x, pick.y, 4);
       }
     }
 
-    p.score += Math.floor(dt * 0.04);
+    p.score += Math.floor(dt * 0.045);
+
+    for (let i = this.dust.length - 1; i >= 0; i--) {
+      const d = this.dust[i]!;
+      d.life -= t;
+      d.x += d.vx * t;
+      d.y += d.vy * t;
+      d.vy += 420 * t;
+      if (d.life <= 0) this.dust.splice(i, 1);
+    }
 
     const timeLeft = Math.max(0, STAGE_MS.platform - elapsed);
     if (p.x >= GOAL_X) {
-      p.score += 420 + Math.floor(timeLeft / 100);
+      p.score += 480 + Math.floor(timeLeft / 90);
       this.platform.score = p.score;
       this.advanceStage(now, "tetris");
     } else if (elapsed >= STAGE_MS.platform) {
@@ -1207,6 +1333,7 @@ export class DemplarWarrior {
     const p = this.platform;
     const cam = p.cam;
     const tick = now;
+    const invuln = now < this.respawnUntil;
 
     drawSargaanoSky(ctx, w, h, groundY, cam, tick);
 
@@ -1216,22 +1343,25 @@ export class DemplarWarrior {
       drawSargaanoProp(ctx, prop, sx, groundY, tick);
     }
 
-    const abyssGrad = ctx.createLinearGradient(0, groundY + 20, 0, h);
-    abyssGrad.addColorStop(0, "#120818");
+    // Far abyss — keeps depth but floors above it look thick/solid
+    const abyssGrad = ctx.createLinearGradient(0, groundY + 24, 0, h);
+    abyssGrad.addColorStop(0, "#1a0c18");
     abyssGrad.addColorStop(1, "#06040c");
     ctx.fillStyle = abyssGrad;
-    ctx.fillRect(0, groundY + 20, w, h - groundY - 20);
+    ctx.fillRect(0, groundY + 24, w, h - groundY - 24);
 
-    for (let i = 0; i < 24; i++) {
-      const px = ((i * 80 - cam * 0.18) % (w + 80)) - 40;
-      ctx.fillStyle = i % 2 ? "rgba(58, 40, 72, 0.45)" : "rgba(34, 24, 48, 0.55)";
-      ctx.fillRect(px, groundY + 28, 48, h);
+    for (let i = 0; i < 28; i++) {
+      const px = ((i * 72 - cam * 0.22) % (w + 90)) - 45;
+      ctx.fillStyle = i % 2 ? "rgba(58, 40, 72, 0.4)" : "rgba(34, 24, 48, 0.5)";
+      ctx.fillRect(px, groundY + 36, 40, h);
     }
+
+    drawPitLips(ctx, p.plats, cam, groundY, w, tick);
 
     for (let pi = 0; pi < p.plats.length; pi++) {
       const plat = p.plats[pi]!;
       const sx = plat.x - cam;
-      if (sx < -120 || sx > w + 120) continue;
+      if (sx < -140 || sx > w + 140) continue;
       drawCharterPlat(ctx, sx, groundY, plat, pi);
     }
 
@@ -1242,11 +1372,30 @@ export class DemplarWarrior {
       drawCharterPickup(ctx, sx, groundY, pick, tick);
     }
 
+    for (const d of this.dust) {
+      const a = Math.max(0, d.life / d.max);
+      ctx.fillStyle = `rgba(232, 176, 80, ${a * 0.7})`;
+      ctx.fillRect(d.x - cam - 2, groundY + d.y - 2, 4, 4);
+    }
+
     const px = p.x - cam;
     const py = groundY + p.y;
-    const pose = !p.onGround ? (p.vy < -1.5 ? "jump" : "fall") : "run";
-    const frame = Math.floor(p.x / 14) % 2;
-    drawKnightPlatformer(ctx, px, py, { pose, frame, facing: 1, scale: 2 });
+    const pose = !p.onGround ? (p.vy < -80 ? "jump" : "fall") : "run";
+    const frame = Math.floor(p.x / 16) % 2;
+    const scale = Math.max(2.1, Math.min(3.0, h / 230));
+
+    // Soft shadow under boots when grounded — reads as standing on solid floor
+    if (p.onGround) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.beginPath();
+      ctx.ellipse(px, py + 2, 14 * (scale / 2), 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.save();
+    if (invuln && Math.floor(now / 80) % 2 === 0) ctx.globalAlpha = 0.45;
+    drawKnightPlatformer(ctx, px, py, { pose, frame, facing: 1, scale });
+    ctx.restore();
 
     const gx = GOAL_X - cam;
     if (gx > -40 && gx < w + 80) {
@@ -1262,10 +1411,10 @@ export class DemplarWarrior {
     ctx.lineWidth = 1;
     ctx.strokeRect(12, h - 22, w - 24, 8);
 
-    ctx.fillStyle = "rgba(248, 240, 255, 0.75)";
+    ctx.fillStyle = "rgba(248, 240, 255, 0.8)";
     ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("SARGAANO CAUSEWAY — TAP / SPACE TO LEAP", w / 2, h - 28);
+    ctx.fillText("SARGAANO CAUSEWAY — JUMP THE PITS · HOLD HIGHER", w / 2, h - 28);
     ctx.textAlign = "left";
   }
 
@@ -1290,7 +1439,7 @@ export class DemplarWarrior {
 
   hint(): string {
     if (this.stage === "brief") return "";
-    if (this.stage === "platform") return "Sprint the causeway — leap the pits to the finish gate";
+    if (this.stage === "platform") return "Sprint the causeway — jump clear pits, hold for higher hops";
     if (this.stage === "tetris") {
       return `70s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure`;
     }

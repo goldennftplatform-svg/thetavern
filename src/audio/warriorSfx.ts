@@ -88,3 +88,26 @@ export function playTetrisClear(rows: number): void {
   blip(base, 0.09, 0.22, "square");
   blip(base * 1.35, 0.07, 0.14, "triangle");
 }
+
+/** Sargaano sprint — hop. */
+export function playPlatformJump(): void {
+  blip(340, 0.07, 0.16, "square");
+  blip(520, 0.05, 0.1, "triangle");
+}
+
+/** Sargaano sprint — boots hit stone. */
+export function playPlatformLand(): void {
+  blip(110, 0.05, 0.2, "triangle");
+  blip(70, 0.04, 0.12, "square");
+}
+
+/** Coin / blade grab. */
+export function playPlatformPickup(kind: "coin" | "blade"): void {
+  if (kind === "coin") {
+    blip(660, 0.06, 0.14, "square");
+    blip(880, 0.05, 0.1, "triangle");
+  } else {
+    blip(420, 0.07, 0.16, "triangle");
+    blip(280, 0.08, 0.12, "square");
+  }
+}
