@@ -1,7 +1,7 @@
 {
   "version": 1,
   "skeleton": "moonwell-core16",
-  "notes": "Hybrid root+body fishing clips for Moonwell. Install https://github.com/nv-tlabs/ardy + HF Llama access for full CUDA ARDY.generate; current bake note: no torch/cuda (No module named 'torch')",
+  "notes": "Hybrid root+body fishing clips for Moonwell. Install https://github.com/nv-tlabs/ardy + HF Llama access for full CUDA ARDY.generate; current bake note: ardy + cuda available via .venv-ardy (clip adapter; full generate needs HF Llama-3-8B)",
   "clips": [
     {
       "id": "idle",

@@ -130,9 +130,9 @@ def try_ardy_cuda():
         try:
             import ardy  # type: ignore  # noqa: F401
 
-            return True, "ardy + cuda available (using lite bake as clip adapter; full ARDY step needs HF Llama)"
+            return True, "ardy + cuda available via .venv-ardy (clip adapter; full generate needs HF Llama-3-8B)"
         except Exception:
-            return False, "cuda ok; ardy package not installed — see https://github.com/nv-tlabs/ardy"
+            return False, "cuda ok; ardy not in this python — use npm run ardy:bake (.venv-ardy) or scripts/install-ardy.ps1"
     except Exception as exc:
         return False, f"no torch/cuda ({exc})"
 

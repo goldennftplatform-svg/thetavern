@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 *.log
+.venv-ardy/
+third_party/ardy/
+scripts/warrior-brief-qa.png
