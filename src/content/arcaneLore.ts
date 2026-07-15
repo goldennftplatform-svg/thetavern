@@ -47,23 +47,66 @@ export const enterPrologues = [
 ];
 
 export const castWhispers = [
-  "Channel the cast like a cantrip—<strong>hold</strong> to draw the sigil-gauge gold, <strong>release</strong> to send the hook through the veil.",
+  "Channel the cast like a cantrip—hold to draw the sigil-gauge gold, release to send the hook through the veil.",
   "The well watches wrist and will. Fill the golden band, then let the line fly.",
   "A tutor once said: power without release is just posture. Hold, breathe, cast.",
   "The moonwell remembers every cast—moonlight rings on the water like graded gold leaf.",
   "Tonight the tide hums a lesson no professor would dare assign. Listen with your wrist.",
+  "Your house mark stands at the rim. Cast as if the charter is watching.",
 ];
 
 export const waitWhispers = [
-  "The Moonwell opens its mouth one heartbeat at a time. When the rings tighten—<strong>strike</strong>!",
+  "The Moonwell opens its mouth one heartbeat at a time. When the rings tighten—strike!",
   "Patience is a spell with no incantation. Wait for the bite, then answer violence with violence.",
   "Something ancient nibbles below. Do not blink when the surface smiles.",
+  "Mist keeps your secrets. The bobber does not—watch it like a liar's eye.",
+  "Below the glass, rumor schools circle. They taste intentional silence.",
 ];
 
 export const reelWhispers = [
-  "The catch runs like a spell escaping its circle. Keep the bob in the <strong>jade band</strong>—Slack / Heave, or <kbd>A</kbd> / <kbd>D</kbd>.",
+  "The catch runs like a spell escaping its circle. Keep the peg in the jade band.",
   "Tension is the language of the deep. Too much line, it flees; too little, it snaps.",
   "The well tests your hands the way exams test memory—under pressure, without mercy.",
+  "Hold the green. Green is honesty. Red is a story you tell the table afterward.",
+  "Something with a charter-long memory is arguing with your rod. Argue better.",
+];
+
+/** Short toast banners — plain text, punchy. */
+export const castBarks = [
+  "HOLD the cast — release in the sweet marks",
+  "Draw gold in the gauge — then loose the hook",
+  "Wrist quiet, will loud — fill, then cast",
+];
+
+export const waitBarks = [
+  "Watch the bobber — STRIKE when mist surges",
+  "Patience first — violence on the ring",
+  "When the surface smiles — answer it",
+];
+
+export const reelBarks = [
+  "Slack · Heave — keep the peg in green",
+  "Jade band holds destiny — don't snap it",
+  "Fight fair in the green — flee the red",
+];
+
+/** Longer on-canvas lore ribbon (plain). */
+export const castLoreLines = [
+  "The rim grades casts the way tutors grade essays — by nerve and timing.",
+  "Lanterns lean when a true cast leaves the wrist.",
+  "Your house face watches the mist. So does whatever lives under it.",
+];
+
+export const waitLoreLines = [
+  "Convocation below: small lies circle, big ones wait for the strike.",
+  "The well prefers manners. Then it prefers hooks.",
+  "Somewhere a bell tower sleeps. Down here, appetites do not.",
+];
+
+export const reelLoreLines = [
+  "This is not a fish. It is a rumor with gills arguing the ledger.",
+  "Keep green or the hall will write a funnier ending than you want.",
+  "Charter steel sings when the line is honest. Listen.",
 ];
 
 export const resolveFlourish: Record<FishRarity, string[]> = {

@@ -23,6 +23,12 @@ import {
   renownTitleHint,
   resolveFlourish,
   seasonArcane,
+  castBarks,
+  waitBarks,
+  reelBarks,
+  castLoreLines,
+  waitLoreLines,
+  reelLoreLines,
 } from "./content/arcaneLore";
 import { isPoleId, poleById, type PoleId } from "./content/fishingPoles";
 import {
@@ -143,12 +149,6 @@ boardMq.addEventListener("change", syncBoardDetails);
 syncBoardDetails();
 document.documentElement.classList.add("gate-open");
 
-const PLAY_HINT = {
-  cast: "Hold cast — release in the sweet marks",
-  wait: "Watch the bobber — STRIKE when it surges",
-  reel: "Slack · Heave — keep the gold peg in green",
-} as const;
-
 const SEASON_TAG: Record<string, string> = {
   frost: "❄",
   bloom: "🌸",
@@ -159,6 +159,7 @@ const SEASON_TAG: Record<string, string> = {
 let autoPhaseTimer = 0;
 let toastTimer = 0;
 let stageBanner = "";
+let fishingLoreLine = "";
 
 function clearAutoPhase() {
   if (autoPhaseTimer) window.clearTimeout(autoPhaseTimer);
@@ -665,6 +666,10 @@ const xFeedReady = loadXLoreFeed();
 
 function fishBlurb(fishId: string): string {
   return fishCatalog.find((f) => f.id === fishId)?.blurb ?? "";
+}
+
+function fishGlyph(fishId: string): string {
+  return fishCatalog.find((f) => f.id === fishId)?.glyph ?? "🐟";
 }
 
 function fishDemplarHook(fishId: string): boolean {
@@ -1264,10 +1269,13 @@ function drawWell(phaseOverride?: GamePhase) {
       reelProgress: state.reelProgress,
       seasonTint: seasonTints[state.season] ?? "#8cb8d8",
       banner: stageBanner,
+      loreLine: fishingLoreLine,
       now: performance.now(),
       poleId: state.equippedPoleId,
       greenLo: green.lo,
       greenHi: green.hi,
+      avatarId: state.avatarId,
+      avatarCustom: state.avatarCustom,
     },
     w,
     h,
@@ -1279,6 +1287,7 @@ function setPhase(next: GamePhase) {
   elPlayShell.dataset.phase = next;
   clearAutoPhase();
   stageBanner = "";
+  fishingLoreLine = "";
   elStrike.hidden = true;
   elReel.hidden = true;
   elPrimary.hidden = false;
@@ -1300,7 +1309,8 @@ function setPhase(next: GamePhase) {
       primeFishingSfx();
       state.castPower = 0;
       elPrimary.textContent = "HOLD TO CAST";
-      fishingBanner(PLAY_HINT.cast);
+      fishingLoreLine = pickLine(castLoreLines);
+      fishingBanner(pickLine(castBarks));
       requestAnimationFrame(() => {
         resizeCanvas();
         startCastLoop();
@@ -1310,7 +1320,8 @@ function setPhase(next: GamePhase) {
       closeMenu();
       state.biteWindowOpen = false;
       struckBite = false;
-      fishingBanner(PLAY_HINT.wait);
+      fishingLoreLine = pickLine(waitLoreLines);
+      fishingBanner(pickLine(waitBarks));
       elPrimary.hidden = true;
       scheduleBiteWindow();
       waitFailsafeTimer = window.setTimeout(() => {
@@ -1323,7 +1334,8 @@ function setPhase(next: GamePhase) {
       state.reelProgress = 0;
       reelQuality = 0;
       reelFinishing = false;
-      fishingBanner(PLAY_HINT.reel);
+      fishingLoreLine = pickLine(reelLoreLines);
+      fishingBanner(pickLine(reelBarks));
       elPrimary.textContent = "LAND CATCH";
       elPrimary.hidden = false;
       elReel.hidden = false;
@@ -1339,7 +1351,15 @@ function setPhase(next: GamePhase) {
         state.lastPoleXpGain != null
           ? `Pole XP +${state.lastPoleXpGain} · total ${state.poleXp} · ${currentPole().icon} ${currentPole().name}`
           : undefined;
-      openMenu(catchResolveHtml(c, pickLine(resolveFlourish[c.rarity]), fishBlurb(c.fishId), poleNote));
+      openMenu(
+        catchResolveHtml(
+          c,
+          pickLine(resolveFlourish[c.rarity]),
+          fishBlurb(c.fishId),
+          poleNote,
+          fishGlyph(c.fishId),
+        ),
+      );
       elPrimary.hidden = true;
       wirePhaseHub();
       break;

@@ -38,38 +38,48 @@ export const fishCatalog: Array<{
   name: string;
   rarity: FishRarity;
   blurb: string;
+  glyph: string;
   demplarHook?: boolean;
 }> = [
   {
     id: "silver_darter",
     name: "Glimmer Minnow",
     rarity: "common",
-    blurb: "A honest bite—good for stew, small boasts, and passing the night without prophecy.",
+    glyph: "🐟",
+    blurb:
+      "An honest bite—scales like kitchen tin. Good for stew, small boasts, and a night that ends without prophecy knocking.",
   },
   {
     id: "riddle_eel",
     name: "Lex-Eel",
     rarity: "uncommon",
-    blurb: "It arrives in half-rhymes; you leave with half an answer and a full tankard of doubt.",
+    glyph: "🐍",
+    blurb:
+      "It arrives in half-rhymes and leaves you with half an answer, a full tankard of doubt, and a rumor the deck tables already know.",
   },
   {
     id: "moonscale_koi",
     name: "Astral Carp",
     rarity: "rare",
-    blurb: "Scales like pressed starlight. Candles lean. Conversations die mid-sentence.",
+    glyph: "✨",
+    blurb:
+      "Scales like pressed starlight. Candles lean. Conversations die mid-sentence. The rim chalks your name slower than usual.",
   },
   {
     id: "omen_perch",
     name: "Prophet Perch",
     rarity: "omen",
-    blurb: "Its eye reflects not your face, but the choice you pretend you have not made.",
+    glyph: "👁",
+    blurb:
+      "Its eye reflects not your face, but the choice you pretend you have not made. Omens swim; they do not apologize.",
   },
   {
     id: "demplar_glassfish",
     name: "Charter Wraithfish",
     rarity: "mythic",
+    glyph: "👻",
     blurb:
-      "Nearly clear—only the hook-shadow reads true. They say Demplar bought the first net with a promise the well still collects.",
+      "Nearly clear—only the hook-shadow reads true. They say Demplar bought the first net with a promise the well still collects, interest in teeth.",
     demplarHook: true,
   },
 ];

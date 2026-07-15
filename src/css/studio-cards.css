@@ -625,6 +625,34 @@ html.play-active .play-menu {
   color: var(--ink);
 }
 
+.studio-catch-hero {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 6px;
+}
+
+.studio-catch-glyph {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border: 2px solid rgba(232, 176, 80, 0.4);
+  background: radial-gradient(circle at 40% 30%, rgba(72, 48, 88, 0.55), rgba(8, 12, 18, 0.95));
+  font-size: 2.5rem;
+  box-shadow: 0 0 24px rgba(104, 184, 168, 0.18);
+}
+
+.studio-catch-glyph--uncommon { border-color: rgba(104, 232, 168, 0.45); }
+.studio-catch-glyph--rare { border-color: rgba(120, 160, 232, 0.5); }
+.studio-catch-glyph--omen {
+  border-color: rgba(200, 120, 220, 0.55);
+  box-shadow: 0 0 28px rgba(180, 100, 200, 0.25);
+}
+.studio-catch-glyph--mythic {
+  border-color: rgba(232, 176, 80, 0.7);
+  box-shadow: 0 0 32px rgba(232, 176, 80, 0.35);
+}
+
 .studio-score-delta {
   margin: 0;
   font-family: var(--font-body, "VT323", sans-serif);

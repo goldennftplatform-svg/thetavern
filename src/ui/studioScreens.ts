@@ -149,6 +149,7 @@ export function catchResolveHtml(
   flourish: string,
   blurb: string,
   poleNote?: string,
+  fishGlyph = "🐟",
 ): string {
   const omen = c.omen ? `<p class="studio-omen"><em>Omen:</em> ${escapeHtml(c.omen)}</p>` : "";
   const demplar = c.demplarTease
@@ -157,7 +158,10 @@ export function catchResolveHtml(
   const pole = poleNote ? `<p class="studio-pole-xp">${escapeHtml(poleNote)}</p>` : "";
   return studioStageHtml(
     "Catch inscribed",
-    `<p class="rarity-badge rarity-badge--${c.rarity}">${c.rarity}</p>
+    `<div class="studio-catch-hero" aria-hidden="true">
+      <span class="studio-catch-glyph studio-catch-glyph--${c.rarity}">${fishGlyph}</span>
+    </div>
+    <p class="rarity-badge rarity-badge--${c.rarity}">${c.rarity}</p>
     <h3 class="studio-catch-name">${escapeHtml(c.name)}</h3>
     <p class="studio-score-delta">+${c.renown} Legend · +${c.tokens} ◎</p>
     <p class="studio-flourish">${flourish}</p>

@@ -5,6 +5,7 @@
 
 import type { FishingPole } from "../content/fishingPoles";
 import { poleById, STARTER_POLE_ID } from "../content/fishingPoles";
+import type { HouseAvatarId } from "../content/houseAvatars";
 import type { GamePhase } from "../game/types";
 import {
   fishingClipId,
@@ -34,6 +35,9 @@ export type DrawCtx = {
   poleId?: string;
   greenLo?: number;
   greenHi?: number;
+  avatarId?: HouseAvatarId | string;
+  avatarCustom?: string;
+  loreLine?: string;
 };
 
 type Splash = { x: number; y: number; born: number; power: number };
@@ -137,6 +141,16 @@ function floorRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h));
 }
 
+function mixTint(hex: string, alpha: number): string {
+  // Approximate season haze over deep water — keeps sky from reading flat black.
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return `rgba(30, 40, 55, ${alpha})`;
+  const r = parseInt(m[1]!, 16);
+  const g = parseInt(m[2]!, 16);
+  const b = parseInt(m[3]!, 16);
+  return `rgba(${Math.floor(r * 0.35)}, ${Math.floor(g * 0.4)}, ${Math.floor(b * 0.45)}, 1)`;
+}
+
 function drawEllipseFill(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -151,27 +165,42 @@ function drawEllipseFill(
 
 function drawKnightHeraldry(ctx2d: CanvasRenderingContext2D, w: number, h: number, pulse: number) {
   const groundY = Math.floor(h * 0.56);
-  const shimmer = 0.35 + Math.sin(pulse * 2) * 0.1;
+  const shimmer = 0.4 + Math.sin(pulse * 2) * 0.12;
 
-  ctx2d.fillStyle = "#1a1410";
-  floorRect(ctx2d, w * 0.04, groundY - 42, 10, 38);
-  floorRect(ctx2d, w * 0.92, groundY - 38, 10, 34);
-  ctx2d.fillStyle = `rgba(232, 176, 80, ${shimmer})`;
-  ctx2d.font = '7px "Press Start 2P", monospace';
-  ctx2d.fillText("⚔", w * 0.045, groundY - 48);
-  ctx2d.fillText("⚔", w * 0.925, groundY - 44);
+  // Charter posts with banners
+  for (const side of [0.04, 0.92] as const) {
+    const px = w * side;
+    const tall = side < 0.5 ? 48 : 44;
+    ctx2d.fillStyle = "#1a1410";
+    floorRect(ctx2d, px, groundY - tall, 12, tall);
+    ctx2d.fillStyle = "#2a2018";
+    floorRect(ctx2d, px - 2, groundY - tall - 4, 16, 6);
+    ctx2d.fillStyle = `rgba(232, 176, 80, ${shimmer})`;
+    floorRect(ctx2d, px + 2, groundY - tall + 6, 8, 3);
+    // hanging charter cloth
+    ctx2d.fillStyle = "#483058";
+    floorRect(ctx2d, px + 12, groundY - tall + 10, 18, 26);
+    ctx2d.fillStyle = `rgba(232, 176, 80, ${0.45 + shimmer * 0.2})`;
+    floorRect(ctx2d, px + 14, groundY - tall + 14, 14, 2);
+    ctx2d.font = `${Math.max(9, Math.floor(w * 0.022))}px "VT323", monospace`;
+    ctx2d.fillText("⚔", px + 16, groundY - tall + 30);
+  }
 
+  // Far tavern silhouette plaque
   ctx2d.fillStyle = "rgba(72, 48, 88, 0.55)";
-  floorRect(ctx2d, 8, groundY - 72, 22, 52);
-  floorRect(ctx2d, w - 30, groundY - 68, 22, 48);
-  ctx2d.fillStyle = `rgba(232, 176, 80, ${0.25 + shimmer * 0.3})`;
-  floorRect(ctx2d, 12, groundY - 66, 14, 6);
-  floorRect(ctx2d, w - 26, groundY - 62, 14, 6);
+  floorRect(ctx2d, 8, groundY - 78, 26, 56);
+  floorRect(ctx2d, w - 34, groundY - 74, 26, 52);
+  ctx2d.fillStyle = `rgba(232, 176, 80, ${0.28 + shimmer * 0.3})`;
+  floorRect(ctx2d, 12, groundY - 72, 18, 5);
+  floorRect(ctx2d, w - 30, groundY - 68, 18, 5);
 
-  ctx2d.fillStyle = `rgba(200, 160, 80, ${0.12 + shimmer * 0.08})`;
-  ctx2d.font = '6px "Press Start 2P", monospace';
+  ctx2d.fillStyle = `rgba(232, 200, 140, ${0.22 + shimmer * 0.1})`;
+  ctx2d.font = `${Math.max(11, Math.floor(w * 0.028))}px "VT323", monospace`;
   ctx2d.textAlign = "center";
-  ctx2d.fillText("MOONWELL TAVERN", w / 2, groundY - 52);
+  ctx2d.fillText("MOONWELL · RIM CHARTER", w / 2, groundY - 54);
+  ctx2d.fillStyle = `rgba(168, 200, 184, ${0.35 + shimmer * 0.1})`;
+  ctx2d.font = `${Math.max(10, Math.floor(w * 0.024))}px "VT323", monospace`;
+  ctx2d.fillText("cast well · read mist · keep the tale", w / 2, groundY - 40);
   ctx2d.textAlign = "left";
 }
 
@@ -267,10 +296,9 @@ function drawBobber(
   let bobX = cx;
   let bobY = cy - 2;
   const pulse = d.waitPulse;
+  const lureFlying = d.phase === "fish_cast" && now < castArcUntil;
 
-  if (d.phase === "fish_cast") {
-    // Bobber sits at rim until cast lands
-    if (now < castArcUntil) return;
+  if (d.phase === "fish_cast" && !lureFlying) {
     bobY = cy - 2;
   }
 
@@ -287,23 +315,30 @@ function drawBobber(
     bobY = cy - 2 + Math.sin(now * 0.02) * 3 + (d.reelTension > 0.7 || d.reelTension < 0.3 ? 4 : 0);
   }
 
-  // ARDY hybrid angler (root + body) — rod hangs from right wrist tip.
+  // Charter angler stays on the rim even while the lure arcs — stick figure days are over.
   const pose = resolveAnglerPose(d, now);
-  const ox = w * 0.15;
+  const ox = w * 0.16;
   const oy = h * 0.72;
-  const scale = Math.min(w, h) * 0.22;
+  const scale = Math.min(w, h) * 0.24;
+  const pole = poleById(d.poleId ?? STARTER_POLE_ID);
   const wrist = drawArdySkeleton(ctx, pose, {
     ox,
     oy,
     scale,
-    ink: "#e0d2b0",
-    glow: "rgba(232, 176, 80, 0.22)",
-    line: Math.max(2, Math.floor(scale * 0.035)),
+    glow: pole.accents.glow ?? "rgba(232, 176, 80, 0.25)",
+    line: Math.max(3, Math.floor(scale * 0.038)),
     rodWrist: "R",
+    avatarId: d.avatarId,
+    avatarCustom: d.avatarCustom,
+    accent: pole.accents.tip,
+    cloak: "#483058",
   });
   const rodX = wrist.x;
-  const rodY = wrist.y - scale * 0.12;
-  const pole = poleById(d.poleId ?? STARTER_POLE_ID);
+  const rodY = wrist.y - scale * 0.08;
+  drawEquippedPole(ctx, rodX, rodY, pole, now);
+
+  if (lureFlying) return;
+
   const lo = d.greenLo ?? 0.34;
   const hi = d.greenHi ?? 0.66;
   const lineColor =
@@ -318,8 +353,6 @@ function drawBobber(
   ctx.moveTo(rodX, rodY);
   ctx.quadraticCurveTo((rodX + bobX) / 2, Math.min(rodY, bobY) - 18, bobX, bobY);
   ctx.stroke();
-
-  drawEquippedPole(ctx, rodX, rodY, pole, now);
 
   // Bobber body
   const flash = now < biteFlashUntil || now < strikeFlashUntil;
@@ -419,22 +452,31 @@ function drawFishShadow(
   ctx.save();
   ctx.translate(fx, fy);
   ctx.rotate(Math.sin(now * 0.03) * (thrash ? 0.35 : 0.12));
-  ctx.fillStyle = thrash ? "rgba(232, 120, 80, 0.35)" : "rgba(40, 80, 90, 0.45)";
+  // Deeper silhouette + rim glow so the catch feels alive under mist
+  ctx.fillStyle = thrash ? "rgba(232, 120, 80, 0.22)" : "rgba(104, 184, 168, 0.18)";
   ctx.beginPath();
-  ctx.ellipse(0, 0, 22, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 30, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = thrash ? "rgba(232, 120, 80, 0.42)" : "rgba(24, 56, 68, 0.7)";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 24, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(18, 0);
-  ctx.lineTo(28, -8);
-  ctx.lineTo(28, 8);
+  ctx.moveTo(20, 0);
+  ctx.lineTo(32, -10);
+  ctx.lineTo(32, 10);
   ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(232, 220, 160, 0.55)";
+  ctx.beginPath();
+  ctx.arc(-8, -2, 2.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   if (thrash) {
-    ctx.fillStyle = "rgba(168, 216, 200, 0.35)";
-    for (let i = 0; i < 4; i++) {
-      floorRect(ctx, fx - 10 + i * 6, fy - ry * 0.6 - ((now / 40 + i * 7) % 10), 2, 2);
+    ctx.fillStyle = "rgba(168, 216, 200, 0.4)";
+    for (let i = 0; i < 5; i++) {
+      floorRect(ctx, fx - 12 + i * 7, fy - ry * 0.6 - ((now / 40 + i * 7) % 12), 2, 2);
     }
   }
 }
@@ -531,8 +573,9 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
 
   const sky = ctx2d.createLinearGradient(0, 0, 0, skyH);
   sky.addColorStop(0, "#050810");
-  sky.addColorStop(0.55, "#0c1420");
-  sky.addColorStop(1, "#162030");
+  sky.addColorStop(0.45, "#0c1420");
+  sky.addColorStop(0.85, "#162030");
+  sky.addColorStop(1, d.seasonTint ? mixTint(d.seasonTint, 0.18) : "#1a2838");
   ctx2d.fillStyle = sky;
   floorRect(ctx2d, 0, 0, w, skyH + 2);
 
@@ -666,20 +709,37 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
 
   drawMeters(ctx2d, { ...d, now }, w, h);
 
+  if (d.loreLine) {
+    const lore = d.loreLine.length > 64 ? `${d.loreLine.slice(0, 62)}…` : d.loreLine;
+    ctx2d.font = `${Math.max(12, Math.floor(w * 0.032))}px "VT323", monospace`;
+    const tw = Math.min(w * 0.92, ctx2d.measureText(lore).width + 24);
+    const bx = Math.floor((w - tw) / 2);
+    const by = Math.floor(h * 0.085);
+    ctx2d.fillStyle = "rgba(8, 10, 16, 0.78)";
+    floorRect(ctx2d, bx, by, tw, 28);
+    ctx2d.strokeStyle = "rgba(152, 144, 200, 0.55)";
+    ctx2d.lineWidth = 1;
+    ctx2d.strokeRect(bx + 0.5, by + 0.5, tw - 1, 27);
+    ctx2d.fillStyle = "#d8d0e8";
+    ctx2d.textAlign = "center";
+    ctx2d.fillText(lore, w / 2, by + 18);
+    ctx2d.textAlign = "left";
+  }
+
   if (d.banner) {
-    const label = d.banner.length > 28 ? `${d.banner.slice(0, 26)}…` : d.banner;
-    ctx2d.font = `${Math.max(10, w * 0.026)}px "VT323", monospace`;
+    const label = d.banner.length > 32 ? `${d.banner.slice(0, 30)}…` : d.banner;
+    ctx2d.font = `${Math.max(11, w * 0.028)}px "VT323", monospace`;
     const tw = ctx2d.measureText(label).width;
     const bx = Math.floor((w - tw) / 2) - 14;
-    const by = Math.floor(h * 0.12);
-    ctx2d.fillStyle = "rgba(0, 0, 0, 0.7)";
-    floorRect(ctx2d, bx, by, tw + 28, 26);
+    const by = Math.floor(h * (d.loreLine ? 0.155 : 0.12));
+    ctx2d.fillStyle = "rgba(0, 0, 0, 0.72)";
+    floorRect(ctx2d, bx, by, tw + 28, 24);
     ctx2d.strokeStyle = "#e8b050";
     ctx2d.lineWidth = 2;
-    ctx2d.strokeRect(bx, by, tw + 28, 26);
+    ctx2d.strokeRect(bx, by, tw + 28, 24);
     ctx2d.fillStyle = "#e8b050";
     ctx2d.textAlign = "center";
-    ctx2d.fillText(label, w / 2, by + 17);
+    ctx2d.fillText(label, w / 2, by + 16);
     ctx2d.textAlign = "left";
   }
 }
