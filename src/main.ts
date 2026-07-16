@@ -108,6 +108,7 @@ import {
   ensureXLoreFeed,
   loadXLoreFeed,
   onXLoreFeedUpdate,
+  overheardTeasers,
   refreshXLoreFeed,
 } from "./lore/xFeed";
 import { hallNoticeEntries, renderNoticeCardLi } from "./ui/notices";
@@ -720,6 +721,7 @@ function buildWellHubHtml(): string {
     formatCharterDayLabel(charterDayId()),
     crestSrc,
     poleRackBlurb(poleProgressFromState()),
+    overheardTeasers(ensureXLoreFeed(), 3),
   );
 }
 
@@ -890,7 +892,7 @@ function openNeighborLore() {
   try {
     show(ensureXLoreFeed());
   } catch {
-    showToast("Neighbor lore relay hiccup — hard-refresh and try again.");
+    showToast("Neighbor lore relay hiccup — hard-refresh and try again.", 3200, { force: true });
     return;
   }
   void refreshXLoreFeed(true)
@@ -899,7 +901,7 @@ function openNeighborLore() {
       try {
         show(ensureXLoreFeed());
       } catch {
-        showToast("Neighbor lore relay hiccup — hard-refresh and try again.");
+        showToast("Neighbor lore relay hiccup — hard-refresh and try again.", 3200, { force: true });
       }
     });
 }
@@ -1794,6 +1796,10 @@ window.addEventListener("resize", resizeCanvas);
 
 function fillNotices() {
   elNotices.innerHTML = hallNoticeEntries().map(renderNoticeCardLi).join("");
+  if (state.phase === "well" && !elPlayMenu.hidden) {
+    openMenu(buildWellHubHtml());
+    elPrimary.hidden = true;
+  }
 }
 
 onXLoreFeedUpdate(() => fillNotices());

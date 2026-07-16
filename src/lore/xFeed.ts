@@ -243,19 +243,38 @@ export function isRealXPost(p: XLorePost): boolean {
   return /^\d{10,}$/.test(p.id);
 }
 
-/** Neighbor lore doom scroll — real @DemplarOfficial tweets only, newest first. */
+/** Neighbor lore doom scroll — real @DemplarOfficial tweets first; charter seeds fill gaps. */
 export function heraldScrollPosts(feed: XLoreFeed): XLorePost[] {
-  return feed.posts
+  const real = feed.posts
     .filter(isRealXPost)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, X_LORE_FEED_CAP);
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  if (real.length >= 12) return real.slice(0, X_LORE_FEED_CAP);
+
+  const seeds = feed.posts
+    .filter((p) => !isRealXPost(p))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const merged = [...real];
+  const seen = new Set(real.map((p) => p.id));
+  for (const p of seeds) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    merged.push(p);
+    if (merged.length >= X_LORE_FEED_CAP) break;
+  }
+  return merged;
 }
 
 export function heraldScrollMeta(feed: XLoreFeed, posts: XLorePost[]): string {
   const synced = xFeedSyncedLabel(feed);
-  if (!posts.length) return `${synced} · no live syndication — showing charter fallback on X link below`;
+  const live = posts.filter(isRealXPost).length;
+  const seed = posts.length - live;
+  if (!posts.length) return `${synced} · relay quiet — open @DemplarOfficial on X`;
   const newest = formatXPostAge(posts[0]!.createdAt);
-  return `${synced} · <strong>${posts.length}</strong> live posts · newest on X <strong>${newest}</strong> ago`;
+  if (live && seed) {
+    return `${synced} · <strong>${live}</strong> live + <strong>${seed}</strong> charter · newest <strong>${newest}</strong> ago`;
+  }
+  if (live) return `${synced} · <strong>${live}</strong> live posts · newest on X <strong>${newest}</strong> ago`;
+  return `${synced} · charter wire · <strong>${seed}</strong> missives (live relay catching up)`;
 }
 
 /** Cached relay, or charter seed — never blocks on network. */
@@ -270,7 +289,17 @@ export function ensureXLoreFeed(): XLoreFeed {
 export function pickXPost(feed?: XLoreFeed | null): XLorePost | null {
   const f = feed ?? cached;
   if (!f?.posts.length) return null;
-  return f.posts[Math.floor(Math.random() * f.posts.length)]!;
+  const live = f.posts.filter(isRealXPost);
+  const pool = live.length ? live : f.posts;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
+/** A few overheard lines for the Great Table — prefer live X. */
+export function overheardTeasers(feed?: XLoreFeed | null, limit = 3): XLorePost[] {
+  const f = feed ?? cached ?? seedFeed();
+  const live = f.posts.filter(isRealXPost).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const pool = live.length ? live : f.posts;
+  return pool.slice(0, Math.max(1, limit));
 }
 
 export function pickXPostText(feed?: XLoreFeed | null): string | null {

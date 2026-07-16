@@ -2,7 +2,7 @@ import { demplarNotice } from "../content/lore";
 import { knightNoticeBoard } from "../content/demplarKnights";
 import { pickLine, noticeBoardArcane } from "../content/arcaneLore";
 import { tonightUtc } from "../content/tavernNights";
-import { getXLoreFeed } from "../lore/xFeed";
+import { getXLoreFeed, isRealXPost } from "../lore/xFeed";
 
 export type NoticeKind = "rim" | "overheard" | "hall" | "tonight" | "archive";
 
@@ -45,8 +45,9 @@ export function hallNoticeEntries(): NoticeEntry[] {
   });
 
   const posts = feed?.posts ?? [];
-  const shuffled = posts.slice().sort(() => Math.random() - 0.5);
-  for (const p of shuffled.slice(0, 3)) {
+  const live = posts.filter(isRealXPost);
+  const pool = (live.length ? live : posts).slice().sort(() => Math.random() - 0.5);
+  for (const p of pool.slice(0, 4)) {
     const t = p.text.length > 140 ? `${p.text.slice(0, 138)}…` : p.text;
     push({
       kind: "overheard",

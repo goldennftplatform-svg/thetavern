@@ -1006,22 +1006,30 @@ html.play-active .play-menu {
   align-items: stretch;
   gap: 10px;
   width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .studio-stage--herald .studio-stage-lead,
 .studio-stage--herald .studio-lore-line--hint {
   max-width: none;
   text-align: left;
+  flex: 0 0 auto;
 }
 
 .studio-x-scroll {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 12rem;
   max-height: none;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 2px 12px;
+  padding: 8px 4px 16px;
   margin: 0 -2px;
   border-top: 1px solid rgba(152, 144, 200, 0.22);
   border-bottom: 1px solid rgba(152, 144, 200, 0.15);

@@ -649,6 +649,74 @@ html.tavern-mobile .hub-pick {
   font-size: 0.95rem;
 }
 
+.tavern-overheard {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 36rem);
+  margin: 4px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(152, 144, 200, 0.35);
+  background: linear-gradient(165deg, rgba(40, 28, 56, 0.88), rgba(10, 12, 20, 0.92));
+}
+
+.tavern-overheard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8b050;
+}
+
+.tavern-overheard__more {
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.tavern-overheard__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tavern-overheard__item {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid rgba(152, 144, 200, 0.55);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.tavern-overheard__item--live {
+  border-left-color: rgba(104, 232, 168, 0.65);
+}
+
+.tavern-overheard__who {
+  display: block;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1rem;
+  color: #9890c8;
+}
+
+.tavern-overheard__text {
+  margin: 4px 0 0;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.1rem;
+  line-height: 1.3;
+  color: #e8e0f0;
+}
+
+.tavern-table-scene__lore--wire {
+  text-align: center;
+}
+
 .tavern-table-scene__footer {
   display: flex;
   flex-wrap: wrap;

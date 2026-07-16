@@ -7,8 +7,8 @@ import type { FoodId } from "../content/tavernNights";
 import { FISHING_POLES, type FishingPole, type PoleId } from "../content/fishingPoles";
 import { nextPoleUnlock } from "../content/fishingPoles";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
-import type { XLoreFeed } from "../lore/xFeed";
-import { formatXPostAge, heraldScrollMeta, heraldScrollPosts } from "../lore/xFeed";
+import type { XLoreFeed, XLorePost } from "../lore/xFeed";
+import { formatXPostAge, heraldScrollMeta, heraldScrollPosts, isRealXPost } from "../lore/xFeed";
 import type { MobileHallSnapshot } from "../hall/mobileHall";
 import {
   mobileHallFeedHtml,
@@ -73,6 +73,7 @@ export function hubWellHtml(
   charterNight: string,
   crestSrc?: string,
   poleHint?: string,
+  overheard: XLorePost[] = [],
 ): string {
   const tableBg = `${import.meta.env.BASE_URL}media/tavern-table-bg.png`;
   const titleLine =
@@ -90,6 +91,28 @@ export function hubWellHtml(
     className: "tavern-table-scene__avatar",
     interactive: true,
   });
+  const wire =
+    overheard.length > 0
+      ? `<section class="tavern-overheard" aria-label="Overheard from X">
+      <header class="tavern-overheard__head">
+        <span>⚔ Overheard on X</span>
+        <button type="button" class="btn ghost tavern-overheard__more" data-hub-action="herald_scroll">Doom scroll ↓</button>
+      </header>
+      <ul class="tavern-overheard__list">
+        ${overheard
+          .map((p) => {
+            const live = isRealXPost(p) ? "live" : "charter";
+            const text = p.text.length > 110 ? `${p.text.slice(0, 108)}…` : p.text;
+            return `<li class="tavern-overheard__item tavern-overheard__item--${live}">
+              <span class="tavern-overheard__who">@${escapeHtml(p.handle.replace(/^@/, ""))} · ${formatXPostAge(p.createdAt)}</span>
+              <p class="tavern-overheard__text">${escapeHtml(text)}</p>
+            </li>`;
+          })
+          .join("")}
+      </ul>
+    </section>`
+      : `<p class="tavern-table-scene__lore tavern-table-scene__lore--wire"><button type="button" class="btn ghost" data-hub-action="herald_scroll">⚔ Neighbor lore / X wire ↓</button></p>`;
+
   return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
     <div class="tavern-table-scene__veil" aria-hidden="true"></div>
     <header class="tavern-table-scene__head">
@@ -132,13 +155,14 @@ export function hubWellHtml(
     <p class="tavern-table-scene__verse">${escapeHtml(s.seasonVerse)}</p>
     <p class="tavern-table-scene__lore">${escapeHtml(hubVerse)}</p>
     <p class="tavern-table-scene__lore tavern-table-scene__lore--extra">${escapeHtml(extraLore)}</p>
+    ${wire}
 
     <footer class="tavern-table-scene__footer">
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="avatar_closet">☺ Face</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="hall_view">📺 Hall view</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="feast_menu">🍖 Kitchen</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="ledger">Ledger</button>
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="herald_scroll">Neighbor lore ↓</button>
+      <button type="button" class="btn primary tavern-table-scene__link" data-hub-action="herald_scroll">⚔ Neighbor lore ↓</button>
       <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="charter">Rim notice</button>
     </footer>
   </div>`;
@@ -460,11 +484,11 @@ export function heraldScrollStudioHtml(s: RunSnapshot, feed: XLoreFeed): string 
     </article>`,
         )
         .join("")
-    : `<p class="studio-lore-line studio-lore-line--hint">Live syndication is quiet — open @DemplarOfficial on X for tonight&apos;s wire. Charter seed lines stay in the Ledger, not here.</p>`;
+    : `<p class="studio-lore-line studio-lore-line--hint">Wire is quiet for a breath — charter missives still ride the Ledger. Follow @DemplarOfficial on X, then pull again.</p>`;
 
   return studioStageHtml(
     "Overheard from X",
-    `<p class="studio-stage-lead">Doom scroll neighbor lore — live relay from @DemplarOfficial (real posts only). ${ally}</p>
+    `<p class="studio-stage-lead">Doom scroll neighbor lore — @DemplarOfficial live relay + charter wire. ${ally}</p>
     <p class="studio-lore-line studio-lore-line--hint">${heraldScrollMeta(feed, posts)}</p>
     <div class="studio-x-scroll" role="feed" aria-label="Relay of Demplar posts from X">${cards}</div>`,
     "studio-stage--herald",
