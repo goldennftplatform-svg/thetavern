@@ -180,7 +180,7 @@ const SARGAANO = {
 function drawSargaanoSky(
   ctx: CanvasRenderingContext2D,
   w: number,
-  h: number,
+  _h: number,
   groundY: number,
   cam: number,
   tick: number,
@@ -498,7 +498,7 @@ export class DemplarWarrior {
   stage: DemplarStage = "brief";
   stageStarted = 0;
   banner = "TAVERN ARCADE";
-  subBanner = warriorTrialNames.platform;
+  subBanner: string = warriorTrialNames.platform;
   done = false;
 
   private jumpHeld = false;
@@ -1136,7 +1136,7 @@ export class DemplarWarrior {
     }
   }
 
-  private drawTetrisTimer(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
+  private drawTetrisTimer(ctx: CanvasRenderingContext2D, w: number, _h: number, now: number) {
     if (this.tetrisHandoffAt > 0 || this.inStageBreak(now)) return;
     const left = this.tetrisSecondsLeft(now);
     const pct = Math.max(0, Math.min(1, left / (STAGE_MS.tetris / 1000)));
@@ -1187,9 +1187,9 @@ export class DemplarWarrior {
     ctx.textBaseline = "alphabetic";
   }
 
-  private drawHud(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
+  private drawHud(ctx: CanvasRenderingContext2D, w: number, _h: number, now: number) {
     const elapsed = this.stageElapsed(now);
-    let timeMax = STAGE_MS.platform;
+    let timeMax: number = STAGE_MS.platform;
     if (this.stage === "tetris") timeMax = STAGE_MS.tetris;
     if (this.stage === "drmario") timeMax = STAGE_MS.drmario;
     const timeLeft =

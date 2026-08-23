@@ -150,7 +150,8 @@ html.tavern-mobile .play-hud {
 }
 
 html.tavern-mobile .play-hud .hud-deck,
-html.tavern-mobile .play-hud .hud-buff {
+html.tavern-mobile .play-hud .hud-buff,
+html.tavern-mobile .play-hud .hud-chain {
   display: none;
 }
 

@@ -16,7 +16,6 @@ import {
 } from "../bigboard/hallLeaderboard";
 import { charterDayId, formatCharterDayLabel } from "../game/charterDay";
 import {
-  formatPatronCaption,
   type HallPatronIdentity,
   type HallStakeSnap,
   type HallTrophy,

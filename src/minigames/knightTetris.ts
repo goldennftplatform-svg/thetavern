@@ -35,12 +35,15 @@ type ActivePiece = {
   y: number;
 };
 
-function rotateCells(cells: readonly [number, number][], rot: number): [number, number][] {
+function rotateCells(
+  cells: readonly (readonly [number, number])[],
+  rot: number,
+): [number, number][] {
   return cells.map(([x, y]) => {
-    if (rot === 0) return [x, y];
-    if (rot === 1) return [-y, x];
-    if (rot === 2) return [-x, -y];
-    return [y, -x];
+    if (rot === 0) return [x, y] as [number, number];
+    if (rot === 1) return [-y, x] as [number, number];
+    if (rot === 2) return [-x, -y] as [number, number];
+    return [y, -x] as [number, number];
   });
 }
 

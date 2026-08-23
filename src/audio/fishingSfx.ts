@@ -98,3 +98,18 @@ export function playLandThump(): void {
   tone(70, 0.16, 0.16, "sine", 0.45);
   noiseBurst(0.1, 0.12);
 }
+
+/** Bright two-note ping when the cast lands in the sweet window. */
+export function playPerfectChime(): void {
+  tone(660, 0.09, 0.1, "triangle", 1.0);
+  window.setTimeout(() => tone(990, 0.12, 0.09, "triangle", 1.0), 70);
+}
+
+/** Rarity-keyed arpeggio when a catch is inscribed. */
+export function playCelebrationArp(tier: number): void {
+  const base = [523, 659, 784, 1046];
+  const notes = tier >= 3 ? [523, 659, 784, 1046, 1318] : base.slice(0, 3 + Math.min(1, tier));
+  notes.forEach((f, i) => {
+    window.setTimeout(() => tone(f, 0.14, 0.085, "square", 1.0), i * 85);
+  });
+}

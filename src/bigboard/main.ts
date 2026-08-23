@@ -433,7 +433,6 @@ function showSpotlight(deed: Deed | null, lines: { main: string; sub?: string })
   spotlightEl.hidden = false;
 }
 
-let whisperLine = "";
 let whisperTimer = 0;
 const lastBiteSplash = new Map<string, number>();
 let demoRunning = false;
@@ -445,20 +444,16 @@ function stopDemoEvening() {
 
 function setWhisper(line: string) {
   window.clearTimeout(whisperTimer);
-  whisperLine = line;
   const t = line.length > 88 ? `${line.slice(0, 86)}…` : line;
   elMapWhisper.textContent = t;
   if (!line) return;
   whisperTimer = window.setTimeout(() => {
-    whisperLine = "";
     elMapWhisper.textContent = "";
   }, WHISPER_MS);
 }
 
 let patronList: MapPatron[] = DEMO_PATRONS.map((p) => ({ name: p.name }));
 let hallHasLivePatrons = false;
-let flashLine = "";
-let flashTimer = 0;
 let calloutTimer = 0;
 let animTick = 0;
 let factIndex = 0;
@@ -909,17 +904,6 @@ function startAnimLoop() {
   requestAnimationFrame(tick);
 }
 
-function setFlash(line: string, from?: string) {
-  flashLine = line;
-  window.clearTimeout(flashTimer);
-  flashTimer = window.setTimeout(() => {
-    flashLine = "";
-    redrawMap();
-  }, CALLOUT_MS);
-  if (from) pulsePatron(from);
-  redrawMap();
-}
-
 function flashForDeed(d: Deed): string {
   const { main } = deedLines(d);
   const who = d.from ? `${d.from}: ` : "";
@@ -1185,7 +1169,7 @@ async function main() {
 
   goLiveHall(`Live hall · ${night.title}`);
   patronList = [];
-  client!.socket.emit("hall:deed:request");
+  client?.socket?.emit("hall:deed:request");
   setWhisper("Live hall online — cast in Play to light up the map.");
 }
 

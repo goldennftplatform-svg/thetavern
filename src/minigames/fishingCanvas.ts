@@ -42,15 +42,37 @@ export type DrawCtx = {
 
 type Splash = { x: number; y: number; born: number; power: number };
 type Ripple = { born: number; maxR: number };
+type Confetto = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  born: number;
+  life: number;
+  size: number;
+  color: string;
+  spin: number;
+};
 
 let castArcUntil = 0;
 let castArcPower = 0.5;
 let castArcBorn = 0;
 let splashes: Splash[] = [];
 let ripples: Ripple[] = [];
+let confetti: Confetto[] = [];
 let biteFlashUntil = 0;
 let strikeFlashUntil = 0;
 let landFlashUntil = 0;
+let perfectFlashUntil = 0;
+
+/** Rarity → celebration palette (confetti + glow). */
+export const RARITY_COLORS: Record<string, string[]> = {
+  common: ["#a8b0b8", "#c8d0d8", "#8cb8d8"],
+  uncommon: ["#68e8a8", "#a8f0c8", "#78d0b8"],
+  rare: ["#98b8e8", "#6898e8", "#d8e4f8"],
+  omen: ["#c898d8", "#a868c8", "#e8c8f0"],
+  mythic: ["#e8b050", "#f0d878", "#fff0c0", "#e87850"],
+};
 
 const poleSprites = new Map<string, HTMLImageElement | null>();
 const ardyClipCache = new Map<string, ArdyClip | null>();
@@ -135,6 +157,70 @@ export function triggerLandFlash(): void {
   landFlashUntil = performance.now() + 700;
   ripples.push({ born: performance.now(), maxR: 70 });
   splashes.push({ x: 0.5, y: 0.56, born: performance.now(), power: 1 });
+}
+
+/** Gold ring + sparkle when the cast lands in the sweet window. */
+export function triggerPerfectCast(): void {
+  const now = performance.now();
+  perfectFlashUntil = now + 620;
+  ripples.push({ born: now, maxR: 54 });
+  splashes.push({ x: 0.5, y: 0.58, born: now, power: 0.7 });
+}
+
+/** Full confetti burst — fires on catch resolve, palette keyed to rarity. */
+export function triggerCelebration(rarity: string): void {
+  const now = performance.now();
+  const palette = RARITY_COLORS[rarity] ?? RARITY_COLORS.common!;
+  const burst = rarity === "mythic" || rarity === "omen" ? 46 : 30;
+  for (let i = 0; i < burst; i++) {
+    const ang = (i / burst) * Math.PI * 2 + Math.random() * 0.4;
+    const speed = 90 + Math.random() * 190;
+    confetti.push({
+      x: 0.5,
+      y: 0.55,
+      vx: Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed - 130,
+      born: now + Math.random() * 120,
+      life: 900 + Math.random() * 500,
+      size: 3 + Math.random() * 3,
+      color: palette[Math.floor(Math.random() * palette.length)]!,
+      spin: (Math.random() - 0.5) * 12,
+    });
+  }
+  if (confetti.length > 140) confetti.splice(0, confetti.length - 140);
+}
+
+let lastConfettiT = 0;
+
+function drawConfetti(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  now: number,
+) {
+  confetti = confetti.filter((c) => now - c.born < c.life);
+  if (!confetti.length) {
+    lastConfettiT = now;
+    return;
+  }
+  const dt = Math.max(0, Math.min(48, now - lastConfettiT)) / 1000;
+  lastConfettiT = now;
+  const floorY = h * 0.62;
+  for (const c of confetti) {
+    const age = (now - c.born) / c.life;
+    if (age < 0) continue;
+    c.x += (c.vx * dt) / w;
+    c.y += ((c.vy + age * 420) * dt) / h;
+    const px = c.x * w;
+    const py = Math.min(floorY, c.y * h);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - age);
+    ctx.translate(px, py);
+    ctx.rotate(c.spin * ((now - c.born) / 1000));
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 0.7);
+    ctx.restore();
+  }
 }
 
 function floorRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
@@ -646,7 +732,7 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
   drawEllipseFill(ctx2d, cx, cy, rx * 1.08, ry * 1.15);
 
   const water = ctx2d.createRadialGradient(cx, cy, 0, cx, cy, rx);
-  const biteHot = d.biteOpen || now < biteFlashUntil;
+  const biteHot = d.biteOpen || now < biteFlashUntil || now < perfectFlashUntil;
   water.addColorStop(0, biteHot ? "#3a6878" : "#1a4858");
   water.addColorStop(0.55, "#123040");
   water.addColorStop(1, "#0a1824");
@@ -665,6 +751,18 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
     ctx2d.stroke();
   }
   ctx2d.restore();
+
+  if (now < perfectFlashUntil) {
+    const age = 1 - (now - (perfectFlashUntil - 620)) / 620;
+    ctx2d.strokeStyle = `rgba(240, 216, 120, ${0.75 * age})`;
+    ctx2d.lineWidth = 3;
+    const rr = rx * (0.35 + 0.55 * (1 - age));
+    ctx2d.beginPath();
+    ctx2d.ellipse(cx, cy, rr, rr * 0.36, 0, 0, Math.PI * 2);
+    ctx2d.stroke();
+    ctx2d.fillStyle = "rgba(240, 216, 120, 0.16)";
+    drawEllipseFill(ctx2d, cx, cy, rx * 0.92 * age, ry * 0.92 * age);
+  }
 
   if (now < biteFlashUntil || now < strikeFlashUntil || now < landFlashUntil) {
     const flash =
@@ -694,6 +792,7 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
   drawSplashRipples(ctx2d, w, h, now);
   drawFishShadow(ctx2d, w, h, d, now);
   drawBobber(ctx2d, w, h, d, now);
+  drawConfetti(ctx2d, w, h, now);
 
   // Wait rings under bobber when biting
   if (d.phase === "fish_wait" && d.biteOpen) {

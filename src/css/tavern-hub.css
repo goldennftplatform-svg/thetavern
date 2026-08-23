@@ -237,6 +237,26 @@
   opacity: 0.95;
 }
 
+.hud-chain {
+  flex-basis: 100%;
+  color: var(--gold, #e8b050);
+  font-size: 0.36rem;
+  letter-spacing: 0.08em;
+  animation: chain-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes chain-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    text-shadow: none;
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(232, 176, 80, 0.65);
+  }
+}
+
 .deck-lore {
   font-size: 0.98rem;
   margin-top: 10px;

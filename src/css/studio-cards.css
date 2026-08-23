@@ -85,6 +85,7 @@ html.play-active .play-menu {
   display: flex;
   flex-direction: column;
   padding-bottom: 0;
+  position: relative;
 }
 
 .studio-stage {
@@ -651,6 +652,100 @@ html.play-active .play-menu {
 .studio-catch-glyph--mythic {
   border-color: rgba(232, 176, 80, 0.7);
   box-shadow: 0 0 32px rgba(232, 176, 80, 0.35);
+}
+
+/* Catch celebration — glyph pops in, rarity aura breathes */
+.studio-stage--resolve .studio-catch-glyph {
+  animation: catch-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes catch-pop {
+  0% {
+    transform: scale(0.2) rotate(-14deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12) rotate(3deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.studio-stage--resolve .studio-catch-hero {
+  position: relative;
+}
+
+.studio-stage--resolve .studio-catch-hero::after {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(232, 176, 80, 0.22), transparent 65%);
+  animation: rarity-aura 1.6s ease-in-out infinite;
+}
+
+@keyframes rarity-aura {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.studio-catch-flair {
+  margin: 2px auto 0;
+  padding: 5px 14px;
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  border-radius: 999px;
+}
+
+.studio-catch-flair--chain {
+  color: #f0d878;
+  background: rgba(232, 176, 80, 0.16);
+  border: 1px solid rgba(232, 176, 80, 0.55);
+  text-shadow: 0 0 10px rgba(232, 176, 80, 0.55);
+  animation: chain-shine 1.4s ease-in-out infinite;
+}
+
+@keyframes chain-shine {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+
+.studio-catch-flair--new {
+  margin-top: 6px;
+  color: #a8f0c8;
+  background: rgba(104, 232, 168, 0.12);
+  border: 1px dashed rgba(104, 232, 168, 0.6);
+}
+
+/* DOM confetti burst (spawned from main.ts on catch resolve) */
+.confetti-bit {
+  position: absolute;
+  width: 7px;
+  height: 11px;
+  border-radius: 1px;
+  z-index: 60;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .studio-score-delta {

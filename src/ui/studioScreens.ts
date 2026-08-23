@@ -168,18 +168,32 @@ export function hubWellHtml(
   </div>`;
 }
 
+export type CatchFlair = {
+  flawless?: boolean;
+  chainBonus?: number;
+  isNew?: boolean;
+};
+
 export function catchResolveHtml(
   c: CatchResult,
   flourish: string,
   blurb: string,
   poleNote?: string,
   fishGlyph = "🐟",
+  flair: CatchFlair = {},
 ): string {
   const omen = c.omen ? `<p class="studio-omen"><em>Omen:</em> ${escapeHtml(c.omen)}</p>` : "";
   const demplar = c.demplarTease
     ? `<p class="studio-demplar">Overheard rumor: the name <strong>Demplar</strong> rides this catch — neighbor lore, not our crest.</p>`
     : "";
   const pole = poleNote ? `<p class="studio-pole-xp">${escapeHtml(poleNote)}</p>` : "";
+  const chain =
+    flair.flawless && (flair.chainBonus ?? 0) > 0
+      ? `<p class="studio-catch-flair studio-catch-flair--chain">⚡ MOONFIRE CHAIN · +${flair.chainBonus} bonus Legend</p>`
+      : "";
+  const fresh = flair.isNew
+    ? `<p class="studio-catch-flair studio-catch-flair--new">✦ NEW SPECIES — codex updated</p>`
+    : "";
   return studioStageHtml(
     "Catch inscribed",
     `<div class="studio-catch-hero" aria-hidden="true">
@@ -188,6 +202,7 @@ export function catchResolveHtml(
     <p class="rarity-badge rarity-badge--${c.rarity}">${c.rarity}</p>
     <h3 class="studio-catch-name">${escapeHtml(c.name)}</h3>
     <p class="studio-score-delta">+${c.renown} Legend · +${c.tokens} ◎</p>
+    ${chain}${fresh}
     <p class="studio-flourish">${flourish}</p>
     <p class="studio-fish-lore">${escapeHtml(blurb)}</p>
     ${omen}${demplar}${pole}`,

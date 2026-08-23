@@ -65,12 +65,14 @@ import {
   wornTitle,
 } from "./hall/hallAssets";
 import type { CatchResult, GamePhase, GameState } from "./game/types";
-import { drawMoonwell, preloadArdyFishingClips, preloadPoleSprites, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerStrikeFlash } from "./minigames/fishingCanvas";
+import { drawMoonwell, preloadArdyFishingClips, preloadPoleSprites, RARITY_COLORS, seasonTints, triggerBiteFlash, triggerCastFx, triggerLandFlash, triggerPerfectCast, triggerStrikeFlash } from "./minigames/fishingCanvas";
 import { rollCatch } from "./minigames/fishing";
 import {
   CHANCE_GAMES,
   isChanceGameId,
   isGuessForGame,
+  isHighLowGuess,
+  isRedBlackGuess,
   resolveHighLow,
   resolveRedBlack,
   type ChanceGameId,
@@ -92,8 +94,10 @@ import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio
 import { compressAvatarFile, houseAvatarPickerHtml } from "./ui/avatarFace";
 import {
   playCastWhoosh,
+  playCelebrationArp,
   playLandThump,
   playNibble,
+  playPerfectChime,
   playReelCreak,
   playSplash,
   playStrikeHit,
@@ -256,6 +260,7 @@ const elHudT = $("hud-tokens");
 const elHudS = $("hud-season");
 const elHudDeck = $("hud-deck");
 const elHudBuff = $("hud-buff");
+const elHudChain = $("hud-chain");
 const canvas = $("well") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
 const elNotices = $("notices");
@@ -356,6 +361,16 @@ let castQuality = 0;
 let struckBite = false;
 let reelQuality = 0;
 let chargeActive = false;
+/** Moonfire Chain — consecutive sweet-window casts (session only). */
+const CAST_SWEET_LO = 0.72;
+const CAST_SWEET_HI = 0.92;
+let castStreak = 0;
+let castWasPerfect = false;
+let lastCatchFlair: { flawless: boolean; chainBonus: number; isNew: boolean } = {
+  flawless: false,
+  chainBonus: 0,
+  isNew: false,
+};
 let waitPulse = 0;
 let rafCast = 0;
 let reelRaf = 0;
@@ -363,6 +378,8 @@ let reelHoldDir = 0;
 let reelFinishing = false;
 let reelFailsafeTimer = 0;
 let waitFailsafeTimer = 0;
+/** Green-zone hold time (ms) accrued by the live reel loop — shared with the early-land path. */
+let reelGoodMs = 0;
 let biteTimer = 0;
 let biteOpenTimer = 0;
 let saveTimer = 0;
@@ -1074,11 +1091,13 @@ function finishChance(guess: string) {
 
   let result;
   if (gameId === "high_low") {
+    if (!isHighLowGuess(guess)) return;
     const first = state.chanceCards[0]!;
     const second = drawFromDeck(1)[0]!;
     state.chanceCards = [first, second];
     result = resolveHighLow(game.stake, first, second, guess);
   } else {
+    if (!isRedBlackGuess(guess)) return;
     const drawn = drawFromDeck(1)[0]!;
     state.chanceCards = [drawn];
     result = resolveRedBlack(game.stake, drawn, guess);
@@ -1114,6 +1133,12 @@ function hud() {
   elHudT.textContent = `◎ ${state.tokens}`;
   elHudS.textContent = `${SEASON_TAG[state.season] ?? "·"} ${seasonArcane[state.season].name.split(" ")[0]}`;
   elHudDeck.hidden = true;
+  if (castStreak >= 2) {
+    elHudChain.textContent = `⚡ MOONFIRE x${castStreak}`;
+    elHudChain.hidden = false;
+  } else {
+    elHudChain.hidden = true;
+  }
   if (state.foodBuff) {
     elHudBuff.textContent = `+ ${state.foodBuff.label}`;
     elHudBuff.hidden = false;
@@ -1284,6 +1309,52 @@ function drawWell(phaseOverride?: GamePhase) {
   );
 }
 
+/** Rarity-keyed DOM confetti + arpeggio while the catch card is up. */
+function startResolveCelebration(rarity: string) {
+  const tier = ["common", "uncommon", "rare", "omen", "mythic"].indexOf(rarity);
+  playCelebrationArp(Math.max(0, tier));
+  if (navigator.vibrate) {
+    navigator.vibrate(tier >= 3 ? [18, 40, 18, 40, 30] : [18, 40, 18]);
+  }
+  const palette = RARITY_COLORS[rarity] ?? RARITY_COLORS.common!;
+  const host =
+    elPlayMenu.querySelector<HTMLElement>(".play-menu-body") ?? elPhase;
+  if (host) {
+    const w = host.clientWidth || 320;
+    const h = host.clientHeight || 420;
+    const originX = w / 2;
+    const originY = Math.max(90, h * 0.2);
+    const bits = rarity === "mythic" || rarity === "omen" ? 30 : 20;
+    for (let i = 0; i < bits; i++) {
+      const bit = document.createElement("span");
+      bit.className = "confetti-bit";
+      bit.style.left = `${originX}px`;
+      bit.style.top = `${originY}px`;
+      bit.style.background = palette[i % palette.length]!;
+      host.appendChild(bit);
+      const dx = (Math.random() - 0.5) * w * 0.92;
+      const dy = h * (0.3 + Math.random() * 0.45);
+      const rot = (Math.random() - 0.5) * 640;
+      const anim = bit.animate(
+        [
+          { transform: "translate(-50%, -50%) rotate(0deg)", opacity: 1 },
+          {
+            transform: `translate(calc(${dx}px - 50%), ${dy}px) rotate(${rot}deg)`,
+            opacity: 0,
+          },
+        ],
+        {
+          duration: 950 + Math.random() * 750,
+          delay: Math.random() * 140,
+          easing: "cubic-bezier(0.15, 0.6, 0.4, 1)",
+          fill: "forwards",
+        },
+      );
+      anim.addEventListener("finish", () => bit.remove());
+    }
+  }
+}
+
 function setPhase(next: GamePhase) {
   state.phase = next;
   elPlayShell.dataset.phase = next;
@@ -1360,10 +1431,12 @@ function setPhase(next: GamePhase) {
           fishBlurb(c.fishId),
           poleNote,
           fishGlyph(c.fishId),
+          lastCatchFlair,
         ),
       );
       elPrimary.hidden = true;
       wirePhaseHub();
+      startResolveCelebration(c.rarity);
       break;
     }
     case "renown":
@@ -1549,7 +1622,20 @@ function finishReel(good: number, total: number) {
       renownMult: pole.mods.renownMult,
     });
     const feastBuff = state.foodBuff;
-    state.lastCatch = applyFoodOnCatch(result);
+    const withFood = applyFoodOnCatch(result);
+    // Moonfire Chain — perfect cast + clean strike + steady reel pays extra.
+    const flawless =
+      castWasPerfect && struckBite && reelQuality >= 0.55;
+    let chainBonus = 0;
+    if (flawless) {
+      chainBonus = Math.ceil(
+        withFood.renown * 0.25 * Math.min(3, Math.max(1, castStreak)),
+      );
+      withFood.renown += chainBonus;
+    }
+    const isNewSpecies = !state.catalog.has(withFood.fishId);
+    lastCatchFlair = { flawless, chainBonus, isNew: isNewSpecies };
+    state.lastCatch = withFood;
     addRenown(state.lastCatch.renown);
     state.tokens += state.lastCatch.tokens;
     state.catalog.add(result.fishId);
@@ -1579,13 +1665,13 @@ function finishReel(good: number, total: number) {
 function startReelLoop() {
   const t0 = performance.now();
   const total = REEL_DURATION_MS;
-  let good = 0;
   let last = t0;
   const green = reelGreenZone();
+  reelGoodMs = 0;
 
   reelFailsafeTimer = window.setTimeout(() => {
     if (state.phase === "fish_reel" && !reelFinishing) {
-      finishReel(good, total);
+      finishReel(reelGoodMs, total);
     }
   }, total + 400);
 
@@ -1602,21 +1688,20 @@ function startReelLoop() {
     state.reelTension = Math.max(0.05, Math.min(0.95, state.reelTension));
 
     const inZone = state.reelTension >= green.lo && state.reelTension <= green.hi;
-    if (inZone) good += dt;
-    good += dt * 0.12 * FISH_PACE;
+    reelGoodMs += inZone ? dt : dt * 0.12 * FISH_PACE;
 
     if (reelHoldDir && Math.floor(now / 180) !== Math.floor((now - dt) / 180)) {
       playReelCreak(!inZone);
     }
 
-    state.reelProgress = Math.min(1, good / (total * 0.42));
+    state.reelProgress = Math.min(1, reelGoodMs / (total * 0.42));
 
     waitPulse = now / 1000;
     drawWell();
     broadcastFishing();
 
     if (state.reelProgress >= 1 || now - t0 >= total) {
-      finishReel(good, total);
+      finishReel(reelGoodMs, total);
       return;
     }
     reelRaf = requestAnimationFrame(tick);
@@ -1632,12 +1717,14 @@ elPrimary.addEventListener("pointerdown", (e) => {
 });
 elPrimary.addEventListener("click", () => {
   if (state.phase === "fish_reel" && !reelFinishing) {
-    finishReel(2400 / FISH_PACE, REEL_DURATION_MS);
+    finishReel(reelGoodMs, REEL_DURATION_MS);
   }
 });
 function finishCast() {
   if (state.phase !== "fish_cast") return;
   chargeActive = false;
+  const perfect = state.castPower > CAST_SWEET_LO && state.castPower < CAST_SWEET_HI;
+  castWasPerfect = perfect;
   castQuality = Math.max(consumeCastFloor(), state.castPower);
   window.cancelAnimationFrame(rafCast);
   const prog = poleProgressFromState();
@@ -1647,6 +1734,22 @@ function finishCast() {
   triggerCastFx(castQuality);
   playCastWhoosh();
   window.setTimeout(() => playSplash(), 280);
+  if (perfect) {
+    castStreak += 1;
+    triggerPerfectCast();
+    playPerfectChime();
+    showToast(
+      castStreak >= 2 ? `PERFECT CAST! ⚡ MOONFIRE x${castStreak}` : "PERFECT CAST!",
+      1500,
+      { force: true },
+    );
+    if (navigator.vibrate) navigator.vibrate([14, 30, 22]);
+  } else {
+    if (state.castPower < 0.5) {
+      castStreak = 0;
+      hud();
+    }
+  }
   setPhase("fish_wait");
 }
 
@@ -1832,9 +1935,11 @@ async function bootTrail() {
       avatarId: state.avatarId,
     });
     socket = c.socket;
+    if (!socket) throw new Error("trail socket unavailable");
     mobileHall.bindSocket(socket);
+    const liveSocket = socket;
     const syncLive = () => {
-      mobileHall.bindSocket(socket);
+      mobileHall.bindSocket(liveSocket);
       if (state.phase !== "enter" && state.phase !== "herald") {
         setPresence(true);
         syncHallIdentity();
@@ -1842,7 +1947,7 @@ async function bootTrail() {
         broadcastChance();
       }
     };
-    socket.on("connect", syncLive);
+    liveSocket.on("connect", syncLive);
     syncLive();
     elTrail.textContent = "Live hall — your deeds sync to the bigboard chronicle.";
   } catch {
@@ -1928,7 +2033,8 @@ requestAnimationFrame(function tick(now: number) {
 });
 
 if (import.meta.env.DEV) {
-  (window as Window & { __tavernQA?: { getDemplar: () => DemplarWarrior | null } }).__tavernQA = {
+  (window as Window & { __tavernQA?: { getDemplar: () => DemplarWarrior | null; getCastStreak: () => number } }).__tavernQA = {
     getDemplar: () => demplarGame,
+    getCastStreak: () => castStreak,
   };
 }

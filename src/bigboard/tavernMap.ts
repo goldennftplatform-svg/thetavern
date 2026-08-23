@@ -510,10 +510,10 @@ function drawPatronToken(
 export function drawTavernMap(
   canvas: HTMLCanvasElement,
   patrons: MapPatron[],
-  flashLine: string,
+  _flashLine: string,
   tick = 0,
   fx: MapFx = { tableFish: [], splashes: [], catchBurstUntil: 0, chanceFlashUntil: 0 },
-  whisperLine = "",
+  _whisperLine = "",
   theme?: MapDrawTheme,
 ): void {
   const ctx = canvas.getContext("2d");

@@ -1,16 +1,6 @@
 import { fishCatalog, omens, type FishRarity, type Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 
-function pickWeighted<T>(items: T[], weights: number[]): T {
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < items.length; i++) {
-    r -= weights[i]!;
-    if (r <= 0) return items[i]!;
-  }
-  return items[items.length - 1]!;
-}
-
 const rarityOrder: FishRarity[] = ["common", "uncommon", "rare", "omen", "mythic"];
 
 function tierFromSkill(castQuality: number, struckBite: boolean, reelQuality: number): number {

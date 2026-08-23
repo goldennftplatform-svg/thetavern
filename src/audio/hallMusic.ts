@@ -6,7 +6,6 @@ const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/hall-ambience.mp3`;
 const CATCH_VOLUME = 0.22;
 
 let audio: HTMLAudioElement | null = null;
-let playing = false;
 let gestureHooked = false;
 
 function prefersSilent(): boolean {
@@ -19,11 +18,7 @@ export function primeHallMusic(): void {
   audio.loop = false;
   audio.volume = CATCH_VOLUME;
   audio.preload = "auto";
-  audio.addEventListener("ended", () => {
-    playing = false;
-  });
   audio.addEventListener("error", () => {
-    playing = false;
     console.warn("[hallMusic] failed to load", AUDIO_SRC);
   });
 }
@@ -55,10 +50,8 @@ export async function playCatchFanfare(): Promise<boolean> {
       });
     }
     await audio.play();
-    playing = true;
     return true;
   } catch {
-    playing = false;
     return false;
   }
 }
@@ -79,5 +72,4 @@ export function stopHallMusic(): void {
   if (!audio) return;
   audio.pause();
   audio.currentTime = 0;
-  playing = false;
 }
