@@ -14,6 +14,52 @@ export type SetupSubPhase = "player1" | "player2" | "done";
 
 export type ShipType = "carrier" | "battleship" | "cruiser" | "submarine" | "destroyer";
 
+export type ShipAbility = {
+  id: string;
+  name: string;
+  description: string;
+  cooldown: number; // turns
+  lastUsed: number; // turn number when last used, -1 if never
+};
+
+export const SHIP_ABILITIES: Record<ShipType, ShipAbility> = {
+  carrier: {
+    id: "air_strike",
+    name: "AIR STRIKE",
+    description: "Reveal a 3x3 area on enemy grid",
+    cooldown: 3,
+    lastUsed: -1,
+  },
+  battleship: {
+    id: "broadside",
+    name: "BROADSIDE",
+    description: "Fire 3 shots in a horizontal line",
+    cooldown: 4,
+    lastUsed: -1,
+  },
+  cruiser: {
+    id: "radar_ping",
+    name: "RADAR PING",
+    description: "Reveal all ships in a cross pattern (+)",
+    cooldown: 3,
+    lastUsed: -1,
+  },
+  submarine: {
+    id: "silent_run",
+    name: "SILENT RUN",
+    description: "Next 2 enemy shots against this ship miss (evasion)",
+    cooldown: 4,
+    lastUsed: -1,
+  },
+  destroyer: {
+    id: "depth_charge",
+    name: "DEPTH CHARGE",
+    description: "Auto-hit a random enemy ship cell (if any remain)",
+    cooldown: 5,
+    lastUsed: -1,
+  },
+};
+
 export const SHIP_SPECS: Record<ShipType, { size: number; label: string; short: string }> = {
   carrier: { size: 5, label: "CARRIER", short: "CV" },
   battleship: { size: 4, label: "BATTLESHIP", short: "BB" },
@@ -32,6 +78,8 @@ export type Ship = {
   cells: [number, number][];
   hits: boolean[];
   sunk: boolean;
+  abilityUsed: number; // -1 if never used, otherwise turn number
+  abilityActive: boolean; // for passive abilities like silent run
 };
 
 export type Board = {
@@ -81,7 +129,7 @@ function placeShip(board: Board, type: ShipType, origin: [number, number], horiz
   }
   if (!canPlace(board.grid, cells)) return false;
   for (const [x, y] of cells) board.grid[y][x] = CELL_STATES.ship;
-  const ship: Ship = { type, cells, hits: Array(size).fill(false), sunk: false };
+  const ship: Ship = { type, cells, hits: Array(size).fill(false), sunk: false, abilityUsed: -1, abilityActive: false };
   board.ships.push(ship);
   for (const [x, y] of cells) board.shipMap.set(`${x},${y}`, ship);
   return true;
@@ -149,10 +197,20 @@ export class ConflicBouy {
   private agentDifficulty: "easy" | "normal" | "hard" = "normal";
   private lastHitDirection: [number, number] | null = null;
   themeId: BouyThemeId = "charter";
+  stake = 0;
+  private awaitingAbility = false;
 
-  constructor(opts?: { mode?: BouyMode; theme?: BouyThemeId }) {
+  // Visual effects
+  private screenShake = 0;
+  private screenShakeX = 0;
+  private screenShakeY = 0;
+  private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number; type: "debris" | "smoke" | "ember" | "spark" }> = [];
+  private hitPause = 0;
+
+  constructor(opts?: { mode?: BouyMode; theme?: BouyThemeId; stake?: number }) {
     this.mode = opts?.mode ?? "agent";
     this.themeId = opts?.theme ?? "charter";
+    this.stake = opts?.stake ?? 0;
     this.reset();
   }
 
@@ -211,6 +269,7 @@ export class ConflicBouy {
     this.agentThinking = false;
     this.agentDifficulty = "normal";
     this.lastHitDirection = null;
+    this.awaitingAbility = false;
   }
 
   setMode(mode: BouyMode) {
@@ -276,7 +335,7 @@ export class ConflicBouy {
     }
     if (!canPlace(board.grid, cells)) return false;
     for (const [cx, cy] of cells) board.grid[cy][cx] = CELL_STATES.ship;
-    const ship: Ship = { type, cells, hits: Array(this.getCurrentShipSize()).fill(false), sunk: false };
+    const ship: Ship = { type, cells, hits: Array(this.getCurrentShipSize()).fill(false), sunk: false, abilityUsed: -1, abilityActive: false };
     board.ships.push(ship);
     for (const [cx, cy] of cells) board.shipMap.set(`${cx},${cy}`, ship);
     this.playerPlacing++;
@@ -350,17 +409,99 @@ export class ConflicBouy {
       if (sunk) {
         targetGrid[y][x] = CELL_STATES.sunk;
         this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "sink", timer: 800 });
+        this.triggerSunkEffects(x, y, byPlayer);
         playWarriorImpact(1.2);
         return "sink";
       }
       this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "hit", timer: 300 });
+      this.triggerHitEffects(x, y, byPlayer);
       playPlatformPickup("blade");
       return "hit";
     } else {
       targetGrid[y][x] = CELL_STATES.miss;
       this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "miss", timer: 250 });
+      this.triggerMissEffects(x, y, byPlayer);
       playPlatformLand();
       return "miss";
+    }
+  }
+
+  private triggerHitEffects(_x: number, _y: number, byPlayer: boolean) {
+    this.screenShake = 8;
+    this.hitPause = 60;
+    // Spawn hit particles
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.5;
+      const speed = 80 + Math.random() * 120;
+      this.particles.push({
+        x: byPlayer ? 400 : 800, // rough screen coords
+        y: 300,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 600,
+        maxLife: 600,
+        color: this.theme.hitColor,
+        size: 3 + Math.random() * 3,
+        type: "spark",
+      });
+    }
+  }
+
+  private triggerMissEffects(_x: number, _y: number, byPlayer: boolean) {
+    this.screenShake = 3;
+    // Splash particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const speed = 40 + Math.random() * 60;
+      this.particles.push({
+        x: byPlayer ? 400 : 800,
+        y: 300,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 400,
+        maxLife: 400,
+        color: this.theme.missColor,
+        size: 2 + Math.random() * 2,
+        type: "smoke",
+      });
+    }
+  }
+
+  private triggerSunkEffects(_x: number, _y: number, byPlayer: boolean) {
+    this.screenShake = 20;
+    this.hitPause = 120;
+    // Explosion particles
+    const shipColor = this.theme.sunkGlow;
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      this.particles.push({
+        x: byPlayer ? 400 : 800,
+        y: 300,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1200,
+        maxLife: 1200,
+        color: i % 3 === 0 ? shipColor : (i % 3 === 1 ? "#ffaa00" : "#ff4444"),
+        size: 4 + Math.random() * 5,
+        type: i % 3 === 0 ? "ember" : "debris",
+      });
+    }
+    // Smoke ring
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12;
+      const speed = 60 + Math.random() * 40;
+      this.particles.push({
+        x: byPlayer ? 400 : 800,
+        y: 300,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1000,
+        maxLife: 1000,
+        color: "rgba(100, 80, 60, 0.6)",
+        size: 8 + Math.random() * 6,
+        type: "smoke",
+      });
     }
   }
 
@@ -395,6 +536,126 @@ export class ConflicBouy {
       this.scheduleAgentTurn();
     } else {
       this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
+    }
+    // Reset ability active flags at end of turn
+    this.resetAbilityFlags();
+  }
+
+  private resetAbilityFlags() {
+    const board = this.getCurrentBoard();
+    for (const ship of board.ships) {
+      ship.abilityActive = false;
+    }
+  }
+
+  canUseAbility(type: ShipType): boolean {
+    const ability = SHIP_ABILITIES[type];
+    if (!ability) return false;
+    const board = this.getCurrentBoard();
+    const ship = board.ships.find((s) => s.type === type);
+    if (!ship || ship.sunk) return false;
+    const currentTurn = this.result.turns;
+    return ship.abilityUsed === -1 || currentTurn - ship.abilityUsed >= ability.cooldown;
+  }
+
+  useAbility(type: ShipType, targetX?: number, targetY?: number): boolean {
+    if (!this.canUseAbility(type)) return false;
+    const ability = SHIP_ABILITIES[type];
+    const board = this.getCurrentBoard();
+    const ship = board.ships.find((s) => s.type === type);
+    if (!ship) return false;
+    ship.abilityUsed = this.result.turns;
+    this.setMessage(`ABILITY: ${ability.name}! ${ability.description}`);
+    this.executeAbility(type, targetX, targetY);
+    return true;
+  }
+
+  private executeAbility(type: ShipType, targetX?: number, targetY?: number) {
+    const opponentBoard = this.getOpponentBoard();
+    const targetGrid = this.getTargetGrid();
+    switch (type) {
+      case "carrier": // Air Strike - reveal 3x3
+        if (targetX !== undefined && targetY !== undefined) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = targetX + dx;
+              const y = targetY + dy;
+              if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                if (targetGrid[y][x] === CELL_STATES.empty) {
+                  const hasShip = opponentBoard.grid[y][x] === CELL_STATES.ship;
+                  targetGrid[y][x] = hasShip ? CELL_STATES.hit : CELL_STATES.miss;
+                  if (hasShip) {
+                    const ship = opponentBoard.shipMap.get(`${x},${y}`);
+                    if (ship) {
+                      const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
+                      if (idx >= 0) ship.hits[idx] = true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        break;
+      case "battleship": // Broadside - 3 horizontal shots
+        if (targetX !== undefined && targetY !== undefined) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const x = targetX + dx;
+            const y = targetY;
+            if (x >= 0 && x < GRID_SIZE && targetGrid[y][x] === CELL_STATES.empty) {
+              this.fireAt(opponentBoard, targetGrid, x, y, true);
+            }
+          }
+        }
+        break;
+      case "cruiser": // Radar Ping - cross pattern
+        if (targetX !== undefined && targetY !== undefined) {
+          const pattern = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+          for (const [dx, dy] of pattern) {
+            const x = targetX + dx;
+            const y = targetY + dy;
+            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+              if (targetGrid[y][x] === CELL_STATES.empty) {
+                const hasShip = opponentBoard.grid[y][x] === CELL_STATES.ship;
+                targetGrid[y][x] = hasShip ? CELL_STATES.hit : CELL_STATES.miss;
+                if (hasShip) {
+                  const ship = opponentBoard.shipMap.get(`${x},${y}`);
+                  if (ship) {
+                    const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
+                    if (idx >= 0) ship.hits[idx] = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+        break;
+      case "submarine": // Silent Run - evasion
+        if (targetX !== undefined && targetY !== undefined) {
+          const ship = opponentBoard.shipMap.get(`${targetX},${targetY}`);
+          if (ship && ship.type === "submarine") {
+            ship.abilityActive = true;
+            this.setMessage("SILENT RUN ACTIVATED — Submarine evading next 2 shots!");
+          }
+        }
+        break;
+      case "destroyer": // Depth Charge - auto-hit random
+        const hiddenCells: [number, number][] = [];
+        for (let y = 0; y < GRID_SIZE; y++) {
+          for (let x = 0; x < GRID_SIZE; x++) {
+            if (targetGrid[y][x] === CELL_STATES.empty && opponentBoard.grid[y][x] === CELL_STATES.ship) {
+              hiddenCells.push([x, y]);
+            }
+          }
+        }
+        if (hiddenCells.length > 0) {
+          const [x, y] = hiddenCells[Math.floor(Math.random() * hiddenCells.length)];
+          this.fireAt(opponentBoard, targetGrid, x, y, true);
+          this.setMessage(`DEPTH CHARGE DETONATED — Auto-hit at ${String.fromCharCode(65+x)}${y+1}!`);
+        } else {
+          this.setMessage("DEPTH CHARGE — No hidden targets found!");
+        }
+        break;
     }
   }
 
@@ -533,6 +794,30 @@ export class ConflicBouy {
   }
 
   update(dt: number) {
+    // Screen shake decay
+    if (this.screenShake > 0) {
+      this.screenShake = Math.max(0, this.screenShake - dt * 0.015);
+      this.screenShakeX = (Math.random() - 0.5) * this.screenShake;
+      this.screenShakeY = (Math.random() - 0.5) * this.screenShake;
+    }
+
+    // Hit pause (brief freeze on impact)
+    if (this.hitPause > 0) {
+      this.hitPause = Math.max(0, this.hitPause - dt);
+      return; // Freeze everything during hit pause
+    }
+
+    // Particles update
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.life -= dt;
+      p.x += p.vx * dt * 0.001;
+      p.y += p.vy * dt * 0.001;
+      p.vy += 0.08 * dt * 0.001; // gravity
+      p.vx *= 0.995; // drag
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+
     if (this.messageTimer > 0) {
       this.messageTimer = Math.max(0, this.messageTimer - dt);
     } else {
@@ -548,6 +833,12 @@ export class ConflicBouy {
   draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
     const t = this.theme;
     ctx.imageSmoothingEnabled = false;
+
+    // Screen shake transform
+    ctx.save();
+    if (this.screenShake > 0) {
+      ctx.translate(this.screenShakeX, this.screenShakeY);
+    }
 
     // Background with vignette
     const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h));
@@ -861,6 +1152,18 @@ export class ConflicBouy {
     }
 
     ctx.textAlign = "left";
+    ctx.restore(); // Restore screen shake transform
+
+    // Draw particles on top (not affected by screen shake)
+    for (const p of this.particles) {
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Input handlers
@@ -926,6 +1229,13 @@ export class ConflicBouy {
     if (upper === "A") {
       if (this.phase === "setup") this.randomizeCurrentBoard();
     }
+    if (upper === "E") {
+      if (this.phase === "play" && (this.currentTurn === "player" || this.currentTurn === "player1")) {
+        // Use ability - prompt for which ship type (1-5)
+        this.setMessage("PRESS 1-5 FOR ABILITY: 1=CV 2=BB 3=CA 4=SS 5=DD", 3000);
+        this.awaitingAbility = true;
+      }
+    }
     if (upper === "D") {
       if (this.phase === "setup" && this.mode === "agent") {
         const difficulties: ("easy" | "normal" | "hard")[] = ["easy", "normal", "hard"];
@@ -936,6 +1246,20 @@ export class ConflicBouy {
     }
     if (upper === "ESCAPE") {
       // Handled by main loop
+    }
+    // Handle ability number keys
+    if (this.awaitingAbility && this.phase === "play") {
+      const num = parseInt(upper);
+      if (num >= 1 && num <= 5) {
+        const types: ShipType[] = ["carrier", "battleship", "cruiser", "submarine", "destroyer"];
+        const type = types[num - 1];
+        if (this.canUseAbility(type)) {
+          this.useAbility(type);
+          this.awaitingAbility = false;
+        } else {
+          this.setMessage(`${SHIP_SPECS[type].short} ABILITY NOT READY`, 1500);
+        }
+      }
     }
   }
 }

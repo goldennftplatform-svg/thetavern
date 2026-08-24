@@ -147,6 +147,8 @@ import {
   triviaTeachHtml,
   conflicResultStudioHtml,
   conflicThemePickStudioHtml,
+  conflicThemePickStudioHtmlForMode,
+  conflicStakePickStudioHtml,
   type RunSnapshot,
 } from "./ui/studioScreens";
 
@@ -404,6 +406,8 @@ let conflicRaf = 0;
 let conflicLastResult: BouyResult | null = null;
 let conflicLastRewards = { renown: 0, tokens: 0 };
 let conflicMode: BouyMode = "agent";
+let conflicTheme = "charter";
+let conflicStake = 0;
 
 function scheduleSave() {
   window.clearTimeout(saveTimer);
@@ -1025,16 +1029,36 @@ function handleHubAction(action: string) {
     return;
   }
   if (action === "conflic_bouy") {
+    // Play again with same mode/theme
+    startConflicBouy();
+    return;
+  }
+  if (action === "conflic_bouy_change") {
+    // Go back to mode picker
     setPhase("conflic_theme");
     return;
   }
-  if (action.startsWith("conflic:")) {
-    const parts = action.slice(8).split(":");
-    const mode = parts[0] as BouyMode;
+  if (action.startsWith("conflic_mode:")) {
+    const mode = action.slice(13) as BouyMode;
     if (mode === "agent" || mode === "hotseat") {
       conflicMode = mode;
-      const theme = parts[1] ?? "charter";
-      startConflicBouy(theme);
+      setPhase("conflic_theme_mode");
+    }
+    return;
+  }
+  if (action.startsWith("conflic_theme:")) {
+    const theme = action.slice(14);
+    if (theme) {
+      conflicTheme = theme;
+      setPhase("conflic_stake");
+    }
+    return;
+  }
+  if (action.startsWith("conflic_stake:")) {
+    const stake = parseInt(action.slice(14), 10);
+    if (!isNaN(stake) && stake >= 0) {
+      conflicStake = stake;
+      startConflicBouy();
     }
     return;
   }
@@ -1297,7 +1321,15 @@ function startDemplarWarrior() {
 
 function startConflicBouy(theme?: string) {
   primeWarriorSfx();
-  conflicGame = new ConflicBouy({ mode: conflicMode, theme: theme as "charter" | "odyssey" | "abyssal" | "corsair" | "voidwalker" });
+  conflicGame = new ConflicBouy({ 
+    mode: conflicMode, 
+    theme: (theme ?? conflicTheme) as "charter" | "odyssey" | "abyssal" | "corsair" | "voidwalker",
+    stake: conflicStake
+  });
+  // Deduct stake from player tokens
+  if (conflicStake > 0) {
+    state.tokens -= conflicStake;
+  }
   setPhase("conflic_bouy");
 }
 
@@ -1633,7 +1665,19 @@ function setPhase(next: GamePhase) {
       break;
     }
     case "conflic_theme": {
-      openMenu(conflicThemePickStudioHtml(conflicMode));
+      openMenu(conflicThemePickStudioHtml());
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
+    case "conflic_theme_mode": {
+      openMenu(conflicThemePickStudioHtmlForMode(conflicMode));
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
+    case "conflic_stake": {
+      openMenu(conflicStakePickStudioHtml(conflicMode, conflicTheme));
       elPrimary.hidden = true;
       wirePhaseHub();
       break;

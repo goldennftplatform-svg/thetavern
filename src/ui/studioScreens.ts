@@ -312,11 +312,92 @@ export function conflicResultStudioHtml(
     </div>
     <p class="studio-reward">Turns ${r.turns} · +${renown} ★ · +${tokens} ◎</p>`,
     "studio-stage--result",
-    `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+    `<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <button type="button" class="btn primary big studio-continue" data-hub-action="conflic_bouy">⚓ Play Again (Same Mode)</button>
+      <button type="button" class="btn ghost big studio-continue" data-hub-action="conflic_bouy_change">🔄 Change Mode/Theme</button>
+      <button type="button" class="btn ghost big studio-continue" data-continue="well">Back to the Well</button>
+    </div>`,
   );
 }
 
-export function conflicThemePickStudioHtml(mode: "agent" | "hotseat"): string {
+export function conflicThemePickStudioHtml(): string {
+  // First screen: choose mode, then theme
+  const modeTiles = [
+    { icon: "🤖", label: "vs AGENT", desc: "Battle Captain Jack Sparrow", mode: "agent" },
+    { icon: "👥", label: "1v1 HOTSEAT", desc: "Pass & play with a friend", mode: "hotseat" },
+  ];
+  const modeHtml = modeTiles.map(m => 
+    `<button type="button" class="hub-tile hub-tile--gold" data-hub-action="conflic_mode:${m.mode}" style="min-height:120px;">
+      <span class="hub-tile-icon" style="font-size:3rem;">${m.icon}</span>
+      <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${m.label}</span>
+      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${m.desc}</span>
+    </button>`
+  ).join("");
+
+  const themes = [
+    { id: "charter", icon: "⚓", name: "CHARTER NAVY", accent: "gold", desc: "Pirate knights · gold & charter" },
+    { id: "odyssey", icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan", desc: "Void hunters · neon & glitch" },
+    { id: "abyssal", icon: "🐙", name: "ABYSSAL DEPTHS", accent: "teal", desc: "Deep horror · bioluminescent" },
+    { id: "corsair", icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber", desc: "Golden age pirates · rum & cannon" },
+    { id: "voidwalker", icon: "👁️", name: "VOIDWALKER", accent: "violet", desc: "Cyber swarm · ice & intrusion" },
+  ];
+
+  const themeHtml = themes.map(t => 
+    `<button type="button" class="hub-tile hub-tile--${t.accent}" data-hub-action="conflic_theme:${t.id}" style="min-height:120px;opacity:0.5;pointer-events:none;">
+      <span class="hub-tile-icon" style="font-size:3rem;">${t.icon}</span>
+      <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${t.name}</span>
+      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${t.desc}</span>
+    </button>`
+  ).join("");
+
+  return studioStageHtml(
+    "Conflic Bouy — Choose Mode & Theme",
+    `<p class="studio-lore-line">Step 1: Pick your battle type</p>
+    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">${modeHtml}</div>
+    <p class="studio-lore-line studio-lore-line--hint" style="margin-top:24px;">Step 2: Pick your theater (select mode first)</p>
+    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid" style="opacity:0.4;">${themeHtml}</div>`,
+    "studio-stage--pick",
+    hubBackHtml(),
+  );
+}
+
+export function conflicStakePickStudioHtml(mode: "agent" | "hotseat", themeId: string): string {
+  const themes = {
+    charter: { icon: "⚓", name: "CHARTER NAVY", accent: "gold" },
+    odyssey: { icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan" },
+    abyssal: { icon: "🐙", name: "ABYSSAL DEPTHS", accent: "teal" },
+    corsair: { icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber" },
+    voidwalker: { icon: "👁️", name: "VOIDWALKER", accent: "violet" },
+  };
+  const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
+
+  const stakes = [
+    { amount: 0, label: "FRIENDLY", desc: "No tokens wagered · pride only", color: "jade" },
+    { amount: 1, label: "ANTE 1 ◎", desc: "Winner takes 2 ◎", color: "gold" },
+    { amount: 3, label: "ANTE 3 ◎", desc: "Winner takes 6 ◎ · High stakes", color: "amber" },
+    { amount: 5, label: "ANTE 5 ◎", desc: "Winner takes 10 ◎ · All or nothing", color: "crimson" },
+  ];
+  const stakeHtml = stakes.map(s => 
+    `<button type="button" class="hub-tile hub-tile--${s.color}" data-hub-action="conflic_stake:${s.amount}" style="min-height:110px;">
+      <span class="hub-tile-icon" style="font-size:2.5rem;">${s.amount === 0 ? "🤝" : "💰"}</span>
+      <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${s.label}</span>
+      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${s.desc}</span>
+    </button>`
+  ).join("");
+
+  const themeInfo = themes[themeId as keyof typeof themes] ?? themes.charter;
+
+  return studioStageHtml(
+    `Conflic Bouy — ${mode === "agent" ? "vs Agent" : "1v1 Hotseat"} — ${themeInfo.name}`,
+    `<p class="studio-lore-line">Step 3: Place your wager</p>
+    <p class="studio-lore-line studio-lore-line--hint">Mode: ${modeLabel} · Theme: ${themeInfo.name}</p>
+    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">${stakeHtml}</div>`,
+    "studio-stage--pick",
+    hubBackHtml(),
+  );
+}
+
+export function conflicThemePickStudioHtmlForMode(mode: "agent" | "hotseat"): string {
   const themes = [
     { id: "charter", icon: "⚓", name: "CHARTER NAVY", accent: "gold", desc: "Pirate knights · gold & charter" },
     { id: "odyssey", icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan", desc: "Void hunters · neon & glitch" },
@@ -326,7 +407,7 @@ export function conflicThemePickStudioHtml(mode: "agent" | "hotseat"): string {
   ];
   const tiles = themes.map(t => hubTileHtml(t.icon, t.name, `conflic:${mode}:${t.id}`, t.accent as "gold" | "jade" | "amber" | "cyan" | "teal" | "violet")).join("");
   return studioStageHtml(
-    "Conflic Bouy — Choose Theme",
+    `Conflic Bouy — ${mode === "agent" ? "vs Agent" : "1v1 Hotseat"} — Choose Theme`,
     `<p class="studio-lore-line">Select your theater of war</p>
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">${tiles}</div>`,
     "studio-stage--pick",

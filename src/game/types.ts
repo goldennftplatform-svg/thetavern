@@ -26,6 +26,8 @@ export type GamePhase =
   | "demplar_warrior"
   | "demplar_result"
   | "conflic_theme"
+  | "conflic_theme_mode"
+  | "conflic_stake"
   | "conflic_bouy"
   | "conflic_bouy_result";
 
