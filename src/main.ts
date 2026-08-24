@@ -1350,7 +1350,7 @@ function finishConflicRun() {
   conflicLastResult = result;
   conflicLastRewards = {
     renown: renownFromBouyScore(result),
-    tokens: tokensFromBouyScore(result),
+    tokens: tokensFromBouyScore(result, conflicStake),
   };
   addRenown(conflicLastRewards.renown);
   state.tokens += conflicLastRewards.tokens;

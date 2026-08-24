@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-24T21:30:16.415Z",
+  "generatedAt": "2026-08-24T21:45:54.895Z",
   "hint": "Add MEdiaFiles/<name>/ with banner.jpg, crest.png, sky.webp, deck.jpg - or drop images in MEdiaFiles root. Run npm run media:scan.",
   "platforms": [
     {

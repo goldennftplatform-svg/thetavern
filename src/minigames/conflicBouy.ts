@@ -199,6 +199,8 @@ export class ConflicBouy {
   themeId: BouyThemeId = "charter";
   stake = 0;
   private awaitingAbility = false;
+  private lastW = 0;
+  private lastH = 0;
 
   // Visual effects
   private screenShake = 0;
@@ -401,6 +403,16 @@ export class ConflicBouy {
     if (targetGrid[y][x] !== CELL_STATES.empty) return "already";
     const ship = board.shipMap.get(`${x},${y}`);
     if (ship) {
+      // Check for Silent Run evasion
+      if (ship.type === "submarine" && ship.abilityActive) {
+        ship.abilityActive = false; // Consumes one evasion charge (2 shots)
+        targetGrid[y][x] = CELL_STATES.miss;
+        this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "miss", timer: 250 });
+this.triggerMissEffects(x, y, byPlayer, this.lastW, this.lastH);
+        playPlatformLand();
+        this.setMessage("SILENT RUN — SHOT EVaded!");
+        return "miss";
+      }
       const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
       if (idx >= 0) ship.hits[idx] = true;
       targetGrid[y][x] = CELL_STATES.hit;
@@ -409,33 +421,37 @@ export class ConflicBouy {
       if (sunk) {
         targetGrid[y][x] = CELL_STATES.sunk;
         this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "sink", timer: 800 });
-        this.triggerSunkEffects(x, y, byPlayer);
+        this.triggerSunkEffects(x, y, byPlayer, this.lastW, this.lastH);
         playWarriorImpact(1.2);
         return "sink";
       }
       this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "hit", timer: 300 });
-      this.triggerHitEffects(x, y, byPlayer);
+      this.triggerHitEffects(x, y, byPlayer, this.lastW, this.lastH);
       playPlatformPickup("blade");
       return "hit";
     } else {
       targetGrid[y][x] = CELL_STATES.miss;
       this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "miss", timer: 250 });
-      this.triggerMissEffects(x, y, byPlayer);
+      this.triggerMissEffects(x, y, byPlayer, this.lastW, this.lastH);
       playPlatformLand();
       return "miss";
     }
   }
 
-  private triggerHitEffects(_x: number, _y: number, byPlayer: boolean) {
+  private triggerHitEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 8;
     this.hitPause = 60;
+    // Calculate screen position from grid coordinates
+    const { cell, startX, startY } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    const screenY = startY + y * cell + cell / 2;
     // Spawn hit particles
     for (let i = 0; i < 12; i++) {
       const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.5;
       const speed = 80 + Math.random() * 120;
       this.particles.push({
-        x: byPlayer ? 400 : 800, // rough screen coords
-        y: 300,
+        x: screenX,
+        y: screenY,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 600,
@@ -447,15 +463,18 @@ export class ConflicBouy {
     }
   }
 
-  private triggerMissEffects(_x: number, _y: number, byPlayer: boolean) {
+  private triggerMissEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 3;
+    const { cell, startX, startY } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    const screenY = startY + y * cell + cell / 2;
     // Splash particles
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8;
       const speed = 40 + Math.random() * 60;
       this.particles.push({
-        x: byPlayer ? 400 : 800,
-        y: 300,
+        x: screenX,
+        y: screenY,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 400,
@@ -467,17 +486,20 @@ export class ConflicBouy {
     }
   }
 
-  private triggerSunkEffects(_x: number, _y: number, byPlayer: boolean) {
+  private triggerSunkEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 20;
     this.hitPause = 120;
+    const { cell, startX, startY } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    const screenY = startY + y * cell + cell / 2;
     // Explosion particles
     const shipColor = this.theme.sunkGlow;
     for (let i = 0; i < 30; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 100 + Math.random() * 200;
       this.particles.push({
-        x: byPlayer ? 400 : 800,
-        y: 300,
+        x: screenX,
+        y: screenY,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 1200,
@@ -492,8 +514,8 @@ export class ConflicBouy {
       const angle = (Math.PI * 2 * i) / 12;
       const speed = 60 + Math.random() * 40;
       this.particles.push({
-        x: byPlayer ? 400 : 800,
-        y: 300,
+        x: screenX,
+        y: screenY,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 1000,
@@ -503,6 +525,18 @@ export class ConflicBouy {
         type: "smoke",
       });
     }
+  }
+
+  private getBoardLayout(w: number, h: number) {
+    const headerH = 56;
+    const footerH = 48;
+    const availH = h - headerH - footerH;
+    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const cell = boardSize / GRID_SIZE;
+    const gap = Math.max(20, w * 0.035);
+    const startX = (w - boardSize * 2 - gap) / 2;
+    const startY = headerH + (availH - boardSize) / 2;
+    return { cell, startX, startY, boardSize, gap };
   }
 
   playerFire(x: number, y: number): boolean {
@@ -582,20 +616,13 @@ export class ConflicBouy {
               const y = targetY + dy;
               if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
                 if (targetGrid[y][x] === CELL_STATES.empty) {
-                  const hasShip = opponentBoard.grid[y][x] === CELL_STATES.ship;
-                  targetGrid[y][x] = hasShip ? CELL_STATES.hit : CELL_STATES.miss;
-                  if (hasShip) {
-                    const ship = opponentBoard.shipMap.get(`${x},${y}`);
-                    if (ship) {
-                      const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
-                      if (idx >= 0) ship.hits[idx] = true;
-                    }
-                  }
+                  this.fireAt(opponentBoard, targetGrid, x, y, true);
                 }
               }
             }
           }
         }
+        this.setMessage("AIR STRIKE COMPLETE — 3x3 area scanned!");
         break;
       case "battleship": // Broadside - 3 horizontal shots
         if (targetX !== undefined && targetY !== undefined) {
@@ -607,6 +634,7 @@ export class ConflicBouy {
             }
           }
         }
+        this.setMessage("BROADSIDE FIRED — Three shots across the line!");
         break;
       case "cruiser": // Radar Ping - cross pattern
         if (targetX !== undefined && targetY !== undefined) {
@@ -616,19 +644,12 @@ export class ConflicBouy {
             const y = targetY + dy;
             if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
               if (targetGrid[y][x] === CELL_STATES.empty) {
-                const hasShip = opponentBoard.grid[y][x] === CELL_STATES.ship;
-                targetGrid[y][x] = hasShip ? CELL_STATES.hit : CELL_STATES.miss;
-                if (hasShip) {
-                  const ship = opponentBoard.shipMap.get(`${x},${y}`);
-                  if (ship) {
-                    const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
-                    if (idx >= 0) ship.hits[idx] = true;
-                  }
-                }
+                this.fireAt(opponentBoard, targetGrid, x, y, true);
               }
             }
           }
         }
+        this.setMessage("RADAR PING COMPLETE — Cross pattern scanned!");
         break;
       case "submarine": // Silent Run - evasion
         if (targetX !== undefined && targetY !== undefined) {
@@ -636,6 +657,8 @@ export class ConflicBouy {
           if (ship && ship.type === "submarine") {
             ship.abilityActive = true;
             this.setMessage("SILENT RUN ACTIVATED — Submarine evading next 2 shots!");
+          } else {
+            this.setMessage("NO FRIENDLY SUBMARINE AT TARGET!");
           }
         }
         break;
@@ -831,6 +854,8 @@ export class ConflicBouy {
   }
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    this.lastW = w;
+    this.lastH = h;
     const t = this.theme;
     ctx.imageSmoothingEnabled = false;
 
@@ -1271,7 +1296,8 @@ export function renownFromBouyScore(result: BouyResult): number {
   return Math.floor((isVictory ? 180 : 60) * efficiency);
 }
 
-export function tokensFromBouyScore(result: BouyResult): number {
+export function tokensFromBouyScore(result: BouyResult, stake = 0): number {
   if (!result.winner) return 0;
-  return result.winner === "player" || result.winner === "player1" ? 2 : 0;
+  const isVictory = result.winner === "player" || result.winner === "player1";
+  return isVictory ? stake * 2 : 0;
 }
