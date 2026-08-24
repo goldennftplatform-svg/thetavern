@@ -26,6 +26,7 @@ export type HallStakeSnap = {
   label: string;
   stake: number;
   tokensLeft?: number;
+  outcome?: "win" | "lose" | "push";
   ts: number;
 };
 

@@ -48,6 +48,7 @@ export class KnightDrMario {
   virusesLeft = 0;
   combo = 0;
   finished = false;
+  private comboTimer = 0;
 
   private grid: Cell[][] = [];
   private pill: FallingPill | null = null;
@@ -138,7 +139,7 @@ export class KnightDrMario {
     const test = { ...p, x: p.x + ox, y: p.y + oy, horiz };
     for (const [x, y] of this.pillCells(test).map(([cx, cy]) => [cx, cy])) {
       if (x < 0 || x >= COLS || y >= ROWS) return true;
-      if (y >= 0 && this.grid[y]![x]) return true;
+      if (y >= 0 && this.grid[y][x]) return true;
     }
     return false;
   }
@@ -254,6 +255,7 @@ export class KnightDrMario {
       const mult = 1 + (chain - 1) * 0.35;
       this.score += Math.floor((toClear.size * 18 + viruses * 90) * mult);
       this.combo = chain;
+      this.comboTimer = 180; // combo persists for duration of flash
       this.settlePillGravity();
     }
   }
@@ -304,6 +306,8 @@ export class KnightDrMario {
         this.lockPill();
       }
     }
+    // Combo timer slowly decays after matches stop
+    if (this.comboTimer > 0) this.comboTimer = Math.max(0, this.comboTimer - dt);
     return this.finished;
   }
 
@@ -415,7 +419,8 @@ export class KnightDrMario {
     this.drawNext(ctx, ox + boardW + 10, oy + 4, cell);
 
     if (this.combo > 1 && this.flashMs > 0) {
-      ctx.fillStyle = "#68e8a8";
+      const comboAlpha = Math.max(0, this.comboTimer / 180);
+      ctx.fillStyle = `rgba(68, 232, 168, ${comboAlpha * 0.8})`;
       ctx.font = `${Math.max(18, Math.floor(w * 0.05))}px "VT323", monospace`;
       ctx.textAlign = "center";
       ctx.fillText(`x${this.combo} CLEAR!`, w / 2, oy + boardH / 2);

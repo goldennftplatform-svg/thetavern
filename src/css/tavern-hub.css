@@ -568,6 +568,16 @@ html.tavern-mobile .hub-pick {
   transform: translateY(calc(-50% + 3px));
 }
 
+.tavern-table__seat--northeast {
+  right: 14%;
+  top: 14%;
+  transform: translate(50%, -50%);
+}
+
+.tavern-table__seat--northeast:active:not(:disabled) {
+  transform: translate(50%, -50%) translateY(3px);
+}
+
 .tavern-table__prop-icon {
   font-size: 1.55rem;
   line-height: 1;

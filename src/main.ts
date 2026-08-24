@@ -86,6 +86,13 @@ import {
   tokensFromDemplarScore,
   type DemplarRunResult,
 } from "./minigames/demplarWarrior";
+import {
+  ConflicBouy,
+  renownFromBouyScore,
+  tokensFromBouyScore,
+  type BouyMode,
+  type BouyResult,
+} from "./minigames/conflicBouy";
 import { connectTrail } from "./net/trailClient";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
@@ -138,6 +145,8 @@ import {
   renownStudioHtml,
   triviaStudioHtml,
   triviaTeachHtml,
+  conflicResultStudioHtml,
+  conflicThemePickStudioHtml,
   type RunSnapshot,
 } from "./ui/studioScreens";
 
@@ -389,6 +398,12 @@ let warriorFailsafeTimer = 0;
 let lastDemplarT = 0;
 let demplarLastRewards = { renown: 0, tokens: 0 };
 let demplarLastResult: DemplarRunResult | null = null;
+
+let conflicGame: ConflicBouy | null = null;
+let conflicRaf = 0;
+let conflicLastResult: BouyResult | null = null;
+let conflicLastRewards = { renown: 0, tokens: 0 };
+let conflicMode: BouyMode = "agent";
 
 function scheduleSave() {
   window.clearTimeout(saveTimer);
@@ -1009,6 +1024,20 @@ function handleHubAction(action: string) {
     startDemplarWarrior();
     return;
   }
+  if (action === "conflic_bouy") {
+    setPhase("conflic_theme");
+    return;
+  }
+  if (action.startsWith("conflic:")) {
+    const parts = action.slice(8).split(":");
+    const mode = parts[0] as BouyMode;
+    if (mode === "agent" || mode === "hotseat") {
+      conflicMode = mode;
+      const theme = parts[1] ?? "charter";
+      startConflicBouy(theme);
+    }
+    return;
+  }
   if (action.startsWith("chance:")) {
     const id = action.slice(7);
     if (!isChanceGameId(id)) {
@@ -1266,6 +1295,61 @@ function startDemplarWarrior() {
   syncWarriorShell();
 }
 
+function startConflicBouy(theme?: string) {
+  primeWarriorSfx();
+  conflicGame = new ConflicBouy({ mode: conflicMode, theme: theme as "charter" | "odyssey" | "abyssal" | "corsair" | "voidwalker" });
+  setPhase("conflic_bouy");
+}
+
+function drawConflic() {
+  const { w, h } = syncCanvasBuffer();
+  conflicGame?.draw(ctx, w, h);
+}
+
+function stopConflicLoop() {
+  window.cancelAnimationFrame(conflicRaf);
+  conflicRaf = 0;
+}
+
+function finishConflicRun() {
+  if (!conflicGame) return;
+  stopConflicLoop();
+  const result = conflicGame.result;
+  conflicLastResult = result;
+  conflicLastRewards = {
+    renown: renownFromBouyScore(result),
+    tokens: tokensFromBouyScore(result),
+  };
+  addRenown(conflicLastRewards.renown);
+  state.tokens += conflicLastRewards.tokens;
+  syncHallIdentity();
+  const isVictory = result.winner === "player" || result.winner === "player1";
+  const chronicle = `${state.nickname} ${isVictory ? "commands the fleet to victory" : "watches their fleet slip beneath the waves"} in Conflic Bouy (${conflicMode}).`;
+  const subtext = `${result.playerHits} hits, ${result.playerMisses} misses · ${result.turns} turns · ${isVictory ? "victory" : "defeat"}`;
+  announceDeed("conflic_bouy", chronicle, subtext, conflicLastRewards.renown, { winner: result.winner, turns: result.turns });
+  hud();
+  setPhase("conflic_bouy_result");
+}
+
+function startConflicLoop() {
+  lastConflicT = performance.now();
+  const tick = (now: number) => {
+    if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    const dt = Math.min(48, now - lastConflicT);
+    lastConflicT = now;
+    conflicGame.update(dt);
+    drawConflic();
+    if (conflicGame.phase === "over") {
+      finishConflicRun();
+      return;
+    }
+    conflicRaf = requestAnimationFrame(tick);
+  };
+  conflicRaf = requestAnimationFrame(tick);
+}
+
+let lastConflicT = 0;
+
 bindWarriorTouch({
   touchFriendly,
   canvas,
@@ -1280,6 +1364,29 @@ bindWarriorTouch({
     jump: elWarriorJump,
   },
 });
+
+function bindConflicTouch() {
+  const onDown = (e: PointerEvent) => {
+    if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    const rect = canvas.getBoundingClientRect();
+    conflicGame.pointerDown(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
+  };
+  const onMove = (e: PointerEvent) => {
+    if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    const rect = canvas.getBoundingClientRect();
+    conflicGame.pointerMove(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
+  };
+  const onUp = () => {
+    if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    // no special pointerup logic needed for now
+  };
+  canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointermove", onMove);
+  canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointercancel", onUp);
+}
+
+bindConflicTouch();
 
 function drawWell(phaseOverride?: GamePhase) {
   const { w, h } = syncCanvasBuffer();
@@ -1525,6 +1632,12 @@ function setPhase(next: GamePhase) {
       wireAvatarCloset();
       break;
     }
+    case "conflic_theme": {
+      openMenu(conflicThemePickStudioHtml(conflicMode));
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
     case "demplar_warrior":
       closeMenu();
       showToast("");
@@ -1535,6 +1648,30 @@ function setPhase(next: GamePhase) {
         startDemplarLoop();
       });
       break;
+    case "conflic_bouy":
+      closeMenu();
+      showToast("");
+      elPrimary.hidden = true;
+      requestAnimationFrame(() => {
+        resizeCanvas();
+        drawConflic();
+        startConflicLoop();
+      });
+      break;
+    case "conflic_bouy_result": {
+      const r = conflicLastResult ?? conflicGame?.result ?? { winner: null, playerHits: 0, playerMisses: 0, agentHits: 0, agentMisses: 0, turns: 0 };
+      openMenu(
+        conflicResultStudioHtml(
+          r,
+          conflicLastRewards.renown,
+          conflicLastRewards.tokens,
+          conflicMode,
+        ),
+      );
+      elPrimary.hidden = true;
+      wirePhaseHub();
+      break;
+    }
     case "demplar_result": {
       const r = demplarLastResult ?? demplarGame?.result ?? {
         total: 0,
@@ -1832,6 +1969,17 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyF") {
       e.preventDefault();
       demplarGame?.hardDrop();
+    }
+    return;
+  }
+  if (state.phase === "conflic_bouy") {
+    if (e.code === "KeyR" || e.code === "KeyA") {
+      e.preventDefault();
+      conflicGame?.keyDown("R");
+    }
+    if (e.code === "Escape") {
+      e.preventDefault();
+      setPhase("well");
     }
     return;
   }

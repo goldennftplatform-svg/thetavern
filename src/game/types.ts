@@ -24,7 +24,10 @@ export type GamePhase =
   | "pole_rack"
   | "avatar_closet"
   | "demplar_warrior"
-  | "demplar_result";
+  | "demplar_result"
+  | "conflic_theme"
+  | "conflic_bouy"
+  | "conflic_bouy_result";
 
 export type FoodBuff = {
   foodId: FoodId;

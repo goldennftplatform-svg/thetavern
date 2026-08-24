@@ -274,17 +274,40 @@ function refreshLeaderboard() {
     return;
   }
 
-  elLeaderboard.innerHTML = `<ol class="bb-lb__list" aria-label="Top patrons tonight">
-    ${rows
-      .map(
-        (r, i) => `<li class="bb-lb__item${i === 0 ? " bb-lb__item--top" : ""}">
-          <span class="bb-lb__rank" aria-hidden="true">${i + 1}</span>
-          <span class="bb-lb__name">${escapeHtml(r.name)}</span>
-          <span class="bb-lb__score">★${r.renown}</span>
-        </li>`,
-      )
-      .join("")}
-  </ol>`;
+  const medals = ["🥇", "🥈", "🥉"];
+  const podium = rows.slice(0, 3);
+  const rest = rows.slice(3);
+  const leaderRenown = Math.max(1, rows[0]!.renown);
+
+  const podiumHtml = podium
+    .map((r, i) => {
+      const place = i + 1;
+      return `<div class="bb-lb-podium bb-lb-podium--${place}">
+        <span class="bb-lb-podium__medal" aria-hidden="true">${medals[i]}</span>
+        <span class="bb-lb-podium__name">${escapeHtml(r.name)}</span>
+        <span class="bb-lb-podium__score">★${r.renown}</span>
+        <span class="bb-lb-podium__deeds">${r.deeds} deed${r.deeds === 1 ? "" : "s"}</span>
+      </div>`;
+    })
+    .join("");
+
+  const restHtml = rest
+    .map((r, i) => {
+      const place = i + 4;
+      const pct = Math.max(6, Math.round((r.renown / leaderRenown) * 100));
+      return `<li class="bb-lb-row">
+        <span class="bb-lb-row__rank">${place}</span>
+        <span class="bb-lb-row__name">${escapeHtml(r.name)}</span>
+        <span class="bb-lb-row__bartrack"><span class="bb-lb-row__bar" style="--w:${pct}%"></span></span>
+        <span class="bb-lb-row__score">★${r.renown}</span>
+      </li>`;
+    })
+    .join("");
+
+  elLeaderboard.innerHTML = `<div class="bb-lb-wrap">
+    ${podiumHtml ? `<div class="bb-lb-podium-row">${podiumHtml}</div>` : ""}
+    ${rest.length > 0 ? `<ol class="bb-lb-rest">${restHtml}</ol>` : ""}
+  </div>`;
 }
 
 function bumpLeaderboard(d: Deed) {
@@ -607,6 +630,19 @@ function onChanceUpdate(d: {
     });
   }
 
+  if (phase === "chance_result" && typeof d.stake === "number") {
+    const outcome = (d.outcome as "win" | "lose" | "push" | undefined) ?? undefined;
+    upsertStake({
+      from: d.from,
+      kind: "chance",
+      label: d.game === "red_black" ? "Red/Black" : d.game === "high_low" ? "Hi-Lo" : "Chance",
+      stake: d.stake,
+      tokensLeft: d.tokens,
+      outcome,
+      ts: Date.now(),
+    });
+  }
+
   if (phase === "chance_result" && d.outcome === "win") {
     chanceFlashUntil = performance.now() + 1_400;
   }
@@ -689,9 +725,9 @@ function renderTrophyRail() {
     .map(
       (t) =>
         `<span class="bb-trophy-chip bb-trophy-chip--${t.rarity}" title="${escapeHtml(t.from)} landed ${escapeHtml(t.fish)}">
-          <strong>${t.rarity === "mythic" ? "Mythic" : "Omen"}</strong>
-          ${escapeHtml(t.fish)}
-          <em>${escapeHtml(t.from)}</em>
+          <span class="bb-trophy-chip__gem" aria-hidden="true">${t.rarity === "mythic" ? "★" : "☾"}</span>
+          <span class="bb-trophy-chip__fish">${escapeHtml(t.fish)}</span>
+          <em class="bb-trophy-chip__by">${escapeHtml(t.from)}</em>
         </span>`,
     )
     .join("");
@@ -705,20 +741,46 @@ function renderStakeRail() {
   }
   stakeRailEl.innerHTML = stakeList
     .slice(0, 8)
-    .map(
-      (s) =>
-        `<span class="bb-stake-chip bb-stake-chip--${s.kind}">
-          <strong>◎${s.stake}</strong>
-          ${escapeHtml(s.from)} · ${escapeHtml(s.label)}
-          ${typeof s.tokensLeft === "number" ? `<em>left ◎${s.tokensLeft}</em>` : ""}
-        </span>`,
-    )
+    .map((s) => {
+      const outcomeCls =
+        s.outcome === "win"
+          ? " bb-stake-chip--win"
+          : s.outcome === "lose"
+            ? " bb-stake-chip--lose"
+            : s.outcome === "push"
+              ? " bb-stake-chip--push"
+              : "";
+      const verdict =
+        s.outcome === "win"
+          ? `<em class="bb-stake-chip__verdict">W ◎+${s.stake}</em>`
+          : s.outcome === "lose"
+            ? `<em class="bb-stake-chip__verdict">L ◎−${s.stake}</em>`
+            : s.outcome === "push"
+              ? `<em class="bb-stake-chip__verdict">PUSH</em>`
+              : typeof s.tokensLeft === "number"
+                ? `<em>left ◎${s.tokensLeft}</em>`
+                : "";
+      return `<span class="bb-stake-chip bb-stake-chip--${s.kind}${outcomeCls}">
+        <strong>◎${s.stake}</strong>
+        <span class="bb-stake-chip__who">${escapeHtml(s.from)} · ${escapeHtml(s.label)}</span>
+        ${verdict}
+      </span>`;
+    })
     .join("");
 }
 
 function upsertTrophy(t: HallTrophy) {
-  if (trophyList.some((x) => x.id === t.id)) return;
-  trophyList = [t, ...trophyList].slice(0, 24);
+  // One plaque per species per angler — repeat landings refresh the shine, not the wall.
+  const key = `${t.fish.trim().toLowerCase()}|${t.from.trim().toLowerCase()}`;
+  const existingIdx = trophyList.findIndex(
+    (x) => x.id === t.id || `${x.fish.trim().toLowerCase()}|${x.from.trim().toLowerCase()}` === key,
+  );
+  if (existingIdx >= 0) {
+    const updated = { ...trophyList[existingIdx]!, ts: Math.max(trophyList[existingIdx]!.ts, t.ts) };
+    trophyList = [updated, ...trophyList.filter((_, i) => i !== existingIdx)].slice(0, 24);
+  } else {
+    trophyList = [t, ...trophyList].slice(0, 24);
+  }
   renderTrophyRail();
 }
 

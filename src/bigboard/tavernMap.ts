@@ -111,11 +111,12 @@ function drawKnightWallLore(ctx: CanvasRenderingContext2D, w: number, h: number,
     ctx.lineWidth = 3;
     ctx.strokeRect(b.x, b.y, 48, 64);
     ctx.fillStyle = "#e8b050";
-    ctx.font = '14px "Press Start 2P", monospace';
-    ctx.fillText("⚔", b.x + 16, b.y + 28);
-    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.font = '16px "VT323", monospace';
+    ctx.fillText("⚔", b.x + 18, b.y + 26);
+    ctx.fillStyle = "rgba(232, 200, 140, 0.85)";
+    ctx.font = '12px "VT323", monospace';
     ctx.textAlign = "center";
-    ctx.fillText(b.label, b.x + 24, b.y + 52);
+    ctx.fillText(b.label, b.x + 24, b.y + 50);
     ctx.textAlign = "left";
   }
 
@@ -244,6 +245,29 @@ function drawGiantTable(
   ctx.ellipse(cx, cy, mrx - 6, mry - 4, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Breathing ripple rings — the well is alive even when nobody casts
+  for (let k = 0; k < 2; k++) {
+    const rt = ((tick * 0.00045 + k * 0.5) % 1);
+    ctx.strokeStyle = `rgba(136, 200, 184, ${(1 - rt) * 0.32})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, mrx * (0.28 + rt * 0.66), mry * (0.28 + rt * 0.62), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Moon glint drifting across the water
+  const glintX = cx + Math.sin(tick * 0.011) * (mrx * 0.55);
+  const glintY = cy - mry * 0.35;
+  const glint = 0.5 + Math.sin(tick * 0.05) * 0.22;
+  ctx.fillStyle = `rgba(220, 232, 248, ${glint * 0.6})`;
+  ctx.beginPath();
+  ctx.ellipse(glintX, glintY, 9, 3.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(220, 232, 248, ${glint * 0.3})`;
+  ctx.beginPath();
+  ctx.ellipse(glintX, glintY, 18, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.strokeStyle = "#e8b050";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -254,15 +278,37 @@ function drawGiantTable(
   const wave = Math.sin(tick * 0.06) * 4;
   ctx.fillRect(cx - mrx + 8, cy - 6 + wave, (mrx - 8) * 2, 10);
 
-  drawCharterSeal(ctx, cx, cy, Math.min(mrx * 0.42, 36), theme?.crest);
+  // Candlelight pinned to the table corners — pure coziness
+  const candleSpots: Array<[number, number]> = [
+    [tx + 20, ty + 20],
+    [tx + tw - 20, ty + 20],
+    [tx + 20, ty + th - 20],
+    [tx + tw - 20, ty + th - 20],
+  ];
+  candleSpots.forEach(([cxp, cyp], i) => {
+    const fl = 0.62 + Math.sin(tick * 0.09 + i * 1.73) * 0.26;
+    const glow = ctx.createRadialGradient(cxp, cyp, 2, cxp, cyp, 30);
+    glow.addColorStop(0, `rgba(240, 190, 90, ${0.34 * fl})`);
+    glow.addColorStop(1, "rgba(240, 190, 90, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(cxp - 30, cyp - 30, 60, 60);
+    ctx.fillStyle = `rgba(255, 224, 150, ${fl})`;
+    ctx.beginPath();
+    ctx.arc(cxp, cyp - 3, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#d8cfc0";
+    ctx.fillRect(cxp - 1.5, cyp, 3, 6);
+  });
+
+  drawCharterSeal(ctx, cx, cy, Math.min(mrx * 0.34, mry * 0.72, 32), theme?.crest);
 
   ctx.fillStyle = "#f8f0ff";
-  ctx.font = `${Math.max(8, w * 0.012)}px "Press Start 2P", monospace`;
+  ctx.font = `${Math.max(9, w * 0.013)}px "Press Start 2P", monospace`;
   ctx.textAlign = "center";
-  ctx.fillText("MOONWELL", cx, cy - mry - 14);
-  ctx.fillStyle = "rgba(232, 176, 80, 0.55)";
-  ctx.font = `${Math.max(5, w * 0.007)}px "Press Start 2P", monospace`;
-  ctx.fillText("⚔ CHARTER TABLE", cx, cy - mry - 4);
+  ctx.fillText("MOONWELL", cx, cy - mry - 22);
+  ctx.fillStyle = "rgba(232, 176, 80, 0.7)";
+  ctx.font = '13px "VT323", monospace';
+  ctx.fillText("⚔ CHARTER TABLE ⚔", cx, cy - mry - 9);
   ctx.textAlign = "left";
 
   ctx.fillStyle = "rgba(248, 216, 32, 0.12)";
@@ -305,14 +351,34 @@ function drawChair(ctx: CanvasRenderingContext2D, x: number, y: number, angle: n
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + Math.PI / 2);
-  ctx.fillStyle = "#3d2818";
-  ctx.fillRect(-10, -6, 20, 12);
+  // Cushioned seat — warm leather with a gold piping hint
+  ctx.fillStyle = "#4a3020";
+  ctx.beginPath();
+  ctx.roundRect(-10, -7, 20, 14, 4);
+  ctx.fill();
+  ctx.fillStyle = "#5a3c26";
+  ctx.fillRect(-8, -5, 16, 9);
   ctx.fillStyle = "#2a1810";
-  ctx.fillRect(-8, 4, 16, 8);
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(-10, -6, 20, 12);
+  ctx.fillRect(-8, 6, 16, 7);
+  ctx.strokeStyle = "rgba(232, 176, 80, 0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(-10, -7, 20, 14, 4);
+  ctx.stroke();
   ctx.restore();
+}
+
+/** Golden dust motes drifting through the hall — projector-wall ambience. */
+function drawDustMotes(ctx: CanvasRenderingContext2D, w: number, h: number, tick: number) {
+  for (let i = 0; i < 16; i++) {
+    const seed = i * 97.13;
+    const speed = 0.008 + (i % 5) * 0.002;
+    const mx = ((Math.sin(seed) * 0.5 + 0.5) * w + Math.sin(tick * 0.0011 + seed) * 22 + w) % w;
+    const my = (((Math.cos(seed * 1.7) * 0.5 + 0.5) * h - tick * speed - seed * 37) % h + h) % h;
+    const twinkle = 0.28 + Math.abs(Math.sin(tick * 0.0035 + seed)) * 0.34;
+    ctx.fillStyle = `rgba(240, 210, 130, ${twinkle})`;
+    ctx.fillRect(mx, my, 2, 2);
+  }
 }
 
 function drawSideTables(
@@ -332,17 +398,20 @@ function drawSideTables(
       ctx.fillRect(z.x - 4, z.y - 4, 68, 48);
     }
     ctx.fillStyle = "#4a3020";
-    ctx.fillRect(z.x, z.y, 60, 40);
-    ctx.strokeStyle = z.hot ? "#e8b050" : "#e8b050";
+    ctx.beginPath();
+    ctx.roundRect(z.x, z.y, 60, 40, 5);
+    ctx.fill();
+    ctx.strokeStyle = z.hot ? "#e8b050" : "rgba(232, 176, 80, 0.75)";
     ctx.lineWidth = z.hot ? 3 : 2;
-    ctx.strokeRect(z.x, z.y, 60, 40);
+    ctx.stroke();
+
     ctx.fillStyle = z.color;
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillText(z.label, z.x + 5, z.y + 16);
+    ctx.font = '15px "VT323", monospace';
+    ctx.fillText(z.label, z.x + 6, z.y + 17);
     if (z.sub) {
-      ctx.fillStyle = "rgba(248, 240, 255, 0.55)";
-      ctx.font = '5px "Press Start 2P", monospace';
-      ctx.fillText(z.sub, z.x + 5, z.y + 30);
+      ctx.fillStyle = "rgba(248, 240, 255, 0.65)";
+      ctx.font = '12px "VT323", monospace';
+      ctx.fillText(z.sub, z.x + 6, z.y + 32);
     }
   }
 }
@@ -546,6 +615,7 @@ export function drawTavernMap(
     }));
 
   drawPlankFloor(ctx, w, ph, tick);
+  drawDustMotes(ctx, w, ph, tick);
   const table = drawGiantTable(ctx, w, ph, tick, theme);
   drawSideTables(ctx, w, ph, table);
 
@@ -578,9 +648,9 @@ export function drawTavernMap(
   const activeFishers = sorted.filter((p) => p.fishing && p.fishing.phase !== "idle").length;
   const activeGamblers = chancePatrons.length;
   if (activeFishers > 0 || activeGamblers > 0) {
-    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.font = '15px "VT323", monospace';
     ctx.textAlign = "right";
-    const headerY = 14;
+    const headerY = 18;
     if (activeFishers > 0 && activeGamblers > 0) {
       ctx.fillStyle = "rgba(104, 184, 168, 0.9)";
       ctx.fillText(`${activeFishers} ANGLING`, w - 10, headerY);

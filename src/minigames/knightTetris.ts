@@ -117,7 +117,7 @@ export class KnightTetris {
   private collides(p: ActivePiece, ox = 0, oy = 0, rot = p.rot): boolean {
     for (const [x, y] of rotateCells(SHAPES[p.shape]!, rot).map(([cx, cy]) => [p.x + cx + ox, p.y + cy + oy])) {
       if (x < 0 || x >= COLS || y >= ROWS) return true;
-      if (y >= 0 && this.grid[y]![x]! >= 0) return true;
+      if (y >= 0 && this.grid[y][x] >= 0) return true;
     }
     return false;
   }
@@ -185,6 +185,7 @@ export class KnightTetris {
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) this.grid[y]![x] = p.color;
     }
     this.active = null;
+    this.linesClearedThisDrop = 0; // reset per-drop counter
     this.piecesLocked += 1;
     this.clearLines();
     if (this.gameOver || this.finished) return;
@@ -214,6 +215,7 @@ export class KnightTetris {
       const baseGrav = this.mobileEase ? BASE_GRAVITY_MS + 100 : BASE_GRAVITY_MS;
       this.gravityMs = Math.max(minGrav, baseGrav - (this.level - 1) * 42);
       this.flashMs = 140;
+      this.linesClearedThisDrop = cleared;
       playTetrisClear(cleared);
     }
   }
@@ -258,6 +260,8 @@ export class KnightTetris {
     }
     return false;
   }
+
+  private linesClearedThisDrop = 0;
 
   hudLine(): string {
     return `L${this.lines} · LV${this.level}`;
@@ -312,6 +316,17 @@ export class KnightTetris {
         if (y < 0) continue;
         this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[this.active.color]!);
       }
+    }
+
+    // Draw lines cleared message during flash
+    if (this.linesClearedThisDrop > 0 && flash > 0) {
+      const linesText = `CLEAR ${this.linesClearedThisDrop} LINES`;
+      const titlePx = Math.max(16, Math.floor(w * 0.042));
+      ctx.fillStyle = `rgba(232, 176, 80, ${flash * 0.5})`;
+      ctx.font = `${titlePx}px "VT323", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(linesText, w / 2, oy - 4);
+      ctx.textAlign = "left";
     }
 
     this.drawNextPreview(ctx, ox + boardW + 10, oy + 4, cell);

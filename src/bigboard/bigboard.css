@@ -649,7 +649,7 @@ body.bigboard-body {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 1fr) minmax(0, auto);
+  grid-template-rows: minmax(min(300px, 40dvh), 1fr) minmax(0, auto);
   gap: 10px;
   padding: 0 12px 8px;
   min-height: 0;
@@ -659,7 +659,7 @@ body.bigboard-body {
 @media (min-width: 900px) {
   .bb-main {
     grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(min(300px, 40dvh), 1fr);
     gap: 12px;
     padding: 0 16px 10px;
   }
@@ -668,7 +668,7 @@ body.bigboard-body {
 .bb-map-stage {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: min(300px, 40dvh);
   position: relative;
   overflow: hidden;
 }

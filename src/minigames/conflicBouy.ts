@@ -1,0 +1,953 @@
+/**
+ * Conflic Bouy — Charter Battleship.
+ * 10×10 grid, standard fleet, turn-based vs Agent or 1v1 hot-seat.
+ * Now with: fleet status, parity AI, auto-randomize, ship health bars, hotseat placement for both players.
+ */
+
+import { playPlatformLand, playPlatformPickup, playWarriorImpact } from "../audio/warriorSfx";
+import { BouyTheme, getTheme, BouyThemeId } from "./conflicBouyThemes";
+import { getContextualSparrowLine, getVariantLine } from "./conflicBouyPersonality";
+
+export type BouyMode = "agent" | "hotseat";
+export type BouyPhase = "setup" | "play" | "over";
+export type SetupSubPhase = "player1" | "player2" | "done";
+
+export type ShipType = "carrier" | "battleship" | "cruiser" | "submarine" | "destroyer";
+
+export const SHIP_SPECS: Record<ShipType, { size: number; label: string; short: string }> = {
+  carrier: { size: 5, label: "CARRIER", short: "CV" },
+  battleship: { size: 4, label: "BATTLESHIP", short: "BB" },
+  cruiser: { size: 3, label: "CRUISER", short: "CA" },
+  submarine: { size: 3, label: "SUBMARINE", short: "SS" },
+  destroyer: { size: 2, label: "DESTROYER", short: "DD" },
+};
+
+export const FLEET: ShipType[] = ["carrier", "battleship", "cruiser", "submarine", "destroyer"];
+export const GRID_SIZE = 10;
+export const CELL_STATES = { empty: 0, ship: 1, hit: 2, miss: 3, sunk: 4 } as const;
+export type CellState = 0 | 1 | 2 | 3 | 4;
+
+export type Ship = {
+  type: ShipType;
+  cells: [number, number][];
+  hits: boolean[];
+  sunk: boolean;
+};
+
+export type Board = {
+  grid: CellState[][];
+  ships: Ship[];
+  shipMap: Map<string, Ship>;
+};
+
+export type BouyResult = {
+  winner: "player" | "agent" | "player1" | "player2" | null;
+  playerHits: number;
+  playerMisses: number;
+  agentHits: number;
+  agentMisses: number;
+  turns: number;
+};
+
+function emptyGrid(): CellState[][] {
+  return Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(CELL_STATES.empty));
+}
+
+function createBoard(): Board {
+  return { grid: emptyGrid(), ships: [], shipMap: new Map() };
+}
+
+function canPlace(grid: CellState[][], cells: [number, number][]): boolean {
+  for (const [x, y] of cells) {
+    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return false;
+    if (grid[y][x] !== CELL_STATES.empty) return false;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+          if (grid[ny][nx] === CELL_STATES.ship) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+function placeShip(board: Board, type: ShipType, origin: [number, number], horizontal: boolean): boolean {
+  const size = SHIP_SPECS[type].size;
+  const cells: [number, number][] = [];
+  for (let i = 0; i < size; i++) {
+    cells.push(horizontal ? [origin[0] + i, origin[1]] : [origin[0], origin[1] + i]);
+  }
+  if (!canPlace(board.grid, cells)) return false;
+  for (const [x, y] of cells) board.grid[y][x] = CELL_STATES.ship;
+  const ship: Ship = { type, cells, hits: Array(size).fill(false), sunk: false };
+  board.ships.push(ship);
+  for (const [x, y] of cells) board.shipMap.set(`${x},${y}`, ship);
+  return true;
+}
+
+function randomBoard(): Board {
+  const board = createBoard();
+  for (const type of FLEET) {
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 100) {
+      const horizontal = Math.random() < 0.5;
+      const size = SHIP_SPECS[type].size;
+      const maxX = horizontal ? GRID_SIZE - size : GRID_SIZE - 1;
+      const maxY = horizontal ? GRID_SIZE - 1 : GRID_SIZE - size;
+      const x = Math.floor(Math.random() * (maxX + 1));
+      const y = Math.floor(Math.random() * (maxY + 1));
+      placed = placeShip(board, type, [x, y], horizontal);
+      attempts++;
+    }
+  }
+  return board;
+}
+
+function checkSunk(board: Board, ship: Ship): boolean {
+  if (ship.sunk) return true;
+  if (ship.hits.every((h) => h)) {
+    ship.sunk = true;
+    for (const [x, y] of ship.cells) board.grid[y][x] = CELL_STATES.sunk;
+    return true;
+  }
+  return false;
+}
+
+export class ConflicBouy {
+  mode: BouyMode = "agent";
+  phase: BouyPhase = "setup";
+  setupSubPhase: SetupSubPhase = "player1";
+  playerBoard = createBoard();
+  opponentBoard = createBoard();
+  player1Board = createBoard();
+  player2Board = createBoard();
+  playerTargetGrid: CellState[][] = emptyGrid();
+  opponentTargetGrid: CellState[][] = emptyGrid();
+  currentTurn: "player" | "agent" | "player1" | "player2" = "player";
+  playerPlacing = 0;
+  horizontal = true;
+  hoverCell: [number, number] | null = null;
+  result: BouyResult = {
+    winner: null,
+    playerHits: 0,
+    playerMisses: 0,
+    agentHits: 0,
+    agentMisses: 0,
+    turns: 0,
+  };
+  lastHit: [number, number] | null = null;
+  huntMode = false;
+  huntQueue: [number, number][] = [];
+  private flashCells: Array<{ x: number; y: number; board: "player" | "opponent" | "player1" | "player2"; type: "hit" | "miss" | "sink"; timer: number }> = [];
+  private message = "";
+  private messageTimer = 0;
+  private messageQueue: string[] = [];
+  private agentThinking = false;
+  private agentDifficulty: "easy" | "normal" | "hard" = "normal";
+  private lastHitDirection: [number, number] | null = null;
+  themeId: BouyThemeId = "charter";
+
+  constructor(opts?: { mode?: BouyMode; theme?: BouyThemeId }) {
+    this.mode = opts?.mode ?? "agent";
+    this.themeId = opts?.theme ?? "charter";
+    this.reset();
+  }
+
+  get theme(): BouyTheme {
+    return getTheme(this.themeId);
+  }
+
+  private getSparrowLine(event: string): string {
+    // Try theme variant first
+    const variantLine = getVariantLine(this.themeId, event as any, {
+      mode: this.mode,
+      phase: this.phase,
+      currentTurn: this.currentTurn,
+      playerBoard: this.getOwnGrid(),
+      opponentBoard: this.getOpponentBoard(),
+      result: this.result,
+    });
+    if (variantLine) return variantLine;
+
+    // Fall back to main Sparrow system
+    return getContextualSparrowLine(event, {
+      mode: this.mode,
+      phase: this.phase,
+      currentTurn: this.currentTurn,
+      playerBoard: this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player1Board : this.player2Board) : this.playerBoard,
+      opponentBoard: this.getOpponentBoard(),
+      result: this.result,
+    });
+  }
+
+  setTheme(themeId: BouyThemeId) {
+    this.themeId = themeId;
+  }
+
+  reset() {
+    this.playerBoard = createBoard();
+    this.opponentBoard = randomBoard();
+    this.player1Board = createBoard();
+    this.player2Board = createBoard();
+    this.playerTargetGrid = emptyGrid();
+    this.opponentTargetGrid = emptyGrid();
+    this.currentTurn = "player";
+    this.playerPlacing = 0;
+    this.horizontal = true;
+    this.hoverCell = null;
+    this.result = { winner: null, playerHits: 0, playerMisses: 0, agentHits: 0, agentMisses: 0, turns: 0 };
+    this.lastHit = null;
+    this.huntMode = false;
+    this.huntQueue = [];
+    this.flashCells = [];
+    this.message = "";
+    this.messageTimer = 0;
+    this.messageQueue = [];
+    this.phase = "setup";
+    this.setupSubPhase = this.mode === "hotseat" ? "player1" : "done";
+    this.agentThinking = false;
+    this.agentDifficulty = "normal";
+    this.lastHitDirection = null;
+  }
+
+  setMode(mode: BouyMode) {
+    this.mode = mode;
+    this.reset();
+  }
+
+  setDifficulty(difficulty: "easy" | "normal" | "hard") {
+    this.agentDifficulty = difficulty;
+  }
+
+  getCurrentShipType(): ShipType {
+    return FLEET[this.playerPlacing] ?? FLEET[FLEET.length - 1];
+  }
+
+  getCurrentShipSize(): number {
+    return SHIP_SPECS[this.getCurrentShipType()].size;
+  }
+
+  getCurrentBoard(): Board {
+    if (this.mode === "hotseat") {
+      return this.setupSubPhase === "player1" ? this.player1Board : this.player2Board;
+    }
+    return this.playerBoard;
+  }
+
+  getOpponentBoard(): Board {
+    if (this.mode === "hotseat") {
+      return this.currentTurn === "player1" ? this.player2Board : this.player1Board;
+    }
+    return this.opponentBoard;
+  }
+
+  getTargetGrid(): CellState[][] {
+    if (this.mode === "hotseat") {
+      return this.currentTurn === "player1" ? this.playerTargetGrid : this.opponentTargetGrid;
+    }
+    return this.opponentTargetGrid;
+  }
+
+  getOwnGrid(): CellState[][] {
+    if (this.mode === "hotseat") {
+      return this.currentTurn === "player1" ? this.player1Board.grid : this.player2Board.grid;
+    }
+    return this.playerBoard.grid;
+  }
+
+  canPlaceAt(x: number, y: number): boolean {
+    const size = this.getCurrentShipSize();
+    const cells: [number, number][] = [];
+    for (let i = 0; i < size; i++) {
+      cells.push(this.horizontal ? [x + i, y] : [x, y + i]);
+    }
+    return canPlace(this.getCurrentBoard().grid, cells);
+  }
+
+  placeCurrentShip(x: number, y: number): boolean {
+    const board = this.getCurrentBoard();
+    const type = this.getCurrentShipType();
+    const cells: [number, number][] = [];
+    for (let i = 0; i < this.getCurrentShipSize(); i++) {
+      cells.push(this.horizontal ? [x + i, y] : [x, y + i]);
+    }
+    if (!canPlace(board.grid, cells)) return false;
+    for (const [cx, cy] of cells) board.grid[cy][cx] = CELL_STATES.ship;
+    const ship: Ship = { type, cells, hits: Array(this.getCurrentShipSize()).fill(false), sunk: false };
+    board.ships.push(ship);
+    for (const [cx, cy] of cells) board.shipMap.set(`${cx},${cy}`, ship);
+    this.playerPlacing++;
+    playPlatformPickup("coin");
+    if (this.playerPlacing >= FLEET.length) {
+      if (this.mode === "hotseat" && this.setupSubPhase === "player1") {
+        this.setupSubPhase = "player2";
+        this.playerPlacing = 0;
+        this.horizontal = true;
+        this.hoverCell = null;
+        this.setMessage("PLAYER 2 — DEPLOY YOUR FLEET", 2000);
+      } else {
+        this.phase = "play";
+        this.setupSubPhase = "done";
+        this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
+        this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
+        this.setMessage(this.getSparrowLine("game_start"), 2500);
+      }
+    }
+    return true;
+  }
+
+  randomizeCurrentBoard() {
+    const board = this.getCurrentBoard();
+    board.grid = emptyGrid();
+    board.ships = [];
+    board.shipMap.clear();
+    for (const type of FLEET) {
+      let placed = false;
+      let attempts = 0;
+      while (!placed && attempts < 100) {
+        const horizontal = Math.random() < 0.5;
+        const size = SHIP_SPECS[type].size;
+        const maxX = horizontal ? GRID_SIZE - size : GRID_SIZE - 1;
+        const maxY = horizontal ? GRID_SIZE - 1 : GRID_SIZE - size;
+        const x = Math.floor(Math.random() * (maxX + 1));
+        const y = Math.floor(Math.random() * (maxY + 1));
+        placed = placeShip(board, type, [x, y], horizontal);
+        attempts++;
+      }
+    }
+    this.playerPlacing = FLEET.length;
+    playPlatformPickup("blade");
+  }
+
+  setMessage(text: string, duration = 1200) {
+    if (this.messageTimer <= 0) {
+      this.message = text;
+      this.messageTimer = duration;
+    } else {
+      this.messageQueue.push(text);
+    }
+  }
+
+  private processMessageQueue() {
+    if (this.messageTimer <= 0 && this.messageQueue.length > 0) {
+      this.message = this.messageQueue.shift()!;
+      this.messageTimer = 1200;
+    }
+  }
+
+  fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: boolean): "hit" | "miss" | "sink" | "already" {
+    if (targetGrid[y][x] !== CELL_STATES.empty) return "already";
+    const ship = board.shipMap.get(`${x},${y}`);
+    if (ship) {
+      const idx = ship.cells.findIndex(([cx, cy]) => cx === x && cy === y);
+      if (idx >= 0) ship.hits[idx] = true;
+      targetGrid[y][x] = CELL_STATES.hit;
+      board.grid[y][x] = CELL_STATES.hit;
+      const sunk = checkSunk(board, ship);
+      if (sunk) {
+        targetGrid[y][x] = CELL_STATES.sunk;
+        this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "sink", timer: 800 });
+        playWarriorImpact(1.2);
+        return "sink";
+      }
+      this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "hit", timer: 300 });
+      playPlatformPickup("blade");
+      return "hit";
+    } else {
+      targetGrid[y][x] = CELL_STATES.miss;
+      this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "miss", timer: 250 });
+      playPlatformLand();
+      return "miss";
+    }
+  }
+
+  playerFire(x: number, y: number): boolean {
+    if (this.phase !== "play") return false;
+    const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
+    if (!isPlayerTurn) return false;
+    const targetGrid = this.getTargetGrid();
+    if (targetGrid[y][x] !== CELL_STATES.empty) return false;
+    const opponentBoard = this.getOpponentBoard();
+    const res = this.fireAt(opponentBoard, targetGrid, x, y, true);
+    if (res === "hit") {
+      this.result.playerHits++;
+      this.setMessage(this.getSparrowLine("player_hit"));
+    } else if (res === "sink") {
+      this.result.playerHits++;
+      const shipType = opponentBoard.shipMap.get(`${x},${y}`)?.type.toUpperCase() ?? "SHIP";
+      this.setMessage(this.getSparrowLine("player_sink") + ` — ${shipType} SUNK!`);
+    } else if (res === "miss") {
+      this.result.playerMisses++;
+      this.setMessage(this.getSparrowLine("player_miss"));
+      this.endTurn();
+    }
+    this.result.turns++;
+    this.checkWin();
+    return true;
+  }
+
+  endTurn() {
+    if (this.mode === "agent") {
+      this.currentTurn = "agent";
+      this.scheduleAgentTurn();
+    } else {
+      this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
+    }
+  }
+
+  scheduleAgentTurn() {
+    this.agentThinking = true;
+    setTimeout(() => {
+      this.agentThinking = false;
+      this.setMessage(this.getSparrowLine("agent_turn_start"));
+      this.agentTurn();
+    }, 600 + Math.random() * 400);
+  }
+
+  agentTurn() {
+    if (this.phase !== "play" || this.currentTurn !== "agent") return;
+    let x: number, y: number;
+
+    // Difficulty-based behavior
+    const useParity = this.agentDifficulty !== "easy";
+    const smartHunt = this.agentDifficulty === "hard";
+
+    if (this.huntMode && this.huntQueue.length > 0) {
+      // Smart hunt: prioritize direction of last hit if we have a direction
+      if (smartHunt && this.lastHitDirection) {
+        const [dx, dy] = this.lastHitDirection;
+        const lastX = this.lastHit?.[0] ?? 0;
+        const lastY = this.lastHit?.[1] ?? 0;
+        const nextX = lastX + dx;
+        const nextY = lastY + dy;
+        if (nextX >= 0 && nextX < GRID_SIZE && nextY >= 0 && nextY < GRID_SIZE &&
+            this.playerTargetGrid[nextY][nextX] === CELL_STATES.empty) {
+          [x, y] = [nextX, nextY];
+        } else {
+          // Direction blocked, try perpendicular
+          this.lastHitDirection = null;
+          this.agentTurn();
+          return;
+        }
+      } else {
+        [x, y] = this.huntQueue.shift()!;
+        if (this.playerTargetGrid[y][x] !== CELL_STATES.empty) {
+          this.agentTurn();
+          return;
+        }
+      }
+    } else {
+      // Search mode: parity targeting for efficiency
+      const candidates: [number, number][] = [];
+      for (let yy = 0; yy < GRID_SIZE; yy++) {
+        for (let xx = 0; xx < GRID_SIZE; xx++) {
+          if (this.playerTargetGrid[yy][xx] === CELL_STATES.empty) {
+            if (!useParity || (xx + yy) % 2 === 0) {
+              candidates.push([xx, yy]);
+            }
+          }
+        }
+      }
+      if (candidates.length === 0) { this.checkWin(); return; }
+      [x, y] = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    const res = this.fireAt(this.playerBoard, this.playerTargetGrid, x, y, false);
+    if (res === "hit") {
+      this.result.agentHits++;
+      this.setMessage(this.getSparrowLine("agent_hit"));
+      // Track direction for smart hunting
+      if (smartHunt && this.lastHit) {
+        this.lastHitDirection = [x - this.lastHit[0], y - this.lastHit[1]];
+      }
+      this.lastHit = [x, y];
+      this.huntMode = true;
+      this.addHuntTargets(x, y);
+      this.scheduleAgentTurn();
+    } else if (res === "sink") {
+      this.result.agentHits++;
+      this.setMessage(this.getSparrowLine("agent_sink"));
+      this.huntMode = false;
+      this.huntQueue = [];
+      this.lastHit = null;
+      this.lastHitDirection = null;
+      this.endTurn();
+    } else if (res === "miss") {
+      this.result.agentMisses++;
+      this.setMessage(this.getSparrowLine("agent_miss"));
+      // If we were hunting in a direction and missed, reverse direction
+      if (smartHunt && this.lastHitDirection && this.lastHit) {
+        this.lastHitDirection = [-this.lastHitDirection[0], -this.lastHitDirection[1]];
+        // Re-add the reverse direction to hunt queue
+        const revX = this.lastHit[0] + this.lastHitDirection[0];
+        const revY = this.lastHit[1] + this.lastHitDirection[1];
+        if (revX >= 0 && revX < GRID_SIZE && revY >= 0 && revY < GRID_SIZE &&
+            this.playerTargetGrid[revY][revX] === CELL_STATES.empty) {
+          this.huntQueue.unshift([revX, revY]);
+        }
+      }
+      this.endTurn();
+    }
+    this.result.turns++;
+    this.checkWin();
+  }
+
+  addHuntTargets(x: number, y: number) {
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    // Shuffle for variety
+    for (let i = dirs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [dirs[i], dirs[j]] = [dirs[j]!, dirs[i]!];
+    }
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && this.playerTargetGrid[ny][nx] === CELL_STATES.empty) {
+        this.huntQueue.push([nx, ny]);
+      }
+    }
+  }
+
+  checkWin() {
+    let playerDead = false, opponentDead = false;
+    if (this.mode === "agent") {
+      playerDead = this.playerBoard.ships.every((s) => s.sunk);
+      opponentDead = this.opponentBoard.ships.every((s) => s.sunk);
+    } else {
+      playerDead = this.player1Board.ships.every((s) => s.sunk);
+      opponentDead = this.player2Board.ships.every((s) => s.sunk);
+    }
+    if (playerDead || opponentDead) {
+      this.phase = "over";
+      if (this.mode === "agent") {
+        this.result.winner = opponentDead ? "player" : "agent";
+        this.setMessage(this.getSparrowLine(this.result.winner === "player" ? "victory" : "defeat"), 4000);
+      } else {
+        this.result.winner = playerDead ? "player2" : "player1";
+        this.setMessage(this.getSparrowLine(this.result.winner === "player1" ? "victory" : "defeat"), 4000);
+      }
+      this.currentTurn = "player";
+    }
+  }
+
+  update(dt: number) {
+    if (this.messageTimer > 0) {
+      this.messageTimer = Math.max(0, this.messageTimer - dt);
+    } else {
+      this.processMessageQueue();
+    }
+    for (let i = this.flashCells.length - 1; i >= 0; i--) {
+      const f = this.flashCells[i];
+      f.timer -= dt;
+      if (f.timer <= 0) this.flashCells.splice(i, 1);
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    const t = this.theme;
+    ctx.imageSmoothingEnabled = false;
+
+    // Background with vignette
+    const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h));
+    grad.addColorStop(0, t.bg);
+    grad.addColorStop(1, t.bgDeep);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Vignette overlay
+    if (t.effects.vignette > 0) {
+      const vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.8);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(1, `rgba(0,0,0,${t.effects.vignette})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    const headerH = 56;
+    const footerH = 48;
+    const availH = h - headerH - footerH;
+    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const cell = boardSize / GRID_SIZE;
+    const gap = Math.max(20, w * 0.035);
+    const startX = (w - boardSize * 2 - gap) / 2;
+    const startY = headerH + (availH - boardSize) / 2;
+
+    // Header
+    ctx.fillStyle = t.bgDeep;
+    ctx.fillRect(0, 0, w, headerH);
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, headerH - 2, w, 2);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = t.accent;
+    ctx.font = `${Math.max(20, Math.floor(w * 0.04))}px ${t.fonts.title}`;
+    ctx.fillText(t.terms.gameTitle, w / 2, 32);
+
+    ctx.fillStyle = t.textSecondary;
+    ctx.font = `${Math.max(13, Math.floor(w * 0.028))}px ${t.fonts.body}`;
+    const modeText = this.mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
+    let turnText = "";
+    if (this.phase === "setup") {
+      const placer = this.mode === "hotseat" ? `PLAYER ${this.setupSubPhase === "player1" ? 1 : 2}` : "YOU";
+      turnText = `${placer}: ${t.terms.deploy} ${this.getCurrentShipType().toUpperCase()} (${this.getCurrentShipSize()}) — R rotate, A auto`;
+    } else if (this.phase === "over") {
+      const isVictory = this.result.winner === "player" || this.result.winner === "player1";
+      turnText = `GAME OVER — ${isVictory ? t.terms.victory : t.terms.defeat} · ${this.result.turns} turns`;
+    } else {
+      const turnLabel = this.currentTurn === "player" || this.currentTurn === "player1" ? t.terms.turnYou :
+        this.mode === "agent" ? t.terms.turnEnemy : t.terms.turnPlayer2;
+      const thinking = this.agentThinking ? " · THINKING..." : "";
+      turnText = `${turnLabel}${thinking}`;
+    }
+    ctx.fillText(`${modeText} · ${turnText}`, w / 2, 50);
+
+    // Draw boards
+    this.drawBoard(ctx, startX, startY, cell, "player", t);
+    this.drawBoard(ctx, startX + boardSize + gap, startY, cell, "opponent", t);
+
+    // Fleet status panels
+    this.drawFleetStatus(ctx, startX, startY, boardSize, cell, "player", t);
+    this.drawFleetStatus(ctx, startX + boardSize + gap, startY, boardSize, cell, "opponent", t);
+
+    // Message
+    if (this.messageTimer > 0 && this.message) {
+      const alpha = Math.min(1, this.messageTimer / 500);
+      ctx.fillStyle = `${t.accent}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
+      ctx.font = `${Math.max(16, Math.floor(w * 0.035))}px ${t.fonts.body}`;
+      ctx.fillText(this.message, w / 2, h - footerH + 20);
+    }
+
+    // Footer hint
+    ctx.fillStyle = t.bgDeep;
+    ctx.fillRect(0, h - footerH, w, footerH);
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, h - footerH, w, 1);
+
+    ctx.fillStyle = t.textMuted;
+    ctx.font = `${Math.max(11, Math.floor(w * 0.024))}px ${t.fonts.body}`;
+    let hint = "";
+    if (this.phase === "setup") {
+      hint = "CLICK/TAP to place · R rotate · A auto-randomize";
+    } else if (this.phase === "over") {
+      hint = "CLICK anywhere for NEW GAME · ESC for tavern";
+    } else {
+      hint = this.mode === "hotseat" ? "CLICK enemy grid to fire" : "CLICK enemy grid to fire · ESC to quit";
+    }
+    ctx.fillText(hint, w / 2, h - 14);
+    ctx.textAlign = "left";
+  }
+
+  private drawFleetStatus(ctx: CanvasRenderingContext2D, ox: number, oy: number, boardSize: number, cell: number, which: "player" | "opponent", t: BouyTheme) {
+    let board: Board;
+    if (which === "player") {
+      board = this.mode === "hotseat" ? (this.currentTurn === "player1" || this.phase === "setup" ? this.player1Board : this.player2Board) : this.playerBoard;
+    } else {
+      board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
+    }
+    const isSetup = this.phase === "setup";
+    const panelX = ox + boardSize + 8;
+    const panelY = oy;
+    const panelW = Math.max(100, cell * 3.5);
+    const panelH = boardSize;
+
+    ctx.fillStyle = `${t.panel}DD`;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = t.panelBorder;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
+    ctx.font = `${Math.max(11, Math.floor(cell * 0.5))}px ${t.fonts.body}`;
+    ctx.textAlign = "center";
+    ctx.fillText(t.terms[which === "player" ? "playerFleet" : "enemyFleet"], panelX + panelW / 2, panelY + 16);
+
+    let yOffset = panelY + 30;
+    for (const type of FLEET) {
+      const spec = SHIP_SPECS[type];
+      const ship = board.ships.find((s) => s.type === type);
+      const placed = !!ship;
+      const sunk = ship?.sunk ?? false;
+      const hits = ship?.hits.filter((h) => h).length ?? 0;
+      const total = spec.size;
+      const shipColors = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+
+      // Ship icon
+      ctx.fillStyle = placed ? (sunk ? t.sunkColor : shipColors.main) : `${t.playerColor}4D`;
+      ctx.fillRect(panelX + 8, yOffset, 16, 16);
+      ctx.strokeStyle = sunk ? t.sunkGlow : (placed ? shipColors.main : `${t.playerColor}80`);
+      ctx.lineWidth = sunk ? 2 : 1;
+      ctx.strokeRect(panelX + 8, yOffset, 16, 16);
+
+      // Health bar
+      if (placed && !sunk) {
+        const barW = panelW - 40;
+        const barH = 6;
+        const barX = panelX + 30;
+        const barY = yOffset + 5;
+        ctx.fillStyle = t.gridBg;
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.fillStyle = hits > 0 ? t.hitColor : t.playerColor;
+        ctx.fillRect(barX, barY, Math.max(1, barW * (hits / total)), barH);
+        ctx.strokeStyle = `${t.accent}4D`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+      }
+
+      // Label
+      ctx.fillStyle = sunk ? t.sunkGlow : (placed ? t.textPrimary : t.textMuted);
+      ctx.font = `${Math.max(10, Math.floor(cell * 0.4))}px ${t.fonts.body}`;
+      ctx.textAlign = "left";
+      ctx.fillText(`${spec.short} ${sunk ? "SUNK" : placed ? `${hits}/${total}` : "—"}`, panelX + 30, yOffset + 14);
+
+      // During setup, show current ship highlight
+      if (isSetup && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
+        ctx.fillStyle = `${t.accent}4D`;
+        ctx.fillRect(panelX + 4, yOffset - 2, panelW - 8, 20);
+      }
+
+      yOffset += 24;
+    }
+    ctx.textAlign = "left";
+  }
+
+  private drawBoard(ctx: CanvasRenderingContext2D, ox: number, oy: number, cell: number, which: "player" | "opponent", t: BouyTheme) {
+    let grid: CellState[][];
+
+    if (which === "player") {
+      grid = this.getOwnGrid();
+    } else {
+      grid = this.getTargetGrid();
+    }
+    const label = which === "player" ? t.terms.playerFleet : t.terms.targetingGrid;
+
+    // Board background
+    ctx.fillStyle = t.gridBg;
+    ctx.fillRect(ox - 4, oy - 4, GRID_SIZE * cell + 8, GRID_SIZE * cell + 8);
+    ctx.strokeStyle = t.panelBorder;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(ox - 4, oy - 4, GRID_SIZE * cell + 8, GRID_SIZE * cell + 8);
+
+    // Label
+    ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
+    ctx.font = `${Math.max(12, Math.floor(cell * 0.55))}px ${t.fonts.body}`;
+    ctx.textAlign = "center";
+    ctx.fillText(label, ox + GRID_SIZE * cell / 2, oy - 10);
+
+    // Grid cells
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const cx = ox + x * cell;
+        const cy = oy + y * cell;
+        const state = grid[y][x];
+        let fill = t.gridBg;
+        let stroke = t.gridLine;
+
+        if (state === CELL_STATES.ship) {
+          fill = "#1a2838";
+          stroke = `${t.playerColor}4D`;
+        } else if (state === CELL_STATES.hit) {
+          fill = t.hitColor;
+          stroke = t.hitGlow;
+        } else if (state === CELL_STATES.miss) {
+          fill = t.missColor;
+          stroke = t.textMuted;
+        } else if (state === CELL_STATES.sunk) {
+          fill = t.sunkColor;
+          stroke = t.sunkGlow;
+        }
+
+        ctx.fillStyle = fill;
+        ctx.fillRect(cx, cy, cell, cell);
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx, cy, cell, cell);
+
+        // Ship preview during placement
+        if (this.phase === "setup" && which === "player" && this.hoverCell) {
+          const [hx, hy] = this.hoverCell;
+          const size = this.getCurrentShipSize();
+          const cells: [number, number][] = [];
+          for (let i = 0; i < size; i++) {
+            cells.push(this.horizontal ? [hx + i, hy] : [hx, hy + i]);
+          }
+          if (cells.some(([cx, cy]) => cx === x && cy === y)) {
+            const valid = this.canPlaceAt(hx, hy);
+            ctx.fillStyle = valid ? `${t.playerColor}73` : `${t.hitColor}73`;
+            ctx.fillRect(cx, cy, cell, cell);
+            // Show ship outline
+            ctx.strokeStyle = valid ? t.playerColor : t.hitColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(cx - 1, cy - 1, cell + 2, cell + 2);
+          }
+        }
+      }
+    }
+
+    // Coordinate labels
+    ctx.fillStyle = t.textMuted;
+    ctx.font = `${Math.max(9, Math.floor(cell * 0.35))}px ${t.fonts.body}`;
+    ctx.textAlign = "center";
+    for (let i = 0; i < GRID_SIZE; i++) {
+      ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + cell / 2, oy - 14);
+      ctx.fillText(String(i + 1), ox - 12, oy + i * cell + cell / 2 + 4);
+    }
+
+    // Turn indicator arrow
+    if (this.phase === "play" && !this.agentThinking) {
+      const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
+      if ((which === "opponent" && isPlayerTurn) || (which === "player" && !isPlayerTurn && this.mode === "hotseat")) {
+        ctx.fillStyle = t.accent;
+        ctx.font = `${Math.max(16, Math.floor(cell * 0.8))}px ${t.fonts.body}`;
+        ctx.textAlign = which === "player" ? "right" : "left";
+        const arrowX = which === "player" ? ox - 20 : ox + GRID_SIZE * cell + 20;
+        const arrowY = oy + GRID_SIZE * cell / 2 + 6;
+        ctx.fillText(isPlayerTurn ? "►" : "◄", arrowX, arrowY);
+      }
+    }
+
+    // Flash effects
+    for (const f of this.flashCells) {
+      const boards: ("player" | "opponent" | "player1" | "player2")[] = [];
+      if (f.board === "player") boards.push("player");
+      else if (f.board === "opponent") boards.push("opponent");
+      else if (f.board === "player1") boards.push(this.mode === "hotseat" && this.currentTurn === "player2" ? "player" : "opponent");
+      else if (f.board === "player2") boards.push(this.mode === "hotseat" && this.currentTurn === "player1" ? "player" : "opponent");
+
+      if (boards.includes(which)) {
+        const cx = ox + f.x * cell;
+        const cy = oy + f.y * cell;
+        const maxTimer = f.type === "sink" ? 800 : f.type === "hit" ? 300 : 250;
+        const alpha = Math.max(0, f.timer / maxTimer);
+        if (f.type === "hit") {
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+          ctx.fillRect(cx + 2, cy + 2, cell - 4, cell - 4);
+          ctx.strokeStyle = `${t.hitGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(cx + 4, cy + 4);
+          ctx.lineTo(cx + cell - 4, cy + cell - 4);
+          ctx.moveTo(cx + cell - 4, cy + 4);
+          ctx.lineTo(cx + 4, cy + cell - 4);
+          ctx.stroke();
+        } else if (f.type === "miss") {
+          ctx.fillStyle = `${t.textPrimary}${Math.floor(alpha * 100).toString(16).padStart(2, '0')}`;
+          ctx.beginPath();
+          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (f.type === "sink") {
+          const pulse = 1 - f.timer / 800;
+          ctx.strokeStyle = `${t.sunkGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.5 * (1 + pulse * 0.5), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = `${t.sunkGlow}${Math.floor(alpha * 50).toString(16).padStart(2, '0')}`;
+          ctx.beginPath();
+          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.5 * (1 + pulse * 0.5), 0, Math.PI * 2);
+          ctx.fill();
+          // Sunk ship label
+          if (f.timer < 400) {
+            ctx.fillStyle = `${t.sunkGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
+            ctx.font = `${Math.max(10, Math.floor(cell * 0.45))}px ${t.fonts.body}`;
+            ctx.textAlign = "center";
+            ctx.fillText("SUNK", cx + cell / 2, cy + cell / 2 + 4);
+          }
+        }
+      }
+    }
+
+    ctx.textAlign = "left";
+  }
+
+  // Input handlers
+  pointerDown(nx: number, ny: number, w: number, h: number) {
+    const headerH = 56;
+    const footerH = 48;
+    const availH = h - headerH - footerH;
+    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const cell = boardSize / GRID_SIZE;
+    const gap = Math.max(20, w * 0.035);
+    const startX = (w - boardSize * 2 - gap) / 2;
+    const startY = headerH + (availH - boardSize) / 2;
+
+    // Check own board (placement)
+    const ownX = Math.floor((nx - startX) / cell);
+    const ownY = Math.floor((ny - startY) / cell);
+    if (ownX >= 0 && ownX < GRID_SIZE && ownY >= 0 && ownY < GRID_SIZE) {
+      if (this.phase === "setup") {
+        if (this.canPlaceAt(ownX, ownY)) this.placeCurrentShip(ownX, ownY);
+      }
+      return;
+    }
+
+    // Check opponent board (firing)
+    const oppX = Math.floor((nx - (startX + boardSize + gap)) / cell);
+    const oppY = Math.floor((ny - startY) / cell);
+    if (oppX >= 0 && oppX < GRID_SIZE && oppY >= 0 && oppY < GRID_SIZE) {
+      if (this.phase === "play") {
+        if (this.mode === "agent" && this.currentTurn === "player") {
+          this.playerFire(oppX, oppY);
+        } else if (this.mode === "hotseat") {
+          this.playerFire(oppX, oppY);
+        }
+      } else if (this.phase === "over") {
+        this.reset();
+      }
+    }
+  }
+
+  pointerMove(nx: number, ny: number, w: number, h: number) {
+    if (this.phase !== "setup") { this.hoverCell = null; return; }
+    const headerH = 56;
+    const footerH = 48;
+    const availH = h - headerH - footerH;
+    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const cell = boardSize / GRID_SIZE;
+    const startX = (w - boardSize * 2 - Math.max(20, w * 0.035)) / 2;
+    const startY = headerH + (availH - boardSize) / 2;
+    const x = Math.floor((nx - startX) / cell);
+    const y = Math.floor((ny - startY) / cell);
+    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+      this.hoverCell = [x, y];
+    } else {
+      this.hoverCell = null;
+    }
+  }
+
+  keyDown(key: string) {
+    const upper = key.toUpperCase();
+    if (upper === "R") {
+      if (this.phase === "setup") this.horizontal = !this.horizontal;
+    }
+    if (upper === "A") {
+      if (this.phase === "setup") this.randomizeCurrentBoard();
+    }
+    if (upper === "D") {
+      if (this.phase === "setup" && this.mode === "agent") {
+        const difficulties: ("easy" | "normal" | "hard")[] = ["easy", "normal", "hard"];
+        const idx = difficulties.indexOf(this.agentDifficulty);
+        this.agentDifficulty = difficulties[(idx + 1) % 3];
+        this.setMessage(`DIFFICULTY: ${this.agentDifficulty.toUpperCase()}`, 1500);
+      }
+    }
+    if (upper === "ESCAPE") {
+      // Handled by main loop
+    }
+  }
+}
+
+export function renownFromBouyScore(result: BouyResult): number {
+  if (!result.winner) return 0;
+  const isVictory = result.winner === "player" || result.winner === "player1";
+  const efficiency = result.turns > 0 ? Math.min(1.5, 50 / result.turns) : 1;
+  return Math.floor((isVictory ? 180 : 60) * efficiency);
+}
+
+export function tokensFromBouyScore(result: BouyResult): number {
+  if (!result.winner) return 0;
+  return result.winner === "player" || result.winner === "player1" ? 2 : 0;
+}

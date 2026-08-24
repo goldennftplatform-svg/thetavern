@@ -26,7 +26,7 @@ export function hubTableSeatHtml(
   icon: string,
   title: string,
   hint: string,
-  seat: "north" | "east" | "south" | "west",
+  seat: "north" | "east" | "south" | "west" | "northeast",
   accent?: "gold" | "jade",
 ): string {
   const cls = accent ? ` tavern-table__seat--${accent}` : "";
@@ -41,7 +41,7 @@ export function hubTileHtml(
   icon: string,
   label: string,
   action: string,
-  accent?: "gold" | "jade",
+  accent?: "gold" | "jade" | "amber" | "cyan" | "teal" | "violet",
 ): string {
   const cls = accent ? ` hub-tile--${accent}` : "";
   return `<button type="button" class="hub-tile${cls}" data-hub-action="${action}">

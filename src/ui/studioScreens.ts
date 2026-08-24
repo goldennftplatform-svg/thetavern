@@ -3,6 +3,7 @@ import { pickLine } from "../content/arcaneLore";
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { DemplarRunResult } from "../minigames/demplarWarrior";
+import type { BouyResult } from "../minigames/conflicBouy";
 import type { FoodId } from "../content/tavernNights";
 import { FISHING_POLES, type FishingPole, type PoleId } from "../content/fishingPoles";
 import { nextPoleUnlock } from "../content/fishingPoles";
@@ -144,6 +145,7 @@ export function hubWellHtml(
         </div>
         ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
         ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
+        ${hubTableSeatHtml("conflic_bouy", "⚓", "Conflic Bouy", "Fleet command · vs Agent or 1v1", "northeast", "gold")}
         ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
         ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
         <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
@@ -283,6 +285,52 @@ export function demplarResultStudioHtml(
     ${bestLine}`,
     "studio-stage--result",
     `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+  );
+}
+
+export function conflicResultStudioHtml(
+  r: BouyResult,
+  renown: number,
+  tokens: number,
+  mode: "agent" | "hotseat",
+): string {
+  const isVictory = r.winner === "player" || r.winner === "player1";
+  const accuracy = r.playerHits + r.playerMisses > 0
+    ? Math.round((r.playerHits / (r.playerHits + r.playerMisses)) * 100)
+    : 0;
+  const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
+  const resultLabel = isVictory ? "VICTORY" : "DEFEAT";
+  const resultColor = isVictory ? "#68e8a8" : "#e87850";
+  return studioStageHtml(
+    "Conflic Bouy",
+    `<p class="studio-flourish" style="color:${resultColor}">${resultLabel} — ${modeLabel}</p>
+    <p class="studio-lore-line studio-lore-line--hint">Fleet engagement complete · ${r.turns} turns</p>
+    <div class="studio-scoreboard studio-scoreboard--conflic">
+      <span class="studio-stat"><em>⚓</em> ${r.playerHits} <small>Hits</small></span>
+      <span class="studio-stat"><em>💧</em> ${r.playerMisses} <small>Misses</small></span>
+      <span class="studio-stat"><em>🎯</em> ${accuracy}% <small>Accuracy</small></span>
+    </div>
+    <p class="studio-reward">Turns ${r.turns} · +${renown} ★ · +${tokens} ◎</p>`,
+    "studio-stage--result",
+    `<button type="button" class="btn primary big studio-continue" data-continue="well">Back to the well</button>`,
+  );
+}
+
+export function conflicThemePickStudioHtml(mode: "agent" | "hotseat"): string {
+  const themes = [
+    { id: "charter", icon: "⚓", name: "CHARTER NAVY", accent: "gold", desc: "Pirate knights · gold & charter" },
+    { id: "odyssey", icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan", desc: "Void hunters · neon & glitch" },
+    { id: "abyssal", icon: "🐙", name: "ABYSSAL DEPTHS", accent: "teal", desc: "Deep horror · bioluminescent" },
+    { id: "corsair", icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber", desc: "Golden age pirates · rum & cannon" },
+    { id: "voidwalker", icon: "👁️", name: "VOIDWALKER", accent: "violet", desc: "Cyber swarm · ice & intrusion" },
+  ];
+  const tiles = themes.map(t => hubTileHtml(t.icon, t.name, `conflic:${mode}:${t.id}`, t.accent as "gold" | "jade" | "amber" | "cyan" | "teal" | "violet")).join("");
+  return studioStageHtml(
+    "Conflic Bouy — Choose Theme",
+    `<p class="studio-lore-line">Select your theater of war</p>
+    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">${tiles}</div>`,
+    "studio-stage--pick",
+    hubBackHtml(),
   );
 }
 

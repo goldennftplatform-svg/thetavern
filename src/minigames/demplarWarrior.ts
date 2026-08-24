@@ -507,16 +507,18 @@ export class DemplarWarrior {
   private dust: Dust[] = [];
   private wasOnGround = true;
 
-  platform = {
-    x: 64,
+platform = {
+    x: 80,
     y: 0,
     vy: 0,
     cam: 0,
     score: 0,
-    onGround: false,
+    onGround: true,
     deaths: 0,
     pickups: [] as Pickup[],
     plats: [] as Plat[],
+    scorePopup: null as { x: number; y: number; value: number } | null,
+    scorePopupTicks: 0,
   };
 
   tetris = new KnightTetris();
@@ -634,6 +636,8 @@ export class DemplarWarrior {
       deaths: 0,
       pickups: PLATFORM_PICKUPS.map((p) => ({ ...p })),
       plats: PLATFORM_PLATS.map((p) => ({ ...p })),
+      scorePopup: null,
+      scorePopupTicks: 0,
     };
     this.jumpHeld = false;
     this.coyoteUntil = 0;
@@ -1054,6 +1058,13 @@ export class DemplarWarrior {
     }
     this.wasOnGround = p.onGround;
 
+    // Decrement score popup ticks
+    if (p.scorePopupTicks > 0) p.scorePopupTicks -= 1;
+    if (p.scorePopupTicks <= 0) {
+      p.scorePopup = null;
+      p.scorePopupTicks = 0;
+    }
+
     if (p.y > 140 && now > this.respawnUntil) {
       this.respawnPlatform(now);
     }
@@ -1061,13 +1072,20 @@ export class DemplarWarrior {
     const targetCam = Math.max(0, p.x - PLAYER_SCREEN_X);
     p.cam += (targetCam - p.cam) * Math.min(1, 12 * t);
 
-    for (const pick of p.pickups) {
+for (const pick of p.pickups) {
       if (pick.taken) continue;
-      if (Math.abs(p.x - pick.x) < 24 && Math.abs(p.y - pick.y) < 44) {
+      if (Math.abs(p.x - pick.x) < 32 && Math.abs(p.y - pick.y) < 56) {
         pick.taken = true;
         p.score += pick.kind === "coin" ? 70 : 150;
         playPlatformPickup(pick.kind);
         this.spawnDust(pick.x, pick.y, 4);
+        // Add score popup (3-frame display)
+        p.scorePopup = {
+          x: pick.x,
+          y: pick.y - 8,
+          value: pick.kind === "coin" ? 70 : 150,
+        };
+        p.scorePopupTicks = 3;
       }
     }
 
@@ -1416,6 +1434,16 @@ export class DemplarWarrior {
     ctx.textAlign = "center";
     ctx.fillText("SARGAANO CAUSEWAY — JUMP THE PITS · HOLD HIGHER", w / 2, h - 28);
     ctx.textAlign = "left";
+
+    // Draw score popup if active
+    if (p.scorePopup) {
+      const sp = p.scorePopup;
+      ctx.fillStyle = SARGAANO.gold;
+      ctx.font = `${Math.max(14, Math.floor(w * 0.03))}px "VT323", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(`+${sp.value}`, sp.x - cam, sp.y);
+      ctx.textAlign = "left";
+    }
   }
 
   private drawDone(ctx: CanvasRenderingContext2D, w: number, h: number) {

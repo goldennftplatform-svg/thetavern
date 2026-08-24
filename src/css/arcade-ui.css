@@ -22,13 +22,48 @@ html.gate-open #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Safe centering: margin:auto keeps the gate centered when it fits,
+   drops to scrollable flow on short laptop windows instead of clipping Play/Guest. */
+html.gate-open .gate-screen {
+  margin: auto;
 }
 
 .gate-screen {
   width: 100%;
   max-width: 360px;
   padding: 24px 20px;
+}
+
+@media (min-width: 768px) {
+  .gate-screen {
+    max-width: 480px;
+    padding: 32px 28px;
+  }
+  .gate-screen input#nickname {
+    font-size: 20px;
+    min-height: 56px;
+  }
+  .gate-kicker {
+    font-size: 1.75rem;
+  }
+  .btn.big {
+    min-height: 52px;
+    font-size: 1.05rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gate-screen {
+    max-width: 560px;
+    padding: 40px 36px;
+  }
+  .gate-crest {
+    width: clamp(96px, 15vw, 140px);
+  }
 }
 
 .gate-screen-inner {
@@ -61,6 +96,52 @@ html.gate-open #app {
   font-size: 18px;
   min-height: 52px;
   text-align: center;
+}
+
+/* Short desktop windows (laptops ~768px, browser chrome eats the rest):
+   tighten the gate so Play/Guest are always on screen without zooming. */
+@media (max-height: 860px) {
+  .gate-screen {
+    padding: 14px 18px;
+    max-width: 340px;
+  }
+
+  .gate-screen-inner {
+    gap: 8px;
+  }
+
+  .gate-crest {
+    width: clamp(48px, 9vh, 72px);
+    margin-bottom: 4px;
+  }
+
+  .avatar-face--lg {
+    width: 64px;
+    height: 64px;
+  }
+
+  .avatar-face--lg .avatar-face__glyph {
+    font-size: 1.6rem;
+  }
+
+  .gate-avatar-block {
+    margin: 0 0 2px;
+  }
+
+  .gate-avatar-hint {
+    display: none;
+  }
+
+  .gate-screen input#nickname,
+  .gate-screen input#nickname[readonly] {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .btn.big {
+    min-height: 46px;
+  }
 }
 
 html.play-active #app {
@@ -660,9 +741,9 @@ html.play-active .canvas-wrap {
 
 @media (min-width: 600px) {
   html.play-active #app {
-    max-width: min(680px, 96vw) !important;
-    padding-left: max(12px, env(safe-area-inset-left, 0px));
-    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    max-width: min(800px, 96vw) !important;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   html.play-active .canvas-wrap {
@@ -672,9 +753,9 @@ html.play-active .canvas-wrap {
 
 @media (min-width: 900px) {
   html.play-active #app {
-    max-width: min(920px, 94vw) !important;
-    padding: max(10px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
-      max(10px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+    max-width: min(1100px, 96vw) !important;
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
   }
 
   html.play-active .canvas-wrap {
@@ -683,7 +764,7 @@ html.play-active .canvas-wrap {
   }
 
   html.play-active .play-shell[data-phase="demplar_warrior"] {
-    max-width: min(860px, 100%) !important;
+    max-width: min(1000px, 100%) !important;
   }
 
   html.play-active .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
@@ -693,6 +774,19 @@ html.play-active .canvas-wrap {
   html.play-active .play-hud {
     font-size: 0.78rem;
     gap: 8px 20px;
+  }
+}
+
+/* Big monitors: stop pretending this is a phone strip — use the desk */
+@media (min-width: 1400px) and (min-height: 900px) {
+  html.play-active #app {
+    max-width: min(1400px, 96vw) !important;
+    padding-left: max(32px, env(safe-area-inset-right, 0px));
+    padding-right: max(32px, env(safe-area-inset-right, 0px));
+  }
+
+  html.play-active .canvas-wrap {
+    border-radius: 16px;
   }
 }
 
