@@ -566,15 +566,18 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     return true;
   }
 
-  endTurn() {
+  endTurn(scheduleNext = true) {
     if (this.mode === "agent") {
-      this.currentTurn = "agent";
-      this.scheduleAgentTurn();
+      // Agent always passes to player after its turn
+      this.currentTurn = "player";
     } else {
       this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
     }
     // Reset ability active flags at end of turn
     this.resetAbilityFlags();
+    if (scheduleNext && this.mode === "agent") {
+      this.scheduleAgentTurn();
+    }
   }
 
   private resetAbilityFlags() {
@@ -708,8 +711,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     
     // Agent considers using an ability first
     if (this.agentConsiderAbility()) {
-      // Ability used - end agent turn, pass to player
-      this.endTurn();
+      // Ability used - end agent turn, pass to player (don't schedule another agent turn)
+      this.endTurn(false);
       return;
     }
 
