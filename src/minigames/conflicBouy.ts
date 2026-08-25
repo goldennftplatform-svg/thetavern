@@ -733,13 +733,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         } else {
           // Direction blocked, try perpendicular
           this.lastHitDirection = null;
-          this.agentTurn();
+          this.scheduleAgentTurn();
           return;
         }
       } else {
         [x, y] = this.huntQueue.shift()!;
         if (this.playerTargetGrid[y][x] !== CELL_STATES.empty) {
-          this.agentTurn();
+          this.scheduleAgentTurn();
           return;
         }
       }
@@ -771,6 +771,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.huntMode = true;
       this.addHuntTargets(x, y);
       this.scheduleAgentTurn();
+    this.scheduleAgentTurn();
     } else if (res === "sink") {
       this.result.agentHits++;
       this.setMessage(this.getSparrowLine("agent_sink"));
