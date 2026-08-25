@@ -580,7 +580,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   private resetAbilityFlags() {
     const board = this.getCurrentBoard();
     for (const ship of board.ships) {
-      ship.abilityActive = false;
+      // Don't reset Silent Run evasion - it persists until charges exhausted
+      if (ship.type !== "submarine" || ship.evasionCharges === 0) {
+        ship.abilityActive = false;
+      }
     }
   }
 
@@ -603,6 +606,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ship.abilityUsed = this.result.turns;
     this.setMessage(`ABILITY: ${ability.name}! ${ability.description}`);
     this.executeAbility(type, targetX, targetY);
+    // Ability counts as turn action - end turn
+    if (this.mode !== "agent" || this.currentTurn !== "agent") {
+      this.endTurn();
+    }
     return true;
   }
 
@@ -701,7 +708,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     
     // Agent considers using an ability first
     if (this.agentConsiderAbility()) {
-      return; // Ability used, turn continues (ability handles its own turn logic)
+      // Ability used - schedule next agent turn after a delay
+      this.scheduleAgentTurn();
+      return;
     }
 
     let x: number, y: number;
