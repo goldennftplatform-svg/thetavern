@@ -708,8 +708,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     
     // Agent considers using an ability first
     if (this.agentConsiderAbility()) {
-      // Ability used - schedule next agent turn after a delay
-      this.scheduleAgentTurn();
+      // Ability used - end agent turn, pass to player
+      this.endTurn();
       return;
     }
 
