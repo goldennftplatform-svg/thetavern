@@ -31,6 +31,12 @@ export interface BouyTheme {
   gold: string;
   // Ship colors per type
   shipColors: Record<string, { main: string; light: string; dark: string }>;
+  // Water colors for animated ocean
+  water: { base: string; wave1: string; wave2: string; foam: string; deep: string };
+  // Explosion effect colors
+  explosion: { core: string; mid: string; outer: string; smoke: string; splash: string };
+  // Ship rendering style
+  shipStyle: "sharp" | "organic" | "ornate" | "digital" | "military";
   // Terminology
   terms: {
     gameTitle: string;
@@ -115,6 +121,9 @@ export const CHARTER_THEME: BouyTheme = {
   },
   effects: { scanlines: false, crt: false, glitch: false, particles: false, vignette: 0.3 },
   fonts: { title: '"VT323", monospace', body: '"VT323", monospace', mono: '"VT323", monospace' },
+  water: { base: "#0c1828", wave1: "#1a3050", wave2: "#142840", foam: "#3a5878", deep: "#060c18" },
+  explosion: { core: "#fff8e0", mid: "#ffb040", outer: "#e86020", smoke: "#404040", splash: "#60a0d0" },
+  shipStyle: "ornate",
 };
 
 // ============================================
@@ -168,6 +177,9 @@ export const ODYSSEY_THEME: BouyTheme = {
   },
   effects: { scanlines: true, crt: false, glitch: true, particles: true, vignette: 0.5 },
   fonts: { title: '"Orbitron", "VT323", monospace', body: '"VT323", monospace', mono: '"VT323", monospace' },
+  water: { base: "#040810", wave1: "#081428", wave2: "#060e1c", foam: "#00f0ff40", deep: "#020408" },
+  explosion: { core: "#ffffff", mid: "#00f0ff", outer: "#ff3366", smoke: "#203040", splash: "#00ccdd" },
+  shipStyle: "digital",
 };
 
 // ============================================
@@ -221,6 +233,9 @@ export const ABYSSAL_THEME: BouyTheme = {
   },
   effects: { scanlines: false, crt: false, glitch: false, particles: true, vignette: 0.6 },
   fonts: { title: '"Creepster", "VT323", monospace', body: '"VT323", monospace', mono: '"VT323", monospace' },
+  water: { base: "#040c10", wave1: "#081820", wave2: "#061418", foam: "#44ccaa40", deep: "#020608" },
+  explosion: { core: "#ffffff", mid: "#44ffdd", outer: "#ff4466", smoke: "#1a2a28", splash: "#228870" },
+  shipStyle: "organic",
 };
 
 // ============================================
@@ -274,6 +289,9 @@ export const CORSAIR_THEME: BouyTheme = {
   },
   effects: { scanlines: false, crt: true, glitch: false, particles: false, vignette: 0.4 },
   fonts: { title: '"Pirata One", "VT323", monospace', body: '"VT323", monospace', mono: '"VT323", monospace' },
+  water: { base: "#181008", wave1: "#281c0c", wave2: "#201408", foam: "#d4a01840", deep: "#0c0804" },
+  explosion: { core: "#fff8e0", mid: "#ffaa20", outer: "#ff6600", smoke: "#302010", splash: "#d4a01880" },
+  shipStyle: "ornate",
 };
 
 // ============================================
@@ -327,6 +345,9 @@ export const VOIDWALKER_THEME: BouyTheme = {
   },
   effects: { scanlines: true, crt: false, glitch: true, particles: true, vignette: 0.55 },
   fonts: { title: '"Share Tech Mono", "VT323", monospace', body: '"VT323", monospace', mono: '"VT323", monospace' },
+  water: { base: "#060210", wave1: "#0c041c", wave2: "#080314", foam: "#bb44ff30", deep: "#03010a" },
+  explosion: { core: "#ffffff", mid: "#bb44ff", outer: "#ff44aa", smoke: "#201040", splash: "#8844cc" },
+  shipStyle: "digital",
 };
 
 export const ALL_THEMES: Record<BouyThemeId, BouyTheme> = {

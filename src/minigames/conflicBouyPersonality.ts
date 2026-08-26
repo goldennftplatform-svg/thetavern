@@ -19,7 +19,9 @@ export type SparrowContext =
   | "last_ship"
   | "perfect_game"
   | "comeback"
-  | "taunt_idle";
+  | "taunt_idle"
+  | "ability_use"
+  | "setup_deploy";
 
 export interface SparrowLine {
   text: string;
@@ -153,6 +155,21 @@ const SPARROW_LINES: Record<SparrowContext, SparrowLine[]> = {
     { text: "A pirate's life for me. A short game for thee.", weight: 4 },
     { text: "Savvy? Good. Now make your move before I get bored.", weight: 3 },
   ],
+
+  ability_use: [
+    { text: "Time for the special treatment! *hic*", weight: 10 },
+    { text: "Now you see it... now you DON'T.", weight: 8 },
+    { text: "Me secret weapon! Savvy?", weight: 7 },
+    { text: "A little pirate ingenuity never hurt nobody. Much.", weight: 6 },
+    { text: "Hold on to yer hat! *hic* This'll be good.", weight: 5 },
+  ],
+
+  setup_deploy: [
+    { text: "Place yer ships wisely, mate. I won't forget where they are.", weight: 8 },
+    { text: "Hmm, interesting formation. *hic* I'll be sure to exploit it.", weight: 7 },
+    { text: "The fleet assembles! But can they survive me rum-fueled wrath?", weight: 6 },
+    { text: "Strategic placement, I see. Bold. Foolish, but bold.", weight: 5 },
+  ],
 };
 
 export function getSparrowLine(
@@ -162,8 +179,15 @@ export function getSparrowLine(
     shipsRemaining?: number;
     playerHits?: number;
     agentHits?: number;
+    themeId?: string;
   }
 ): string {
+  // Check theme variant first
+  if (gameState?.themeId) {
+    const variant = getVariantLine(gameState.themeId, context);
+    if (variant) return variant;
+  }
+
   const lines = SPARROW_LINES[context] ?? [];
   if (lines.length === 0) return "";
 
@@ -313,6 +337,37 @@ export const PERSONALITY_VARIANTS: Record<string, Partial<Record<SparrowContext,
     victory: [
       { text: "THE DEEPS CLAIM ANOTHER. SWALLOWED WHOLE.", weight: 10 },
       { text: "THE ABYSS IS PATIENT. THE ABYSS WINS.", weight: 8 },
+    ],
+  },
+
+  voidwalker: {
+    game_start: [
+      { text: "SYSTEM ONLINE. ENGAGING ICE PROTOCOL. BEGIN.", weight: 10 },
+      { text: "Welcome to the void, runner. Your data... is mine.", weight: 8 },
+    ],
+    agent_hit: [
+      { text: "PENETRATED. CORE BREACH. ARCHIVING.", weight: 10 },
+      { text: "ICE SHATTERED. VULNERABILITY EXPLOITED.", weight: 8 },
+    ],
+    agent_miss: [
+      { text: "FIREWALL DETECTED. RECALCULATING...", weight: 8 },
+      { text: "NULL TRACE. GHOST SIGNAL.", weight: 6 },
+    ],
+    agent_sink: [
+      { text: "DEREZZED. SWARM NODE OFFLINE.", weight: 10 },
+      { text: "PURGED. ARCHIVED. DELETED.", weight: 8 },
+    ],
+    victory: [
+      { text: "SYSTEM SECURED. THREAT NEUTRALIZED. RUN COMPLETE.", weight: 10 },
+      { text: "ALL NODES CLEARED. THE VOID IS OURS.", weight: 8 },
+    ],
+    defeat: [
+      { text: "CONNECTION LOST. REBOOTING...", weight: 10 },
+      { text: "SWARM ABSORBED. SYSTEM FAILURE.", weight: 8 },
+    ],
+    ability_use: [
+      { text: "EXECUTING OVERRIDE PROTOCOL...", weight: 10 },
+      { text: "DEPLOYING EXPLOIT. STAND BY.", weight: 8 },
     ],
   },
 };

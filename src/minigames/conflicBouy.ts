@@ -202,6 +202,7 @@ export class ConflicBouy {
   private awaitingAbility = false;
   private lastW = 0;
   private lastH = 0;
+  private _gameOverTime = 0;
 
   // Visual effects
   private screenShake = 0;
@@ -373,6 +374,9 @@ export class ConflicBouy {
     for (const [cx, cy] of cells) board.shipMap.set(`${cx},${cy}`, ship);
     this.playerPlacing++;
     playPlatformPickup("coin");
+    if (this.playerPlacing === 1 && this.mode !== "hotseat") {
+      this.setMessage(this.getSparrowLine("setup_deploy"), 3000);
+    }
     if (this.playerPlacing >= FLEET.length) {
       if (this.mode === "hotseat" && this.setupSubPhase === "player1") {
         this.setupSubPhase = "player2";
@@ -414,7 +418,7 @@ export class ConflicBouy {
     playPlatformPickup("blade");
   }
 
-  setMessage(text: string, duration = 1200) {
+  setMessage(text: string, duration = 2800) {
     if (this.messageTimer <= 0) {
       this.message = text;
       this.messageTimer = duration;
@@ -426,7 +430,7 @@ export class ConflicBouy {
   private processMessageQueue() {
     if (this.messageTimer <= 0 && this.messageQueue.length > 0) {
       this.message = this.messageQueue.shift()!;
-      this.messageTimer = 1200;
+      this.messageTimer = 2800;
     }
   }
 
@@ -615,7 +619,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   private getBoardLayout(w: number, h: number) {
-    const headerH = 56;
+    const headerH = 72;
     const footerH = 48;
     const availH = h - headerH - footerH;
     const boardSize = Math.min(w * 0.44, availH * 0.9);
@@ -695,7 +699,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const ship = board.ships.find((s) => s.type === type);
     if (!ship) return false;
     ship.abilityUsed = this.result.turns;
-    this.setMessage(`ABILITY: ${ability.name}! ${ability.description}`);
+    const sparrowLine = this.getSparrowLine("ability_use");
+    this.setMessage(`${sparrowLine} — ${ability.name}!`, 3200);
     // Ability popup
     this.popups.push({ text: `⚡ ${ability.name}!`, x: this.lastW / 2, y: this.lastH * 0.3, life: 1000, maxLife: 1000, color: "#c0f0ff", size: 12, type: "ability" });
     this.executeAbility(type, targetX, targetY);
@@ -864,7 +869,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.huntMode = true;
       this.addHuntTargets(x, y);
       this.scheduleAgentTurn();
-    this.scheduleAgentTurn();
     } else if (res === "sink") {
       this.result.agentHits++;
       this.setMessage(this.getSparrowLine("agent_sink"));
@@ -977,6 +981,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     if (playerDead || opponentDead) {
       this.phase = "over";
+      this._gameOverTime = performance.now();
       if (this.mode === "agent") {
         this.result.winner = opponentDead ? "player" : "agent";
         this.setMessage(this.getSparrowLine(this.result.winner === "player" ? "victory" : "defeat"), 4000);
@@ -1068,6 +1073,346 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
   }
 
+  // =============================================
+  // SHIP SILHOUETTE DRAWING
+  // =============================================
+  private drawShipSilhouette(
+    ctx: CanvasRenderingContext2D,
+    cells: [number, number][],
+    cellSize: number,
+    originX: number,
+    originY: number,
+    fillColor: string,
+    strokeColor: string,
+    alpha: number = 1,
+    sunk: boolean = false,
+    hitCells: boolean[] = [],
+    type: ShipType = "carrier",
+  ) {
+    if (cells.length === 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const horizontal = cells.length > 1 ? cells[1][0] !== cells[0][0] : true;
+    const pad = cellSize * 0.08;
+    const r = cellSize * 0.22;
+
+    const x0 = originX + cells[0][0] * cellSize + pad;
+    const y0 = originY + cells[0][1] * cellSize + pad;
+    const totalW = horizontal ? cells.length * cellSize - pad * 2 : cellSize - pad * 2;
+    const totalH = horizontal ? cellSize - pad * 2 : cells.length * cellSize - pad * 2;
+
+    ctx.beginPath();
+    if (horizontal) {
+      const bowR = type === "carrier" ? r * 0.5 : type === "submarine" ? r : r * 0.7;
+      ctx.moveTo(x0 + bowR, y0);
+      ctx.lineTo(x0 + totalW - r, y0);
+      ctx.quadraticCurveTo(x0 + totalW, y0, x0 + totalW, y0 + r);
+      ctx.lineTo(x0 + totalW, y0 + totalH - r);
+      ctx.quadraticCurveTo(x0 + totalW, y0 + totalH, x0 + totalW - r, y0 + totalH);
+      ctx.lineTo(x0 + bowR, y0 + totalH);
+      ctx.quadraticCurveTo(x0, y0 + totalH, x0, y0 + totalH - r);
+      ctx.lineTo(x0, y0 + r);
+      ctx.quadraticCurveTo(x0, y0, x0 + bowR, y0);
+    } else {
+      const bowR = type === "carrier" ? r * 0.5 : type === "submarine" ? r : r * 0.7;
+      ctx.moveTo(x0, y0 + bowR);
+      ctx.lineTo(x0, y0 + totalH - r);
+      ctx.quadraticCurveTo(x0, y0 + totalH, x0 + r, y0 + totalH);
+      ctx.lineTo(x0 + totalW - r, y0 + totalH);
+      ctx.quadraticCurveTo(x0 + totalW, y0 + totalH, x0 + totalW, y0 + totalH - bowR);
+      ctx.lineTo(x0 + totalW, y0 + r);
+      ctx.quadraticCurveTo(x0 + totalW, y0, x0 + totalW - r, y0);
+      ctx.lineTo(x0 + r, y0);
+      ctx.quadraticCurveTo(x0, y0, x0, y0 + bowR);
+    }
+    ctx.closePath();
+
+    // Ship body fill
+    ctx.fillStyle = sunk ? "#2a1010" : fillColor;
+    ctx.fill();
+    ctx.strokeStyle = sunk ? "#803030" : strokeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Deck detail lines
+    ctx.strokeStyle = sunk ? "#502020" : strokeColor;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = alpha * 0.4;
+    for (let i = 1; i < cells.length; i++) {
+      ctx.beginPath();
+      if (horizontal) {
+        const lx = x0 + i * cellSize - pad;
+        ctx.moveTo(lx, y0 + 3);
+        ctx.lineTo(lx, y0 + totalH - 3);
+      } else {
+        const ly = y0 + i * cellSize - pad;
+        ctx.moveTo(x0 + 3, ly);
+        ctx.lineTo(x0 + totalW - 3, ly);
+      }
+      ctx.stroke();
+    }
+
+    // Type-specific details
+    ctx.globalAlpha = alpha * 0.6;
+    if (type === "carrier" && horizontal) {
+      // Flight deck runway line
+      ctx.strokeStyle = sunk ? "#502020" : strokeColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x0 + totalW * 0.15, y0 + totalH / 2);
+      ctx.lineTo(x0 + totalW * 0.85, y0 + totalH / 2);
+      ctx.stroke();
+      // Island (small bump)
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      ctx.fillRect(x0 + totalW * 0.65, y0 + 2, totalW * 0.06, totalH * 0.25);
+    } else if (type === "battleship") {
+      // Turret dots
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      const turretSize = Math.max(2, cellSize * 0.15);
+      if (horizontal) {
+        ctx.fillRect(x0 + totalW * 0.25 - turretSize / 2, y0 + totalH * 0.3, turretSize, turretSize);
+        ctx.fillRect(x0 + totalW * 0.55 - turretSize / 2, y0 + totalH * 0.3, turretSize, turretSize);
+        ctx.fillRect(x0 + totalW * 0.35 - turretSize / 2, y0 + totalH * 0.6, turretSize, turretSize);
+      } else {
+        ctx.fillRect(x0 + totalW * 0.3, y0 + totalH * 0.25 - turretSize / 2, turretSize, turretSize);
+        ctx.fillRect(x0 + totalW * 0.3, y0 + totalH * 0.55 - turretSize / 2, turretSize, turretSize);
+      }
+    } else if (type === "submarine") {
+      // Conning tower nub
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      if (horizontal) {
+        ctx.fillRect(x0 + totalW * 0.45, y0 - 1, totalW * 0.1, totalH * 0.3);
+      } else {
+        ctx.fillRect(x0 - 1, y0 + totalH * 0.45, totalW * 0.3, totalH * 0.1);
+      }
+    }
+
+    // Hit damage marks
+    ctx.globalAlpha = alpha;
+    for (let i = 0; i < cells.length; i++) {
+      if (hitCells[i]) {
+        const hx = originX + cells[i][0] * cellSize;
+        const hy = originY + cells[i][1] * cellSize;
+        ctx.fillStyle = sunk ? "rgba(180, 40, 20, 0.6)" : "rgba(255, 80, 40, 0.5)";
+        ctx.beginPath();
+        // Explosion X mark
+        ctx.moveTo(hx + cellSize * 0.2, hy + cellSize * 0.2);
+        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
+        ctx.lineTo(hx + cellSize * 0.8, hy + cellSize * 0.2);
+        ctx.moveTo(hx + cellSize * 0.8, hy + cellSize * 0.2);
+        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
+        ctx.lineTo(hx + cellSize * 0.8, hy + cellSize * 0.8);
+        ctx.moveTo(hx + cellSize * 0.8, hy + cellSize * 0.8);
+        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
+        ctx.lineTo(hx + cellSize * 0.2, hy + cellSize * 0.8);
+        ctx.moveTo(hx + cellSize * 0.2, hy + cellSize * 0.8);
+        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
+        ctx.lineTo(hx + cellSize * 0.2, hy + cellSize * 0.2);
+        ctx.strokeStyle = sunk ? "#ff4020" : "#ff6040";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // Draw a mini ship icon for fleet status panel
+  private drawMiniShip(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    size: number,
+    type: ShipType,
+    color: string,
+    sunk: boolean,
+  ) {
+    ctx.save();
+    const s = size;
+    const r = s * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + s - r, y);
+    ctx.quadraticCurveTo(x + s, y, x + s, y + r);
+    ctx.lineTo(x + s, y + s - r);
+    ctx.quadraticCurveTo(x + s, y + s, x + s - r, y + s);
+    ctx.lineTo(x + r, y + s);
+    ctx.quadraticCurveTo(x, y + s, x, y + s - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fillStyle = sunk ? "#3a1018" : color;
+    ctx.fill();
+    ctx.strokeStyle = sunk ? "#803030" : color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (type === "carrier") {
+      ctx.strokeStyle = sunk ? "#603020" : color;
+      ctx.lineWidth = 0.5;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.15, y + s / 2);
+      ctx.lineTo(x + s * 0.85, y + s / 2);
+      ctx.stroke();
+    }
+    if (sunk) {
+      ctx.globalAlpha = 0.7;
+      ctx.strokeStyle = "#ff4040";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 1, y + 1);
+      ctx.lineTo(x + s - 1, y + s - 1);
+      ctx.moveTo(x + s - 1, y + 1);
+      ctx.lineTo(x + 1, y + s - 1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // =============================================
+  // ANIMATED WATER BACKGROUND
+  // =============================================
+  private drawWater(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    w: number, h: number,
+    t: BouyTheme,
+  ) {
+    const now = performance.now();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    // Deep water gradient
+    const waterGrad = ctx.createLinearGradient(x, y, x, y + h);
+    waterGrad.addColorStop(0, t.water.base);
+    waterGrad.addColorStop(0.5, t.water.wave1);
+    waterGrad.addColorStop(1, t.water.deep);
+    ctx.fillStyle = waterGrad;
+    ctx.fillRect(x, y, w, h);
+
+    // Wave line 1
+    ctx.strokeStyle = t.water.wave1;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    for (let wx = x; wx <= x + w; wx += 2) {
+      const wy = y + h * 0.3 + Math.sin((wx + now * 0.02) * 0.03) * 4 + Math.sin((wx + now * 0.01) * 0.05) * 2;
+      wx === x ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+    }
+    ctx.stroke();
+
+    // Wave line 2
+    ctx.strokeStyle = t.water.wave2;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    for (let wx = x; wx <= x + w; wx += 2) {
+      const wy = y + h * 0.6 + Math.sin((wx + now * 0.015 + 50) * 0.025) * 3 + Math.cos((wx + now * 0.008) * 0.04) * 2;
+      wx === x ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+    }
+    ctx.stroke();
+
+    // Foam / sparkle dots
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = t.water.foam;
+    for (let i = 0; i < 12; i++) {
+      const fx = x + ((i * 37 + now * 0.008 * (i % 3 + 1)) % w);
+      const fy = y + ((i * 53 + Math.sin(now * 0.001 + i) * 10) % h);
+      const fs = 1 + Math.sin(now * 0.003 + i * 2) * 0.5;
+      ctx.beginPath();
+      ctx.arc(fx, fy, fs, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // =============================================
+  // EXPLOSION EFFECT
+  // =============================================
+  private drawExplosionAt(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    radius: number,
+    t: BouyTheme,
+    progress: number, // 0→1 over lifetime
+  ) {
+    ctx.save();
+    const alpha = 1 - progress;
+    const r = radius * (0.5 + progress * 0.8);
+
+    // Outer glow
+    const outerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    outerGrad.addColorStop(0, `${t.explosion.core}${Math.floor(alpha * 255).toString(16).padStart(2, "0")}`);
+    outerGrad.addColorStop(0.3, `${t.explosion.mid}${Math.floor(alpha * 200).toString(16).padStart(2, "0")}`);
+    outerGrad.addColorStop(0.7, `${t.explosion.outer}${Math.floor(alpha * 120).toString(16).padStart(2, "0")}`);
+    outerGrad.addColorStop(1, "transparent");
+    ctx.fillStyle = outerGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core flash
+    if (progress < 0.3) {
+      ctx.globalAlpha = (1 - progress / 0.3) * 0.8;
+      ctx.fillStyle = t.explosion.core;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.3 * (1 - progress / 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // Water splash effect for misses
+  private drawSplashAt(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    cellSize: number,
+    t: BouyTheme,
+    progress: number,
+  ) {
+    ctx.save();
+    const alpha = 1 - progress;
+    const maxH = cellSize * 0.8;
+    const h = maxH * (1 - Math.abs(progress * 2 - 1));
+    const w = cellSize * 0.15 + progress * cellSize * 0.2;
+
+    // Water column
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.fillStyle = t.explosion.splash;
+    ctx.beginPath();
+    ctx.moveTo(cx - w, cy + cellSize * 0.2);
+    ctx.quadraticCurveTo(cx - w * 0.5, cy - h, cx, cy - h);
+    ctx.quadraticCurveTo(cx + w * 0.5, cy - h, cx + w, cy + cellSize * 0.2);
+    ctx.fill();
+
+    // Ripple ring
+    const rippleR = cellSize * 0.4 * (0.5 + progress * 0.5);
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.strokeStyle = t.explosion.splash;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + cellSize * 0.2, rippleR, rippleR * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Droplets
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.fillStyle = t.water.foam;
+    for (let i = 0; i < 4; i++) {
+      const angle = (Math.PI * 2 * i) / 4 + 0.3;
+      const dist = cellSize * 0.3 * progress;
+      const dx = cx + Math.cos(angle) * dist;
+      const dy = cy - h * 0.5 + Math.sin(angle) * dist * 0.5;
+      ctx.beginPath();
+      ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
   draw(ctx: CanvasRenderingContext2D, w: number, h: number) {
     this.lastW = w;
     this.lastH = h;
@@ -1096,7 +1441,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.fillRect(0, 0, w, h);
     }
 
-    const headerH = 56;
+    const headerH = 72;
     const footerH = 48;
     const availH = h - headerH - footerH;
     const boardSize = Math.min(w * 0.44, availH * 0.9);
@@ -1120,28 +1465,50 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.lineWidth = 2;
     ctx.strokeRect(0, headerH - 2, w, 2);
 
+    // Title line — truncated to fit
     ctx.textAlign = "center";
     ctx.fillStyle = t.accent;
-    ctx.font = `${Math.max(20, Math.floor(w * 0.04))}px ${t.fonts.title}`;
-    ctx.fillText(t.terms.gameTitle, w / 2, 32);
+    const titleSize = Math.max(16, Math.floor(w * 0.032));
+    ctx.font = `bold ${titleSize}px ${t.fonts.title}`;
+    const titleMaxW = w - 32;
+    let titleText = t.terms.gameTitle;
+    if (ctx.measureText(titleText).width > titleMaxW) {
+      while (titleText.length > 4 && ctx.measureText(titleText + "...").width > titleMaxW) titleText = titleText.slice(0, -1);
+      titleText += "...";
+    }
+    ctx.fillText(titleText, w / 2, 28);
 
+    // Subtitle line — mode + turn info, truncated to fit
     ctx.fillStyle = t.textSecondary;
-    ctx.font = `${Math.max(13, Math.floor(w * 0.028))}px ${t.fonts.body}`;
+    const subSize = Math.max(11, Math.floor(w * 0.022));
+    ctx.font = `${subSize}px ${t.fonts.body}`;
     const modeText = this.mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
     let turnText = "";
     if (this.phase === "setup") {
-      const placer = this.mode === "hotseat" ? `PLAYER ${this.setupSubPhase === "player1" ? 1 : 2}` : "YOU";
-      turnText = `${placer}: ${t.terms.deploy} ${this.getCurrentShipType().toUpperCase()} (${this.getCurrentShipSize()}) — R rotate, A auto`;
+      const placer = this.mode === "hotseat" ? `P${this.setupSubPhase === "player1" ? 1 : 2}` : "YOU";
+      turnText = `${placer} ${t.terms.deploy} ${this.getCurrentShipType().toUpperCase()} (${this.getCurrentShipSize()})`;
     } else if (this.phase === "over") {
       const isVictory = this.result.winner === "player" || this.result.winner === "player1";
-      turnText = `GAME OVER — ${isVictory ? t.terms.victory : t.terms.defeat} · ${this.result.turns} turns`;
+      turnText = `${isVictory ? "VICTORY" : "DEFEAT"} · ${this.result.turns} turns`;
     } else {
       const turnLabel = this.currentTurn === "player" || this.currentTurn === "player1" ? t.terms.turnYou :
         this.mode === "agent" ? t.terms.turnEnemy : t.terms.turnPlayer2;
-      const thinking = this.agentThinking ? " · THINKING..." : "";
+      const thinking = this.agentThinking ? " · THINKING" : "";
       turnText = `${turnLabel}${thinking}`;
     }
-    ctx.fillText(`${modeText} · ${turnText}`, w / 2, 50);
+    let subLine = `${modeText} · ${turnText}`;
+    const subMaxW = w - 32;
+    if (ctx.measureText(subLine).width > subMaxW) {
+      while (subLine.length > 4 && ctx.measureText(subLine + "...").width > subMaxW) subLine = subLine.slice(0, -1);
+      subLine += "...";
+    }
+    ctx.fillText(subLine, w / 2, 46);
+
+    // Tagline from theme (tiny, muted)
+    ctx.fillStyle = t.textMuted;
+    const tagSize = Math.max(9, Math.floor(w * 0.018));
+    ctx.font = `italic ${tagSize}px ${t.fonts.body}`;
+    ctx.fillText(t.tagline, w / 2, 62);
 
     // Draw boards with entrance animation offsets
     this.drawBoard(ctx, startX + leftOffsetX, startY, cell, "player", t);
@@ -1186,12 +1553,45 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       }
     }
 
-    // Message
+    // Message with Sparrow portrait
     if (this.messageTimer > 0 && this.message) {
       const alpha = Math.min(1, this.messageTimer / 500);
-      ctx.fillStyle = `${t.accent}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
-      ctx.font = `${Math.max(16, Math.floor(w * 0.035))}px ${t.fonts.body}`;
-      ctx.fillText(this.message, w / 2, h - footerH + 20);
+      // Speech bubble background
+      const bubbleX = 12;
+      const bubbleY = h - footerH - 56;
+      const msgFontSize = Math.max(12, Math.floor(w * 0.024));
+      ctx.font = `${msgFontSize}px ${t.fonts.body}`;
+      const msgW = Math.min(ctx.measureText(this.message).width + 24, w - 80);
+      const bubbleW = msgW + 8;
+      const bubbleH = msgFontSize + 18;
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.fillStyle = t.bgDeep;
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 4);
+      ctx.fill();
+      ctx.stroke();
+      // Triangle pointer
+      ctx.beginPath();
+      ctx.moveTo(bubbleX + 12, bubbleY + bubbleH);
+      ctx.lineTo(bubbleX + 20, bubbleY + bubbleH + 8);
+      ctx.lineTo(bubbleX + 28, bubbleY + bubbleH);
+      ctx.fill();
+      ctx.stroke();
+      // Message text
+      ctx.fillStyle = t.textPrimary;
+      ctx.textAlign = "left";
+      ctx.fillText(this.message, bubbleX + 12, bubbleY + msgFontSize + 4);
+      // Sparrow portrait (skull icon)
+      const portraitX = 16;
+      const portraitY = h - footerH - 28;
+      ctx.fillStyle = t.accent;
+      ctx.font = `28px ${t.fonts.body}`;
+      ctx.textAlign = "center";
+      ctx.fillText("☠", portraitX + 16, portraitY + 8);
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "center";
     }
 
     // Footer hint
@@ -1202,14 +1602,14 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.strokeRect(0, h - footerH, w, 1);
 
     ctx.fillStyle = t.textMuted;
-    ctx.font = `${Math.max(11, Math.floor(w * 0.024))}px ${t.fonts.body}`;
+    ctx.font = `${Math.max(11, Math.floor(w * 0.022))}px ${t.fonts.body}`;
     let hint = "";
     if (this.phase === "setup") {
-      hint = "CLICK/TAP to place · R rotate · A auto-randomize";
+      hint = "TAP to place · R rotate · A auto";
     } else if (this.phase === "over") {
-      hint = "CLICK anywhere for NEW GAME · ESC for tavern";
+      hint = "TAP for NEW GAME · ESC tavern";
     } else {
-      hint = this.mode === "hotseat" ? "CLICK enemy grid to fire" : "CLICK enemy grid to fire · ESC to quit";
+      hint = this.mode === "hotseat" ? "TAP enemy grid to fire" : "TAP enemy grid · ESC quit";
     }
     ctx.fillText(hint, w / 2, h - 14);
     ctx.textAlign = "left";
@@ -1224,7 +1624,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Theme scanlines effect
     if (t.effects.scanlines) {
       ctx.save();
-      ctx.globalAlpha = 0.04;
+      ctx.globalAlpha = 0.06;
       for (let y = 0; y < h; y += 3) {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, y, w, 1);
@@ -1235,21 +1635,128 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Theme CRT barrel distortion (simulated with gradient)
     if (t.effects.crt) {
       ctx.save();
-      const crtGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.4, w / 2, h / 2, Math.max(w, h) * 0.7);
+      const crtGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.7);
       crtGrad.addColorStop(0, "rgba(0,0,0,0)");
-      crtGrad.addColorStop(1, "rgba(0,0,0,0.15)");
+      crtGrad.addColorStop(1, "rgba(0,0,0,0.2)");
       ctx.fillStyle = crtGrad;
       ctx.fillRect(0, 0, w, h);
+      // CRT scanline shimmer
+      const scanY = (performance.now() * 0.08) % h;
+      ctx.fillStyle = "rgba(255,255,255,0.03)";
+      ctx.fillRect(0, scanY, w, 2);
       ctx.restore();
     }
 
     // Theme glitch effect (random horizontal offset lines)
-    if (t.effects.glitch && Math.random() < 0.03) {
+    if (t.effects.glitch && Math.random() < 0.04) {
       ctx.save();
       const glitchY = Math.random() * h;
       const glitchH = 2 + Math.random() * 6;
       const glitchShift = (Math.random() - 0.5) * 8;
       ctx.drawImage(ctx.canvas, 0, glitchY, w, glitchH, glitchShift, glitchY, w, glitchH);
+      ctx.restore();
+    }
+
+    // Theme-specific animated background overlays
+    const now = performance.now();
+    if (this.themeId === "abyssal") {
+      // Bioluminescence pulsing circles
+      ctx.save();
+      ctx.globalAlpha = 0.06;
+      for (let i = 0; i < 8; i++) {
+        const bx = w * (0.1 + 0.11 * i + Math.sin(now * 0.0005 + i * 1.8) * 0.05);
+        const by = h * (0.3 + Math.cos(now * 0.0004 + i * 2.1) * 0.25);
+        const br = 15 + Math.sin(now * 0.001 + i) * 8;
+        const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+        grad.addColorStop(0, t.accent);
+        grad.addColorStop(1, "transparent");
+        ctx.fillStyle = grad;
+        ctx.fillRect(bx - br, by - br, br * 2, br * 2);
+      }
+      ctx.restore();
+    } else if (this.themeId === "odyssey") {
+      // Rotating scan ring
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 1;
+      const cx = w / 2, cy = h / 2;
+      const scanRadius = Math.min(w, h) * 0.45;
+      const scanAngle = (now * 0.001) % (Math.PI * 2);
+      ctx.beginPath();
+      ctx.arc(cx, cy, scanRadius, scanAngle, scanAngle + 0.4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, scanRadius * 0.7, scanAngle + Math.PI, scanAngle + Math.PI + 0.3);
+      ctx.stroke();
+      // Crosshair lines
+      ctx.globalAlpha = 0.04;
+      ctx.beginPath();
+      ctx.moveTo(cx - scanRadius, cy); ctx.lineTo(cx + scanRadius, cy);
+      ctx.moveTo(cx, cy - scanRadius); ctx.lineTo(cx, cy + scanRadius);
+      ctx.stroke();
+      ctx.restore();
+    } else if (this.themeId === "corsair") {
+      // Compass rose in corner
+      ctx.save();
+      const compX = w - 60, compY = 90;
+      ctx.globalAlpha = 0.07;
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 1;
+      const points = 8;
+      for (let i = 0; i < points; i++) {
+        const angle = (Math.PI * 2 * i) / points + now * 0.0002;
+        const len = i % 2 === 0 ? 35 : 20;
+        ctx.beginPath();
+        ctx.moveTo(compX, compY);
+        ctx.lineTo(compX + Math.cos(angle) * len, compY + Math.sin(angle) * len);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(compX, compY, 38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (this.themeId === "voidwalker") {
+      // Hex grid background pattern
+      ctx.save();
+      ctx.globalAlpha = 0.04;
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 0.5;
+      const hexR = 24;
+      const hexH = hexR * Math.sqrt(3);
+      for (let row = -1; row < h / hexH + 1; row++) {
+        for (let col = -1; col < w / (hexR * 1.5) + 1; col++) {
+          const hx = col * hexR * 1.5;
+          const hy = row * hexH + (col % 2 ? hexH / 2 : 0);
+          const pulse = Math.sin(now * 0.002 + col * 0.3 + row * 0.4) * 0.5 + 0.5;
+          ctx.globalAlpha = 0.02 + pulse * 0.03;
+          ctx.beginPath();
+          for (let s = 0; s < 6; s++) {
+            const angle = (Math.PI / 3) * s - Math.PI / 6;
+            const px = hx + Math.cos(angle) * hexR;
+            const py = hy + Math.sin(angle) * hexR;
+            s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    } else if (this.themeId === "charter") {
+      // Subtle tide lines
+      ctx.save();
+      ctx.globalAlpha = 0.03;
+      ctx.strokeStyle = t.accent;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        const waveY = h * (0.2 + i * 0.2);
+        for (let x = 0; x < w; x += 4) {
+          const y = waveY + Math.sin((x + now * 0.03 + i * 40) * 0.015) * 6;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -1307,6 +1814,80 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+
+    // VICTORY / DEFEAT OVERLAY
+    if (this.phase === "over") {
+      const isVictory = this.result.winner === "player" || this.result.winner === "player1";
+      const overlayAlpha = Math.min(0.75, (performance.now() - (this._gameOverTime || performance.now())) * 0.001);
+      if (overlayAlpha > 0) {
+        ctx.save();
+        ctx.globalAlpha = overlayAlpha;
+        ctx.fillStyle = isVictory ? "rgba(10, 40, 20, 0.85)" : "rgba(40, 10, 10, 0.85)";
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalAlpha = 1;
+
+        // Result text
+        const resultSize = Math.max(28, Math.floor(w * 0.06));
+        ctx.font = `bold ${resultSize}px ${t.fonts.title}`;
+        ctx.textAlign = "center";
+        const resultText = isVictory ? "VICTORY" : "DEFEAT";
+        const resultColor = isVictory ? "#68e8a8" : "#e87850";
+
+        // Glow
+        ctx.shadowColor = resultColor;
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = resultColor;
+        ctx.fillText(resultText, w / 2, h * 0.28);
+        ctx.shadowBlur = 0;
+
+        // Ship graveyard — draw all 5 fleet ships as mini silhouettes
+        const graveY = h * 0.38;
+        const graveSpacing = Math.min(60, w * 0.08);
+        const graveStartX = w / 2 - (graveSpacing * 2);
+        for (let i = 0; i < FLEET.length; i++) {
+          const type = FLEET[i];
+          const spec = SHIP_SPECS[type];
+          const ship = this.opponentBoard.ships.find((s) => s.type === type);
+          const playerShip = this.playerBoard.ships.find((s) => s.type === type);
+          const enemySunk = ship?.sunk ?? false;
+          const playerSunk = playerShip?.sunk ?? false;
+          const shipColor = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+          const gx = graveStartX + i * graveSpacing;
+          this.drawMiniShip(ctx, gx, graveY, 24, type, shipColor.main, enemySunk);
+          // Label
+          ctx.fillStyle = enemySunk ? t.sunkGlow : t.textMuted;
+          ctx.font = `${Math.max(8, Math.floor(w * 0.014))}px ${t.fonts.body}`;
+          ctx.fillText(spec.short, gx + 12, graveY + 32);
+          // Player ship below
+          this.drawMiniShip(ctx, gx, graveY + 38, 24, type, t.playerColor, playerSunk);
+        }
+
+        // Stats
+        const statsY = h * 0.56;
+        const accuracy = this.result.playerHits + this.result.playerMisses > 0
+          ? Math.round((this.result.playerHits / (this.result.playerHits + this.result.playerMisses)) * 100)
+          : 0;
+        ctx.fillStyle = t.textPrimary;
+        ctx.font = `${Math.max(14, Math.floor(w * 0.025))}px ${t.fonts.body}`;
+        ctx.fillText(`${this.result.playerHits} HITS  ·  ${this.result.playerMisses} MISSES  ·  ${accuracy}% ACCURACY`, w / 2, statsY);
+        ctx.fillStyle = t.textSecondary;
+        ctx.fillText(`${this.result.turns} TURNS`, w / 2, statsY + 24);
+
+        // Sparrow quote
+        const sparrowLine = isVictory ? this.getSparrowLine("victory") : this.getSparrowLine("defeat");
+        ctx.fillStyle = t.gold;
+        ctx.font = `italic ${Math.max(12, Math.floor(w * 0.02))}px ${t.fonts.body}`;
+        ctx.fillText(`"${sparrowLine}"`, w / 2, statsY + 56);
+
+        // Hint
+        ctx.fillStyle = t.textMuted;
+        ctx.font = `${Math.max(11, Math.floor(w * 0.018))}px ${t.fonts.body}`;
+        ctx.fillText("TAP to play again · ESC for tavern", w / 2, h - 60);
+
+        ctx.textAlign = "left";
+        ctx.restore();
+      }
+    }
   }
 
   private easeOutCubic(t: number): number {
@@ -1326,18 +1907,23 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const panelW = Math.max(100, cell * 3.5);
     const panelH = boardSize;
 
-    ctx.fillStyle = `${t.panel}DD`;
+    // Panel background with slight gradient
+    const panelGrad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+    panelGrad.addColorStop(0, `${t.panel}EE`);
+    panelGrad.addColorStop(1, `${t.bgDeep}EE`);
+    ctx.fillStyle = panelGrad;
     ctx.fillRect(panelX, panelY, panelW, panelH);
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 1;
     ctx.strokeRect(panelX, panelY, panelW, panelH);
 
+    // Panel title
     ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `${Math.max(11, Math.floor(cell * 0.5))}px ${t.fonts.body}`;
+    ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.42))}px ${t.fonts.body}`;
     ctx.textAlign = "center";
     ctx.fillText(t.terms[which === "player" ? "playerFleet" : "enemyFleet"], panelX + panelW / 2, panelY + 16);
 
-    let yOffset = panelY + 30;
+    let yOffset = panelY + 28;
     for (const type of FLEET) {
       const spec = SHIP_SPECS[type];
       const ship = board.ships.find((s) => s.type === type);
@@ -1347,141 +1933,248 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const total = spec.size;
       const shipColors = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
 
-      // Ship icon
-      ctx.fillStyle = placed ? (sunk ? t.sunkColor : shipColors.main) : `${t.playerColor}4D`;
-      ctx.fillRect(panelX + 8, yOffset, 16, 16);
-      ctx.strokeStyle = sunk ? t.sunkGlow : (placed ? shipColors.main : `${t.playerColor}80`);
-      ctx.lineWidth = sunk ? 2 : 1;
-      ctx.strokeRect(panelX + 8, yOffset, 16, 16);
+      // Mini ship icon (actual silhouette)
+      this.drawMiniShip(ctx, panelX + 6, yOffset, Math.min(18, cell * 0.7), type, shipColors.main, sunk);
 
-      // Health bar
-      if (placed && !sunk) {
-        const barW = panelW - 40;
-        const barH = 6;
-        const barX = panelX + 30;
-        const barY = yOffset + 5;
-        ctx.fillStyle = t.gridBg;
-        ctx.fillRect(barX, barY, barW, barH);
-        ctx.fillStyle = hits > 0 ? t.hitColor : t.playerColor;
-        ctx.fillRect(barX, barY, Math.max(1, barW * (hits / total)), barH);
-        ctx.strokeStyle = `${t.accent}4D`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(barX, barY, barW, barH);
+      // Segmented health bar (one segment per hull cell)
+      const segW = Math.max(6, (panelW - 50) / total - 1);
+      const segH = 5;
+      const segX = panelX + 28;
+      const segY = yOffset + 3;
+      for (let i = 0; i < total; i++) {
+        const sx = segX + i * (segW + 1);
+        if (placed && !sunk) {
+          ctx.fillStyle = i < hits ? t.hitColor : `${shipColors.main}80`;
+          ctx.fillRect(sx, segY, segW, segH);
+          ctx.strokeStyle = `${shipColors.dark}80`;
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(sx, segY, segW, segH);
+        } else if (sunk) {
+          ctx.fillStyle = `${t.sunkColor}80`;
+          ctx.fillRect(sx, segY, segW, segH);
+        } else {
+          ctx.fillStyle = `${t.textMuted}40`;
+          ctx.fillRect(sx, segY, segW, segH);
+        }
       }
 
-      // Label
+      // Label + status
       ctx.fillStyle = sunk ? t.sunkGlow : (placed ? t.textPrimary : t.textMuted);
-      ctx.font = `${Math.max(10, Math.floor(cell * 0.4))}px ${t.fonts.body}`;
+      ctx.font = `${Math.max(9, Math.floor(cell * 0.35))}px ${t.fonts.body}`;
       ctx.textAlign = "left";
-      ctx.fillText(`${spec.short} ${sunk ? "SUNK" : placed ? `${hits}/${total}` : "—"}`, panelX + 30, yOffset + 14);
+      const status = sunk ? "SUNK" : placed ? `${hits}/${total}` : "—";
+      ctx.fillText(`${spec.short} ${status}`, panelX + 28, yOffset + 15);
 
-      // During setup, show current ship highlight
+      // Setup highlight
       if (isSetup && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
-        ctx.fillStyle = `${t.accent}4D`;
-        ctx.fillRect(panelX + 4, yOffset - 2, panelW - 8, 20);
+        ctx.fillStyle = `${t.accent}30`;
+        ctx.fillRect(panelX + 4, yOffset - 2, panelW - 8, 18);
+        ctx.strokeStyle = `${t.accent}60`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(panelX + 4, yOffset - 2, panelW - 8, 18);
       }
 
-      yOffset += 24;
+      yOffset += 22;
     }
+
+    // Ability cooldown indicators
+    if (this.phase === "play" && which === "player" && this.mode === "agent") {
+      yOffset += 4;
+      ctx.fillStyle = t.textMuted;
+      ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
+      ctx.textAlign = "center";
+      ctx.fillText("ABILITIES", panelX + panelW / 2, yOffset);
+      yOffset += 10;
+      for (const type of FLEET) {
+        const spec = SHIP_SPECS[type];
+        const ability = SHIP_ABILITIES[type];
+        const ship = board.ships.find((s) => s.type === type);
+        if (!ship || ship.sunk) continue;
+        const ready = this.canUseAbility(type);
+        const cdLeft = ready ? 0 : ability.cooldown - (this.result.turns - ship.abilityUsed);
+        // Cooldown ring
+        const ringR = 5;
+        const ringX = panelX + 8 + ringR;
+        const ringY = yOffset + ringR;
+        ctx.beginPath();
+        ctx.arc(ringX, ringY, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = `${t.textMuted}40`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        if (ready) {
+          ctx.beginPath();
+          ctx.arc(ringX, ringY, ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = t.accent;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = t.accent;
+          ctx.font = `${Math.max(7, Math.floor(cell * 0.28))}px ${t.fonts.body}`;
+          ctx.textAlign = "center";
+          ctx.fillText("✓", ringX, ringY + 3);
+        } else {
+          const arcLen = (1 - cdLeft / ability.cooldown) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(ringX, ringY, ringR, -Math.PI / 2, -Math.PI / 2 + arcLen);
+          ctx.strokeStyle = t.accentDim;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = t.textMuted;
+          ctx.font = `${Math.max(7, Math.floor(cell * 0.28))}px ${t.fonts.body}`;
+          ctx.textAlign = "center";
+          ctx.fillText(String(cdLeft), ringX, ringY + 3);
+        }
+        // Ability name
+        ctx.fillStyle = ready ? t.textPrimary : t.textMuted;
+        ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
+        ctx.textAlign = "left";
+        ctx.fillText(`${spec.short}:${ability.name}`, panelX + 20, yOffset + 8);
+        // Keybind hint
+        const keyIdx = FLEET.indexOf(type) + 1;
+        ctx.fillStyle = `${t.accent}80`;
+        ctx.fillText(`[${keyIdx}]`, panelX + panelW - 20, yOffset + 8);
+        yOffset += 14;
+      }
+    }
+
     ctx.textAlign = "left";
   }
 
   private drawBoard(ctx: CanvasRenderingContext2D, ox: number, oy: number, cell: number, which: "player" | "opponent", t: BouyTheme) {
     let grid: CellState[][];
+    let board: Board;
 
     if (which === "player") {
       grid = this.getOwnGrid();
+      board = this.mode === "hotseat" ? (this.currentTurn === "player1" || this.phase === "setup" ? this.player1Board : this.player2Board) : this.playerBoard;
     } else {
       grid = this.getTargetGrid();
+      board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
     }
     const label = which === "player" ? t.terms.playerFleet : t.terms.targetingGrid;
+    const bw = GRID_SIZE * cell;
+    const bh = GRID_SIZE * cell;
 
-    // Board background
-    ctx.fillStyle = t.gridBg;
-    ctx.fillRect(ox - 4, oy - 4, GRID_SIZE * cell + 8, GRID_SIZE * cell + 8);
+    ctx.save();
+
+    // Board border with glow
+    ctx.shadowColor = t.panelBorder;
+    ctx.shadowBlur = 6;
     ctx.strokeStyle = t.panelBorder;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(ox - 4, oy - 4, GRID_SIZE * cell + 8, GRID_SIZE * cell + 8);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ox - 3, oy - 3, bw + 6, bh + 6);
+    ctx.shadowBlur = 0;
 
-    // Label
-    ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `${Math.max(12, Math.floor(cell * 0.55))}px ${t.fonts.body}`;
-    ctx.textAlign = "center";
-    ctx.fillText(label, ox + GRID_SIZE * cell / 2, oy - 10);
+    // Water background for the board
+    this.drawWater(ctx, ox, oy, bw, bh, t);
 
-    // Grid cells
+    // Grid lines
+    ctx.strokeStyle = t.gridLine;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      ctx.beginPath();
+      ctx.moveTo(ox + i * cell, oy);
+      ctx.lineTo(ox + i * cell, oy + bh);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ox, oy + i * cell);
+      ctx.lineTo(ox + bw, oy + i * cell);
+      ctx.stroke();
+    }
+
+    // Cell state overlays (hit markers, miss markers on opponent board)
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const cx = ox + x * cell;
         const cy = oy + y * cell;
         const state = grid[y][x];
-        let fill = t.gridBg;
-        let stroke = t.gridLine;
 
-        if (state === CELL_STATES.ship) {
-          fill = "#1a2838";
-          stroke = `${t.playerColor}4D`;
-        } else if (state === CELL_STATES.hit) {
-          fill = t.hitColor;
-          stroke = t.hitGlow;
+        if (state === CELL_STATES.hit) {
+          ctx.fillStyle = `${t.hitColor}60`;
+          ctx.fillRect(cx, cy, cell, cell);
+          const fireGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.5);
+          fireGrad.addColorStop(0, `${t.hitGlow}40`);
+          fireGrad.addColorStop(1, "transparent");
+          ctx.fillStyle = fireGrad;
+          ctx.fillRect(cx, cy, cell, cell);
         } else if (state === CELL_STATES.miss) {
-          fill = t.missColor;
-          stroke = t.textMuted;
+          ctx.globalAlpha = 0.25;
+          ctx.strokeStyle = t.missColor;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(cx + cell / 2, cy + cell / 2, cell * 0.3, cell * 0.12, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
         } else if (state === CELL_STATES.sunk) {
-          fill = t.sunkColor;
-          stroke = t.sunkGlow;
-        }
-
-        ctx.fillStyle = fill;
-        ctx.fillRect(cx, cy, cell, cell);
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(cx, cy, cell, cell);
-
-        // Ship preview during placement
-        if (this.phase === "setup" && which === "player" && this.hoverCell) {
-          const [hx, hy] = this.hoverCell;
-          const size = this.getCurrentShipSize();
-          const cells: [number, number][] = [];
-          for (let i = 0; i < size; i++) {
-            cells.push(this.horizontal ? [hx + i, hy] : [hx, hy + i]);
-          }
-          if (cells.some(([cx, cy]) => cx === x && cy === y)) {
-            const valid = this.canPlaceAt(hx, hy);
-            ctx.fillStyle = valid ? `${t.playerColor}73` : `${t.hitColor}73`;
-            ctx.fillRect(cx, cy, cell, cell);
-            // Show ship outline
-            ctx.strokeStyle = valid ? t.playerColor : t.hitColor;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(cx - 1, cy - 1, cell + 2, cell + 2);
-          }
+          ctx.fillStyle = `${t.sunkColor}80`;
+          ctx.fillRect(cx, cy, cell, cell);
+          const burnGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.5);
+          burnGrad.addColorStop(0, `${t.sunkGlow}30`);
+          burnGrad.addColorStop(1, "transparent");
+          ctx.fillStyle = burnGrad;
+          ctx.fillRect(cx, cy, cell, cell);
         }
       }
     }
+
+    // Draw ship silhouettes
+    if (which === "player") {
+      for (const ship of board.ships) {
+        const shipColor = t.shipColors[ship.type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+        this.drawShipSilhouette(
+          ctx, ship.cells, cell, ox, oy,
+          shipColor.main, shipColor.dark,
+          1, ship.sunk, ship.hits, ship.type,
+        );
+      }
+      // Ghost preview during setup
+      if (this.phase === "setup" && this.hoverCell) {
+        const [hx, hy] = this.hoverCell;
+        const size = this.getCurrentShipSize();
+        const previewCells: [number, number][] = [];
+        for (let i = 0; i < size; i++) {
+          previewCells.push(this.horizontal ? [hx + i, hy] : [hx, hy + i]);
+        }
+        const valid = this.canPlaceAt(hx, hy);
+        const previewType = this.getCurrentShipType();
+        const shipColor = t.shipColors[previewType] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+        this.drawShipSilhouette(
+          ctx, previewCells, cell, ox, oy,
+          valid ? `${shipColor.main}60` : `${t.hitColor}60`,
+          valid ? shipColor.main : t.hitColor,
+          0.6, false, [], previewType,
+        );
+      }
+    }
+
+    // Label
+    ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
+    ctx.font = `bold ${Math.max(11, Math.floor(cell * 0.48))}px ${t.fonts.body}`;
+    ctx.textAlign = "center";
+    ctx.fillText(label, ox + bw / 2, oy - 8);
 
     // Coordinate labels
     ctx.fillStyle = t.textMuted;
-    ctx.font = `${Math.max(9, Math.floor(cell * 0.35))}px ${t.fonts.body}`;
-    ctx.textAlign = "center";
+    ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
     for (let i = 0; i < GRID_SIZE; i++) {
       ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + cell / 2, oy - 14);
-      ctx.fillText(String(i + 1), ox - 12, oy + i * cell + cell / 2 + 4);
+      ctx.fillText(String(i + 1), ox - 11, oy + i * cell + cell / 2 + 3);
     }
 
-    // Turn indicator arrow
+    // Turn indicator — pulsing glow border on active board
     if (this.phase === "play" && !this.agentThinking) {
       const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
       if ((which === "opponent" && isPlayerTurn) || (which === "player" && !isPlayerTurn && this.mode === "hotseat")) {
-        ctx.fillStyle = t.accent;
-        ctx.font = `${Math.max(16, Math.floor(cell * 0.8))}px ${t.fonts.body}`;
-        ctx.textAlign = which === "player" ? "right" : "left";
-        const arrowX = which === "player" ? ox - 20 : ox + GRID_SIZE * cell + 20;
-        const arrowY = oy + GRID_SIZE * cell / 2 + 6;
-        ctx.fillText(isPlayerTurn ? "►" : "◄", arrowX, arrowY);
+        const pulse = 0.3 + Math.sin(performance.now() * 0.004) * 0.15;
+        ctx.shadowColor = t.accent;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = `${t.accent}${Math.floor(pulse * 255).toString(16).padStart(2, "0")}`;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(ox - 5, oy - 5, bw + 10, bh + 10);
+        ctx.shadowBlur = 0;
       }
     }
 
-    // Flash effects
+    // Flash effects (explosions for hits, splashes for misses, expanding rings for sinks)
     for (const f of this.flashCells) {
       const boards: ("player" | "opponent" | "player1" | "player2")[] = [];
       if (f.board === "player") boards.push("player");
@@ -1490,66 +2183,36 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       else if (f.board === "player2") boards.push(this.mode === "hotseat" && this.currentTurn === "player1" ? "player" : "opponent");
 
       if (boards.includes(which)) {
-        const cx = ox + f.x * cell;
-        const cy = oy + f.y * cell;
+        const fx = ox + f.x * cell + cell / 2;
+        const fy = oy + f.y * cell + cell / 2;
         const maxTimer = f.type === "sink" ? 800 : f.type === "hit" ? 300 : 250;
-        const alpha = Math.max(0, f.timer / maxTimer);
+        const progress = 1 - Math.max(0, f.timer / maxTimer);
+
         if (f.type === "hit") {
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
-          ctx.fillRect(cx + 2, cy + 2, cell - 4, cell - 4);
-          ctx.strokeStyle = `${t.hitGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(cx + 4, cy + 4);
-          ctx.lineTo(cx + cell - 4, cy + cell - 4);
-          ctx.moveTo(cx + cell - 4, cy + 4);
-          ctx.lineTo(cx + 4, cy + cell - 4);
-          ctx.stroke();
+          this.drawExplosionAt(ctx, fx, fy, cell * 0.6, t, progress);
         } else if (f.type === "miss") {
-          ctx.fillStyle = `${t.textPrimary}${Math.floor(alpha * 100).toString(16).padStart(2, '0')}`;
-          ctx.beginPath();
-          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.35, 0, Math.PI * 2);
-          ctx.fill();
+          this.drawSplashAt(ctx, fx, fy, cell, t, progress);
         } else if (f.type === "sink") {
-          const pulse = 1 - f.timer / 800;
-          ctx.strokeStyle = `${t.sunkGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
-          ctx.lineWidth = 3;
+          this.drawExplosionAt(ctx, fx, fy, cell * 1.0, t, Math.min(1, progress * 1.5));
+          const ringR = cell * 0.8 * (1 + progress * 0.5);
+          ctx.globalAlpha = 1 - progress;
+          ctx.strokeStyle = t.sunkGlow;
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.5 * (1 + pulse * 0.5), 0, Math.PI * 2);
+          ctx.arc(fx, fy, ringR, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.fillStyle = `${t.sunkGlow}${Math.floor(alpha * 50).toString(16).padStart(2, '0')}`;
-          ctx.beginPath();
-          ctx.arc(cx + cell / 2, cy + cell / 2, cell * 0.5 * (1 + pulse * 0.5), 0, Math.PI * 2);
-          ctx.fill();
-          // Sunk ship label
-          if (f.timer < 400) {
-            ctx.fillStyle = `${t.sunkGlow}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}`;
-            ctx.font = `${Math.max(10, Math.floor(cell * 0.45))}px ${t.fonts.body}`;
-            ctx.textAlign = "center";
-            ctx.fillText("SUNK", cx + cell / 2, cy + cell / 2 + 4);
-          }
+          ctx.globalAlpha = 1;
         }
       }
     }
 
     ctx.textAlign = "left";
-    ctx.restore(); // Restore screen shake transform
-
-    // Draw particles on top (not affected by screen shake)
-    for (const p of this.particles) {
-      const alpha = Math.max(0, p.life / p.maxLife);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   // Input handlers
   pointerDown(nx: number, ny: number, w: number, h: number) {
-    const headerH = 56;
+    const headerH = 72;
     const footerH = 48;
     const availH = h - headerH - footerH;
     const boardSize = Math.min(w * 0.44, availH * 0.9);
@@ -1586,7 +2249,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   pointerMove(nx: number, ny: number, w: number, h: number) {
     if (this.phase !== "setup") { this.hoverCell = null; return; }
-    const headerH = 56;
+    const headerH = 72;
     const footerH = 48;
     const availH = h - headerH - footerH;
     const boardSize = Math.min(w * 0.44, availH * 0.9);

@@ -288,6 +288,8 @@ export function demplarResultStudioHtml(
   );
 }
 
+import { getSparrowLine } from "../minigames/conflicBouyPersonality";
+
 export function conflicResultStudioHtml(
   r: BouyResult,
   renown: number,
@@ -308,12 +310,18 @@ export function conflicResultStudioHtml(
   const shipGraveyard = isVictory
     ? ""
     : `<p class="studio-lore-line" style="margin-top:8px;font-size:0.95rem;color:#e87850;">Your fleet rests on the ocean floor.</p>`;
+  const sparrowLine = getSparrowLine(isVictory ? "victory" : "defeat", {
+    turns: r.turns,
+    playerHits: r.playerHits,
+    agentHits: r.agentHits,
+  });
   return studioStageHtml(
     "Conflic Bouy",
     `<div class="bouy-victory-flash ${flashClass}" aria-hidden="true"></div>
     <p class="studio-flourish" style="color:${resultColor}">${resultLabel} — ${modeLabel}</p>
     <p class="studio-lore-line studio-lore-line--hint" style="margin-bottom:4px;">Fleet engagement complete · ${r.turns} turns</p>
-    <p class="studio-lore-line" style="font-style:italic;color:#b8a0d8;margin-bottom:16px;">${tagline}</p>
+    <p class="studio-lore-line" style="font-style:italic;color:#b8a0d8;margin-bottom:4px;">${tagline}</p>
+    <p class="studio-lore-line" style="font-size:1rem;color:#e0c060;margin-bottom:16px;">"${sparrowLine}"</p>
     <div class="studio-scoreboard studio-scoreboard--conflic">
       <span class="studio-stat"><em>⚓</em> ${r.playerHits} <small>Hits</small></span>
       <span class="studio-stat"><em>💧</em> ${r.playerMisses} <small>Misses</small></span>
