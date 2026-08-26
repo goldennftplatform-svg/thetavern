@@ -210,6 +210,25 @@ export class ConflicBouy {
   private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number; type: "debris" | "smoke" | "ember" | "spark" }> = [];
   private hitPause = 0;
 
+  // Popup system (floating text on canvas)
+  private popups: Array<{ text: string; x: number; y: number; life: number; maxLife: number; color: string; size: number; type: "hit" | "miss" | "sink" | "combo" | "ability" | "firstblood" }> = [];
+  // Combo tracker
+  private combo = 0;
+  private comboTimer = 0;
+  private firstBlood = false;
+  // Board entrance animation
+  private boardEnterTimer = 0;
+  private boardEnterDone = false;
+  // Cannon fire projectile
+  private cannonFire: { sx: number; sy: number; tx: number; ty: number; t: number; duration: number; color: string } | null = null;
+  // Sink sequence (bow-to-stern flash)
+  private sinkSequence: { cells: [number, number][]; board: "player" | "opponent"; timer: number; cellIndex: number } | null = null;
+  // Smooth health bar interpolation
+  private smoothHealth: Map<string, number> = new Map();
+  // Turn transition wipe
+  private turnWipe = 0;
+  private turnWipeColor = "";
+
   constructor(opts?: { mode?: BouyMode; theme?: BouyThemeId; stake?: number }) {
     this.mode = opts?.mode ?? "agent";
     this.themeId = opts?.theme ?? "charter";
@@ -273,6 +292,17 @@ export class ConflicBouy {
     this.agentDifficulty = "normal";
     this.lastHitDirection = null;
     this.awaitingAbility = false;
+    // Reset animation state
+    this.popups = [];
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.firstBlood = false;
+    this.boardEnterTimer = 0;
+    this.boardEnterDone = false;
+    this.cannonFire = null;
+    this.sinkSequence = null;
+    this.smoothHealth.clear();
+    this.turnWipe = 0;
   }
 
   setMode(mode: BouyMode) {
@@ -444,8 +474,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     this.screenShake = 8;
     this.hitPause = 60;
     // Calculate screen position from grid coordinates
-    const { cell, startX, startY } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
     const screenY = startY + y * cell + cell / 2;
     // Spawn hit particles
     for (let i = 0; i < 12; i++) {
@@ -463,12 +493,38 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         type: "spark",
       });
     }
+    // Popup
+    if (byPlayer) {
+      this.combo++;
+      this.comboTimer = 3000;
+      const comboText = this.combo > 1 ? ` ×${this.combo}` : "";
+      this.popups.push({ text: `HIT!${comboText}`, x: screenX, y: screenY - 10, life: 800, maxLife: 800, color: this.theme.hitGlow, size: this.combo > 2 ? 14 : 10, type: "hit" });
+      if (this.combo > 2) {
+        this.popups.push({ text: `${this.combo} COMBO!`, x: w / 2, y: 70, life: 1200, maxLife: 1200, color: "#ffd040", size: 16, type: "combo" });
+      }
+      // First blood
+      if (!this.firstBlood && this.result.playerHits === 0) {
+        this.firstBlood = true;
+        this.popups.push({ text: "FIRST BLOOD!", x: w / 2, y: h * 0.35, life: 1500, maxLife: 1500, color: "#ff6040", size: 18, type: "firstblood" });
+      }
+    }
+    // Cannon fire projectile
+    this.cannonFire = {
+      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
+      sy: startY + boardSize + 10,
+      tx: screenX,
+      ty: screenY,
+      t: 0,
+      duration: 120,
+      color: this.theme.hitColor,
+    };
   }
 
   private triggerMissEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 3;
-    const { cell, startX, startY } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    this.combo = 0;
+    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
     const screenY = startY + y * cell + cell / 2;
     // Splash particles
     for (let i = 0; i < 8; i++) {
@@ -486,13 +542,27 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         type: "smoke",
       });
     }
+    // Popup
+    if (byPlayer) {
+      this.popups.push({ text: "MISS", x: screenX, y: screenY - 10, life: 600, maxLife: 600, color: this.theme.textMuted, size: 9, type: "miss" });
+    }
+    // Cannon fire projectile
+    this.cannonFire = {
+      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
+      sy: startY + boardSize + 10,
+      tx: screenX,
+      ty: screenY,
+      t: 0,
+      duration: 150,
+      color: this.theme.missColor,
+    };
   }
 
   private triggerSunkEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 20;
     this.hitPause = 120;
-    const { cell, startX, startY } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + Math.max(20, w * 0.035)) + x * cell + cell / 2;
+    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
+    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
     const screenY = startY + y * cell + cell / 2;
     // Explosion particles
     const shipColor = this.theme.sunkGlow;
@@ -527,6 +597,21 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         type: "smoke",
       });
     }
+    // Sunk popup
+    if (byPlayer) {
+      this.combo = 0;
+      this.popups.push({ text: "SUNK!", x: screenX, y: screenY - 15, life: 1000, maxLife: 1000, color: this.theme.sunkGlow, size: 16, type: "sink" });
+    }
+    // Cannon fire for sunk
+    this.cannonFire = {
+      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
+      sy: startY + boardSize + 10,
+      tx: screenX,
+      ty: screenY,
+      t: 0,
+      duration: 100,
+      color: this.theme.sunkGlow,
+    };
   }
 
   private getBoardLayout(w: number, h: number) {
@@ -567,6 +652,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   endTurn(scheduleNext = true) {
+    // Turn transition wipe
+    this.turnWipe = 1;
+    this.turnWipeColor = this.theme.accent;
     if (this.mode === "agent") {
       // Agent always passes to player after its turn
       this.currentTurn = "player";
@@ -608,6 +696,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (!ship) return false;
     ship.abilityUsed = this.result.turns;
     this.setMessage(`ABILITY: ${ability.name}! ${ability.description}`);
+    // Ability popup
+    this.popups.push({ text: `⚡ ${ability.name}!`, x: this.lastW / 2, y: this.lastH * 0.3, life: 1000, maxLife: 1000, color: "#c0f0ff", size: 12, type: "ability" });
     this.executeAbility(type, targetX, targetY);
     // Ability counts as turn action - end turn
     if (this.mode !== "agent" || this.currentTurn !== "agent") {
@@ -912,6 +1002,49 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       return; // Freeze everything during hit pause
     }
 
+    // Popup system
+    for (let i = this.popups.length - 1; i >= 0; i--) {
+      const p = this.popups[i];
+      p.life -= dt;
+      if (p.life <= 0) this.popups.splice(i, 1);
+    }
+
+    // Combo timer
+    if (this.comboTimer > 0) {
+      this.comboTimer = Math.max(0, this.comboTimer - dt);
+      if (this.comboTimer <= 0) this.combo = 0;
+    }
+
+    // Board entrance
+    if (!this.boardEnterDone && this.phase === "setup") {
+      this.boardEnterTimer = Math.min(1, this.boardEnterTimer + dt * 0.003);
+      if (this.boardEnterTimer >= 1) this.boardEnterDone = true;
+    }
+
+    // Cannon fire projectile
+    if (this.cannonFire) {
+      this.cannonFire.t += dt / this.cannonFire.duration;
+      if (this.cannonFire.t >= 1) this.cannonFire = null;
+    }
+
+    // Sink sequence (bow-to-stern flash)
+    if (this.sinkSequence) {
+      this.sinkSequence.timer -= dt;
+      if (this.sinkSequence.timer <= 0) {
+        this.sinkSequence.cellIndex++;
+        if (this.sinkSequence.cellIndex >= this.sinkSequence.cells.length) {
+          this.sinkSequence = null;
+        } else {
+          this.sinkSequence.timer = 80;
+        }
+      }
+    }
+
+    // Turn transition wipe
+    if (this.turnWipe > 0) {
+      this.turnWipe = Math.max(0, this.turnWipe - dt * 0.005);
+    }
+
     // Particles update
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -972,6 +1105,14 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const startX = (w - boardSize * 2 - gap) / 2;
     const startY = headerH + (availH - boardSize) / 2;
 
+    // Board entrance animation offsets
+    let leftOffsetX = 0, rightOffsetX = 0;
+    if (!this.boardEnterDone && this.boardEnterTimer < 1) {
+      const ease = 1 - Math.pow(1 - this.boardEnterTimer, 3);
+      leftOffsetX = (1 - ease) * -40;
+      rightOffsetX = (1 - ease) * 40;
+    }
+
     // Header
     ctx.fillStyle = t.bgDeep;
     ctx.fillRect(0, 0, w, headerH);
@@ -1002,13 +1143,48 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     ctx.fillText(`${modeText} · ${turnText}`, w / 2, 50);
 
-    // Draw boards
-    this.drawBoard(ctx, startX, startY, cell, "player", t);
-    this.drawBoard(ctx, startX + boardSize + gap, startY, cell, "opponent", t);
+    // Draw boards with entrance animation offsets
+    this.drawBoard(ctx, startX + leftOffsetX, startY, cell, "player", t);
+    this.drawBoard(ctx, startX + boardSize + gap + rightOffsetX, startY, cell, "opponent", t);
 
     // Fleet status panels
     this.drawFleetStatus(ctx, startX, startY, boardSize, cell, "player", t);
     this.drawFleetStatus(ctx, startX + boardSize + gap, startY, boardSize, cell, "opponent", t);
+
+    // Cannon fire projectile
+    if (this.cannonFire) {
+      const cf = this.cannonFire;
+      const px = cf.sx + (cf.tx - cf.sx) * this.easeOutCubic(cf.t);
+      const py = cf.sy + (cf.ty - cf.sy) * this.easeOutCubic(cf.t);
+      const alpha = 1 - cf.t * 0.3;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = cf.color;
+      ctx.shadowColor = cf.color;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Trail
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.beginPath();
+      ctx.arc(px - (cf.tx - cf.sx) * 0.02, py - (cf.ty - cf.sy) * 0.02, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // Sink sequence (bow-to-stern flash)
+    if (this.sinkSequence) {
+      const ss = this.sinkSequence;
+      const boardX = ss.board === "player" ? startX + leftOffsetX : startX + boardSize + gap + rightOffsetX;
+      for (let i = 0; i <= ss.cellIndex && i < ss.cells.length; i++) {
+        const [cx, cy] = ss.cells[i];
+        const flashAlpha = i === ss.cellIndex ? 0.8 : 0.3;
+        ctx.fillStyle = `${t.sunkGlow}${Math.floor(flashAlpha * 255).toString(16).padStart(2, '0')}`;
+        ctx.fillRect(boardX + cx * cell, startY + cy * cell, cell, cell);
+      }
+    }
 
     // Message
     if (this.messageTimer > 0 && this.message) {
@@ -1037,6 +1213,104 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     ctx.fillText(hint, w / 2, h - 14);
     ctx.textAlign = "left";
+
+    // Turn transition wipe (subtle top-edge wipe on turn change)
+    if (this.turnWipe > 0) {
+      const wipeAlpha = this.turnWipe * 0.35;
+      ctx.fillStyle = `${this.turnWipeColor}${Math.floor(wipeAlpha * 255).toString(16).padStart(2, '0')}`;
+      ctx.fillRect(0, 0, w, headerH + 4);
+    }
+
+    // Theme scanlines effect
+    if (t.effects.scanlines) {
+      ctx.save();
+      ctx.globalAlpha = 0.04;
+      for (let y = 0; y < h; y += 3) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, y, w, 1);
+      }
+      ctx.restore();
+    }
+
+    // Theme CRT barrel distortion (simulated with gradient)
+    if (t.effects.crt) {
+      ctx.save();
+      const crtGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.4, w / 2, h / 2, Math.max(w, h) * 0.7);
+      crtGrad.addColorStop(0, "rgba(0,0,0,0)");
+      crtGrad.addColorStop(1, "rgba(0,0,0,0.15)");
+      ctx.fillStyle = crtGrad;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
+    // Theme glitch effect (random horizontal offset lines)
+    if (t.effects.glitch && Math.random() < 0.03) {
+      ctx.save();
+      const glitchY = Math.random() * h;
+      const glitchH = 2 + Math.random() * 6;
+      const glitchShift = (Math.random() - 0.5) * 8;
+      ctx.drawImage(ctx.canvas, 0, glitchY, w, glitchH, glitchShift, glitchY, w, glitchH);
+      ctx.restore();
+    }
+
+    ctx.restore(); // Restore screen shake transform
+
+    // Draw particles on top (not affected by screen shake) with differentiated shapes
+    for (const p of this.particles) {
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      if (p.type === "spark") {
+        // Sparks: elongated lines
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.atan2(p.vy, p.vx));
+        ctx.fillRect(-p.size * 1.5, -1, p.size * 3, 2);
+        ctx.restore();
+      } else if (p.type === "ember") {
+        // Embers: glowing circles with halo
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else if (p.type === "debris") {
+        // Debris: small squares
+        const s = p.size * (0.5 + alpha * 0.5);
+        ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+      } else {
+        // Smoke: circles
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (0.5 + alpha * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw popups on top
+    for (const p of this.popups) {
+      const alpha = Math.min(1, p.life / (p.maxLife * 0.3));
+      const progress = 1 - p.life / p.maxLife;
+      const rise = progress * 35;
+      const scale = p.type === "sink" ? 1 + Math.sin(progress * Math.PI) * 0.3 : p.type === "combo" ? 1 + Math.sin(progress * Math.PI) * 0.2 : 1;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(p.x, p.y - rise);
+      ctx.scale(scale, scale);
+      ctx.font = `bold ${p.size}px "Press Start 2P", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000";
+      ctx.fillText(p.text, 2, 2);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
   }
 
   private drawFleetStatus(ctx: CanvasRenderingContext2D, ox: number, oy: number, boardSize: number, cell: number, which: "player" | "opponent", t: BouyTheme) {

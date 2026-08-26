@@ -145,7 +145,7 @@ export function hubWellHtml(
         </div>
         ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
         ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
-        ${hubTableSeatHtml("conflic_bouy", "⚓", "Conflic Bouy", "Fleet command · vs Agent or 1v1", "northeast", "gold")}
+        ${hubTableSeatHtml("conflic_bouy", "⚓", "Conflic Bouy", "5 themes · Abilities · Sparrow", "northeast", "gold", "NEW")}
         ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
         ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
         <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
@@ -301,16 +301,26 @@ export function conflicResultStudioHtml(
   const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
   const resultLabel = isVictory ? "VICTORY" : "DEFEAT";
   const resultColor = isVictory ? "#68e8a8" : "#e87850";
+  const flashClass = isVictory ? "bouy-victory-flash--victory" : "bouy-victory-flash--defeat";
+  const tagline = isVictory
+    ? (accuracy === 100 ? "A flawless engagement. Not a shot wasted." : accuracy >= 75 ? "Sharp shooting, Captain." : "The fleet prevails.")
+    : (accuracy >= 50 ? "A valiant effort against impossible odds." : "Better luck next voyage.");
+  const shipGraveyard = isVictory
+    ? ""
+    : `<p class="studio-lore-line" style="margin-top:8px;font-size:0.95rem;color:#e87850;">Your fleet rests on the ocean floor.</p>`;
   return studioStageHtml(
     "Conflic Bouy",
-    `<p class="studio-flourish" style="color:${resultColor}">${resultLabel} — ${modeLabel}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Fleet engagement complete · ${r.turns} turns</p>
+    `<div class="bouy-victory-flash ${flashClass}" aria-hidden="true"></div>
+    <p class="studio-flourish" style="color:${resultColor}">${resultLabel} — ${modeLabel}</p>
+    <p class="studio-lore-line studio-lore-line--hint" style="margin-bottom:4px;">Fleet engagement complete · ${r.turns} turns</p>
+    <p class="studio-lore-line" style="font-style:italic;color:#b8a0d8;margin-bottom:16px;">${tagline}</p>
     <div class="studio-scoreboard studio-scoreboard--conflic">
       <span class="studio-stat"><em>⚓</em> ${r.playerHits} <small>Hits</small></span>
       <span class="studio-stat"><em>💧</em> ${r.playerMisses} <small>Misses</small></span>
       <span class="studio-stat"><em>🎯</em> ${accuracy}% <small>Accuracy</small></span>
     </div>
-    <p class="studio-reward">Turns ${r.turns} · +${renown} ★ · +${tokens} ◎</p>`,
+    <p class="studio-reward">Turns ${r.turns} · +${renown} ★ · +${tokens} ◎</p>
+    ${shipGraveyard}`,
     "studio-stage--result",
     `<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
       <button type="button" class="btn primary big studio-continue" data-hub-action="conflic_bouy">⚓ Play Again (Same Mode)</button>
@@ -326,8 +336,8 @@ export function conflicThemePickStudioHtml(): string {
     { icon: "🤖", label: "vs AGENT", desc: "Battle Captain Jack Sparrow", mode: "agent" },
     { icon: "👥", label: "1v1 HOTSEAT", desc: "Pass & play with a friend", mode: "hotseat" },
   ];
-  const modeHtml = modeTiles.map(m => 
-    `<button type="button" class="hub-tile hub-tile--gold" data-hub-action="conflic_mode:${m.mode}" style="min-height:120px;">
+  const modeHtml = modeTiles.map((m, i) => 
+    `<button type="button" class="hub-tile hub-tile--gold" data-hub-action="conflic_mode:${m.mode}" style="min-height:120px;animation-delay:${0.05 + i * 0.08}s;">
       <span class="hub-tile-icon" style="font-size:3rem;">${m.icon}</span>
       <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${m.label}</span>
       <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${m.desc}</span>
@@ -335,18 +345,19 @@ export function conflicThemePickStudioHtml(): string {
   ).join("");
 
   const themes = [
-    { id: "charter", icon: "⚓", name: "CHARTER NAVY", accent: "gold", desc: "Pirate knights · gold & charter" },
-    { id: "odyssey", icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan", desc: "Void hunters · neon & glitch" },
-    { id: "abyssal", icon: "🐙", name: "ABYSSAL DEPTHS", accent: "teal", desc: "Deep horror · bioluminescent" },
-    { id: "corsair", icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber", desc: "Golden age pirates · rum & cannon" },
-    { id: "voidwalker", icon: "👁️", name: "VOIDWALKER", accent: "violet", desc: "Cyber swarm · ice & intrusion" },
+    { id: "charter", icon: "⚓", name: "CHARTER NAVY", accent: "gold", desc: "Pirate knights · gold & charter", effects: "" },
+    { id: "odyssey", icon: "🚀", name: "ODYSSEY PROTOCOL", accent: "cyan", desc: "Void hunters · neon & glitch", effects: "CRT + Scanlines" },
+    { id: "abyssal", icon: "🐙", name: "ABYSSAL DEPTHS", accent: "teal", desc: "Deep horror · bioluminescent", effects: "Particles + Glow" },
+    { id: "corsair", icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber", desc: "Golden age pirates · rum & cannon", effects: "CRT Effect" },
+    { id: "voidwalker", icon: "👁️", name: "VOIDWALKER", accent: "violet", desc: "Cyber swarm · ice & intrusion", effects: "Scanlines + Glitch" },
   ];
 
-  const themeHtml = themes.map(t => 
-    `<button type="button" class="hub-tile hub-tile--${t.accent}" data-hub-action="conflic_theme:${t.id}" style="min-height:120px;opacity:0.5;pointer-events:none;">
+  const themeHtml = themes.map((t, i) => 
+    `<button type="button" class="hub-tile hub-tile--${t.accent}" data-hub-action="conflic_theme:${t.id}" style="min-height:120px;opacity:0.5;pointer-events:none;animation-delay:${0.1 + i * 0.06}s;">
       <span class="hub-tile-icon" style="font-size:3rem;">${t.icon}</span>
       <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${t.name}</span>
-      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${t.desc}</span>
+      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:6px;display:block;">${t.desc}</span>
+      ${t.effects ? `<span class="hub-tile-hint" style="font-size:0.7rem;opacity:0.5;margin-top:4px;display:block;color:#8898b0;">✦ ${t.effects}</span>` : ""}
     </button>`
   ).join("");
 
@@ -372,16 +383,17 @@ export function conflicStakePickStudioHtml(mode: "agent" | "hotseat", themeId: s
   const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
 
   const stakes = [
-    { amount: 0, label: "FRIENDLY", desc: "No tokens wagered · pride only", color: "jade" },
-    { amount: 1, label: "ANTE 1 ◎", desc: "Winner takes 2 ◎", color: "gold" },
-    { amount: 3, label: "ANTE 3 ◎", desc: "Winner takes 6 ◎ · High stakes", color: "amber" },
-    { amount: 5, label: "ANTE 5 ◎", desc: "Winner takes 10 ◎ · All or nothing", color: "crimson" },
+    { amount: 0, label: "FRIENDLY", desc: "No tokens wagered · pride only", color: "jade", icon: "🤝", risk: "" },
+    { amount: 1, label: "ANTE 1 ◎", desc: "Winner takes 2 ◎", color: "gold", icon: "💰", risk: "Low risk" },
+    { amount: 3, label: "ANTE 3 ◎", desc: "Winner takes 6 ◎", color: "amber", icon: "💰", risk: "High stakes" },
+    { amount: 5, label: "ANTE 5 ◎", desc: "Winner takes 10 ◎", color: "crimson", icon: "💰", risk: "All or nothing" },
   ];
-  const stakeHtml = stakes.map(s => 
-    `<button type="button" class="hub-tile hub-tile--${s.color}" data-hub-action="conflic_stake:${s.amount}" style="min-height:110px;">
-      <span class="hub-tile-icon" style="font-size:2.5rem;">${s.amount === 0 ? "🤝" : "💰"}</span>
+  const stakeHtml = stakes.map((s, i) => 
+    `<button type="button" class="hub-tile hub-tile--${s.color}" data-hub-action="conflic_stake:${s.amount}" style="min-height:110px;animation-delay:${0.05 + i * 0.08}s;">
+      <span class="hub-tile-icon" style="font-size:2.5rem;">${s.icon}</span>
       <span class="hub-tile-label" style="font-size:1.2rem;font-weight:bold;">${s.label}</span>
-      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:8px;display:block;">${s.desc}</span>
+      <span class="hub-tile-hint" style="font-size:0.85rem;opacity:0.8;margin-top:6px;display:block;">${s.desc}</span>
+      ${s.risk ? `<span class="hub-tile-hint" style="font-size:0.7rem;opacity:0.5;margin-top:4px;display:block;color:#8898b0;">${s.risk}</span>` : ""}
     </button>`
   ).join("");
 

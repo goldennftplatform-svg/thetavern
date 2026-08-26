@@ -1,0 +1,576 @@
+/* Conflic Bouy — seat tile, studio screens, result polish */
+
+/* ——— Seat tile on tavern table ——— */
+.tavern-table__seat[data-seat="conflic_bouy"] {
+  position: relative;
+  overflow: visible;
+}
+
+.tavern-table__seat[data-seat="conflic_bouy"] .tavern-table__prop-icon {
+  animation: bouy-anchor-bob 2.8s ease-in-out infinite;
+  display: inline-block;
+}
+
+.tavern-table__seat[data-seat="conflic_bouy"]::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 18px;
+  background: radial-gradient(circle, rgba(232, 176, 80, 0.18), transparent 70%);
+  animation: bouy-seat-glow 3.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.tavern-table__seat[data-seat="conflic_bouy"]:hover {
+  transform: scale(1.06);
+  filter: brightness(1.12);
+  box-shadow:
+    0 6px 0 rgba(0, 0, 0, 0.45),
+    0 12px 28px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(232, 176, 80, 0.25),
+    inset 0 1px 0 rgba(255, 220, 160, 0.18);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tavern-table__seat[data-seat="conflic_bouy"]:active {
+  transform: scale(0.97);
+  transition: transform 0.06s ease;
+}
+
+@keyframes bouy-anchor-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(-3deg); }
+  50% { transform: translateY(1px) rotate(1deg); }
+  75% { transform: translateY(-1px) rotate(-1deg); }
+}
+
+@keyframes bouy-seat-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* ——— NEW badge ——— */
+.bouy-new-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 32px;
+  padding: 3px 7px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.32rem;
+  line-height: 1.4;
+  color: #1a0a08;
+  background: var(--jade);
+  border: 2px solid #000;
+  border-radius: 0;
+  box-shadow: 2px 2px 0 #000;
+  animation: bouy-badge-pulse 1.6s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
+}
+
+@keyframes bouy-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* ——— Studio pick screens ——— */
+.studio-stage--pick .hub-grid--tiles {
+  gap: 14px;
+}
+
+.studio-stage--pick .hub-tile {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
+  animation: bouy-tile-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.studio-stage--pick .hub-tile:nth-child(1) { animation-delay: 0.05s; }
+.studio-stage--pick .hub-tile:nth-child(2) { animation-delay: 0.1s; }
+.studio-stage--pick .hub-tile:nth-child(3) { animation-delay: 0.15s; }
+.studio-stage--pick .hub-tile:nth-child(4) { animation-delay: 0.2s; }
+.studio-stage--pick .hub-tile:nth-child(5) { animation-delay: 0.25s; }
+
+.studio-stage--pick .hub-tile:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.studio-stage--pick .hub-tile:active {
+  transform: translateY(1px) scale(0.98);
+  transition-duration: 0.06s;
+}
+
+@keyframes bouy-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ——— Theme icon hover spin ——— */
+.studio-stage--pick .hub-tile-icon {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.studio-stage--pick .hub-tile:hover .hub-tile-icon {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+/* ——— Result screen ——— */
+.studio-stage--result {
+  animation: bouy-result-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes bouy-result-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.studio-stage--result .studio-flourish {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+  animation: bouy-result-banner 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+
+@keyframes bouy-result-banner {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+    letter-spacing: 0.4em;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    letter-spacing: 0.1em;
+  }
+}
+
+.studio-scoreboard--conflic {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.studio-scoreboard--conflic .studio-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(232, 176, 80, 0.2);
+  animation: bouy-stat-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  min-width: 80px;
+}
+
+.studio-scoreboard--conflic .studio-stat:nth-child(1) { animation-delay: 0.3s; }
+.studio-scoreboard--conflic .studio-stat:nth-child(2) { animation-delay: 0.4s; }
+.studio-scoreboard--conflic .studio-stat:nth-child(3) { animation-delay: 0.5s; }
+
+@keyframes bouy-stat-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.studio-scoreboard--conflic .studio-stat em {
+  font-style: normal;
+  font-size: 1.3rem;
+}
+
+.studio-scoreboard--conflic .studio-stat small {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.3rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-stage--result .studio-reward {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.45rem;
+  color: var(--gold);
+  text-align: center;
+  margin: 12px 0;
+  padding: 10px 16px;
+  border: 2px solid rgba(232, 176, 80, 0.3);
+  background: rgba(232, 176, 80, 0.08);
+  animation: bouy-reward-glow 2s ease-in-out infinite, bouy-stat-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}
+
+@keyframes bouy-reward-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(232, 176, 80, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(232, 176, 80, 0.25); }
+}
+
+/* ——— Victory / Defeat flash ——— */
+.studio-stage--result .bouy-victory-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  animation: bouy-victory-burst 0.6s ease-out forwards;
+}
+
+.studio-stage--result .bouy-victory-flash--defeat {
+  background: radial-gradient(circle, rgba(232, 88, 56, 0.3), transparent 70%);
+}
+
+.studio-stage--result .bouy-victory-flash--victory {
+  background: radial-gradient(circle, rgba(104, 232, 168, 0.3), transparent 70%);
+}
+
+@keyframes bouy-victory-burst {
+  from { opacity: 1; transform: scale(0.8); }
+  to { opacity: 0; transform: scale(1.4); }
+}
+
+/* ——— Canvas in-game overlays (via DOM positioned over canvas) ——— */
+.bouy-popup {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  z-index: 10;
+  font-family: "Press Start 2P", monospace;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+  white-space: nowrap;
+  animation: bouy-popup-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.bouy-popup--hit {
+  color: #ffb0a0;
+  font-size: 0.45rem;
+}
+
+.bouy-popup--miss {
+  color: #8898b0;
+  font-size: 0.38rem;
+}
+
+.bouy-popup--sink {
+  color: #ff6040;
+  font-size: 0.7rem;
+  animation: bouy-popup-sink 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.bouy-popup--combo {
+  color: #ffd040;
+  font-size: 0.55rem;
+  animation: bouy-popup-combo 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.bouy-popup--ability {
+  color: #c0f0ff;
+  font-size: 0.4rem;
+  animation: bouy-popup-ability 1s ease-out forwards;
+}
+
+@keyframes bouy-popup-rise {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) translateY(10px); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) translateY(-8px); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1) translateY(-20px); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9) translateY(-40px); }
+}
+
+@keyframes bouy-popup-sink {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+  40% { transform: translate(-50%, -50%) scale(0.95); }
+  60% { transform: translate(-50%, -50%) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-30px); }
+}
+
+@keyframes bouy-popup-combo {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-10deg); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(3deg); }
+  50% { transform: translate(-50%, -50%) scale(0.95) rotate(-1deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-35px) rotate(0deg); }
+}
+
+@keyframes bouy-popup-ability {
+  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.3) scaleY(0.8); letter-spacing: 0.5em; }
+  25% { opacity: 1; transform: translate(-50%, -50%) scaleX(1.1) scaleY(1.05); letter-spacing: 0.15em; }
+  50% { transform: translate(-50%, -50%) scaleX(1) scaleY(1); letter-spacing: 0.1em; }
+  100% { opacity: 0; transform: translate(-50%, -50%) translateY(-25px); letter-spacing: 0.1em; }
+}
+
+/* ——— Water ripple for misses ——— */
+.bouy-ripple {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(136, 152, 176, 0.5);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9;
+  animation: bouy-ripple-expand 0.6s ease-out forwards;
+}
+
+@keyframes bouy-ripple-expand {
+  from { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+/* ——— Hit flash overlay ——— */
+.bouy-hit-flash {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 8;
+  animation: bouy-hit-flash-anim 0.15s ease-out forwards;
+}
+
+@keyframes bouy-hit-flash-anim {
+  from { background: rgba(255, 180, 160, 0.35); }
+  to { background: transparent; }
+}
+
+/* ——— Sink screen flash ——— */
+.bouy-sink-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  animation: bouy-sink-flash-anim 0.3s ease-out forwards;
+}
+
+@keyframes bouy-sink-flash-anim {
+  from { background: rgba(232, 88, 56, 0.25); }
+  to { background: transparent; }
+}
+
+/* ——— First blood banner ——— */
+.bouy-first-blood {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 12;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.7rem;
+  color: #ff6040;
+  text-shadow: 3px 3px 0 #000, 0 0 20px rgba(255, 96, 64, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  animation: bouy-first-blood 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bouy-first-blood {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-8deg); letter-spacing: 0.6em; }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(2deg); letter-spacing: 0.15em; }
+  40% { transform: translate(-50%, -50%) scale(0.95) rotate(-1deg); }
+  60% { transform: translate(-50%, -50%) scale(1.02); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-20px); }
+}
+
+/* ——— Board entrance animation ——— */
+.bouy-board-enter {
+  animation: bouy-board-slide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bouy-board-enter--left {
+  animation-name: bouy-board-slide-left;
+}
+
+.bouy-board-enter--right {
+  animation-name: bouy-board-slide-right;
+}
+
+@keyframes bouy-board-slide-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bouy-board-slide-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ——— Ability banner ——— */
+.bouy-ability-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56px;
+  z-index: 15;
+  pointer-events: none;
+  text-align: center;
+  padding: 8px 16px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.42rem;
+  letter-spacing: 0.1em;
+  color: #c0f0ff;
+  background: linear-gradient(180deg, rgba(0, 180, 220, 0.25), transparent);
+  border-bottom: 2px solid rgba(0, 180, 220, 0.4);
+  animation: bouy-ability-banner-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+             bouy-ability-banner-out 0.3s ease-in 1.5s forwards;
+}
+
+@keyframes bouy-ability-banner-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bouy-ability-banner-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ——— Turn indicator pulse ——— */
+.bouy-turn-indicator {
+  position: absolute;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 10;
+  padding: 4px 14px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.35rem;
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(232, 176, 80, 0.4);
+  animation: bouy-turn-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bouy-turn-pulse {
+  0%, 100% { opacity: 0.7; border-color: rgba(232, 176, 80, 0.3); }
+  50% { opacity: 1; border-color: rgba(232, 176, 80, 0.7); }
+}
+
+/* ——— CRT scanline overlay for Odyssey/Voidwalker themes ——— */
+.bouy-crt-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.06) 0px,
+    rgba(0, 0, 0, 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.5;
+}
+
+/* ——— Glitch effect overlay ——— */
+.bouy-glitch-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: bouy-glitch-flicker 4s step-end infinite;
+}
+
+.bouy-glitch-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 0, 80, 0.03) 15%,
+    transparent 16%,
+    transparent 50%,
+    rgba(0, 200, 255, 0.03) 65%,
+    transparent 66%,
+    transparent 100%
+  );
+}
+
+@keyframes bouy-glitch-flicker {
+  0%, 92%, 94%, 96%, 100% { opacity: 0; }
+  93% { opacity: 1; transform: translateX(2px); }
+  95% { opacity: 0.7; transform: translateX(-1px); }
+}
+
+/* ——— Particle glow variant ——— */
+.bouy-particle-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  animation: bouy-particle-fade 1s ease-out forwards;
+}
+
+@keyframes bouy-particle-fade {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.3); }
+}
+
+/* ——— Sink ship explode animation (on grid) ——— */
+.bouy-ship-explode {
+  position: absolute;
+  pointer-events: none;
+  z-index: 11;
+  animation: bouy-ship-explode 0.8s ease-out forwards;
+}
+
+@keyframes bouy-ship-explode {
+  0% { opacity: 0.8; transform: scale(0.5); filter: brightness(3); }
+  30% { opacity: 1; transform: scale(1.1); filter: brightness(2); }
+  60% { opacity: 0.6; transform: scale(1.3); filter: brightness(1.2); }
+  100% { opacity: 0; transform: scale(1.5); filter: brightness(1); }
+}
+
+/* ——— Mobile/touch-friendly stat icons ——— */
+@media (max-width: 480px) {
+  .studio-scoreboard--conflic {
+    gap: 8px;
+  }
+
+  .studio-scoreboard--conflic .studio-stat {
+    padding: 8px 10px;
+    min-width: 64px;
+  }
+
+  .studio-scoreboard--conflic .studio-stat em {
+    font-size: 1.1rem;
+  }
+}
+
+/* ——— Dock buttons for play-again / change-mode ——— */
+.studio-stage--result [data-hub-action="conflic_bouy"],
+.studio-stage--result [data-hub-action="conflic_bouy_change"] {
+  animation: bouy-stat-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.studio-stage--result [data-hub-action="conflic_bouy"] {
+  animation-delay: 0.65s;
+}
+
+.studio-stage--result [data-hub-action="conflic_bouy_change"] {
+  animation-delay: 0.75s;
+}
+
+.studio-stage--result [data-continue="well"] {
+  animation: bouy-stat-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.85s both;
+}

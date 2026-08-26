@@ -28,9 +28,12 @@ export function hubTableSeatHtml(
   hint: string,
   seat: "north" | "east" | "south" | "west" | "northeast",
   accent?: "gold" | "jade",
+  badge?: string,
 ): string {
   const cls = accent ? ` tavern-table__seat--${accent}` : "";
-  return `<button type="button" class="tavern-table__seat tavern-table__seat--${seat}${cls}" data-hub-action="${action}">
+  const badgeHtml = badge ? `<span class="bouy-new-badge">${badge}</span>` : "";
+  return `<button type="button" class="tavern-table__seat tavern-table__seat--${seat}${cls}" data-hub-action="${action}" data-seat="${action}">
+    ${badgeHtml}
     <span class="tavern-table__prop-icon" aria-hidden="true">${icon}</span>
     <span class="tavern-table__prop-name">${title}</span>
     <span class="tavern-table__prop-hint">${hint}</span>
