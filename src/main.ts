@@ -2017,9 +2017,29 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (state.phase === "conflic_bouy") {
-    if (e.code === "KeyR" || e.code === "KeyA") {
+    if (e.code === "KeyR") {
       e.preventDefault();
       conflicGame?.keyDown("R");
+    }
+    if (e.code === "KeyA") {
+      e.preventDefault();
+      conflicGame?.keyDown("A");
+    }
+    if (e.code === "KeyE") {
+      e.preventDefault();
+      conflicGame?.keyDown("E");
+    }
+    if (e.code === "KeyD") {
+      e.preventDefault();
+      conflicGame?.keyDown("D");
+    }
+    // Number keys for abilities (1-5)
+    if (e.code.startsWith("Digit") || e.code.startsWith("Numpad")) {
+      const num = e.code.replace("Digit", "").replace("Numpad", "");
+      if (num >= "1" && num <= "5") {
+        e.preventDefault();
+        conflicGame?.keyDown(num);
+      }
     }
     if (e.code === "Escape") {
       e.preventDefault();

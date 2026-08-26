@@ -416,6 +416,22 @@ export class ConflicBouy {
     }
     this.playerPlacing = FLEET.length;
     playPlatformPickup("blade");
+    // Transition to play phase if all ships placed
+    if (this.phase === "setup") {
+      if (this.mode === "hotseat" && this.setupSubPhase === "player1") {
+        this.setupSubPhase = "player2";
+        this.playerPlacing = 0;
+        this.horizontal = true;
+        this.hoverCell = null;
+        this.setMessage("PLAYER 2 — DEPLOY YOUR FLEET", 2000);
+      } else {
+        this.phase = "play";
+        this.setupSubPhase = "done";
+        this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
+        this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
+        this.setMessage(this.getSparrowLine("game_start"), 2500);
+      }
+    }
   }
 
   setMessage(text: string, duration = 2800) {
