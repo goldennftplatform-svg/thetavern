@@ -1110,17 +1110,22 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.globalAlpha = alpha;
 
     const horizontal = cells.length > 1 ? cells[1][0] !== cells[0][0] : true;
-    const pad = cellSize * 0.08;
-    const r = cellSize * 0.22;
+    const pad = cellSize * 0.06;
+    const r = cellSize * 0.18;
 
     const x0 = originX + cells[0][0] * cellSize + pad;
     const y0 = originY + cells[0][1] * cellSize + pad;
     const totalW = horizontal ? cells.length * cellSize - pad * 2 : cellSize - pad * 2;
     const totalH = horizontal ? cellSize - pad * 2 : cells.length * cellSize - pad * 2;
 
+    // Glow under ship
+    ctx.shadowColor = sunk ? "#ff2020" : strokeColor;
+    ctx.shadowBlur = sunk ? 4 : 8;
+
+    // Ship body path — sharper bow for all types
     ctx.beginPath();
     if (horizontal) {
-      const bowR = type === "carrier" ? r * 0.5 : type === "submarine" ? r : r * 0.7;
+      const bowR = type === "carrier" ? r * 0.4 : type === "submarine" ? r * 1.1 : type === "battleship" ? r * 0.5 : r * 0.7;
       ctx.moveTo(x0 + bowR, y0);
       ctx.lineTo(x0 + totalW - r, y0);
       ctx.quadraticCurveTo(x0 + totalW, y0, x0 + totalW, y0 + r);
@@ -1131,7 +1136,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.lineTo(x0, y0 + r);
       ctx.quadraticCurveTo(x0, y0, x0 + bowR, y0);
     } else {
-      const bowR = type === "carrier" ? r * 0.5 : type === "submarine" ? r : r * 0.7;
+      const bowR = type === "carrier" ? r * 0.4 : type === "submarine" ? r * 1.1 : type === "battleship" ? r * 0.5 : r * 0.7;
       ctx.moveTo(x0, y0 + bowR);
       ctx.lineTo(x0, y0 + totalH - r);
       ctx.quadraticCurveTo(x0, y0 + totalH, x0 + r, y0 + totalH);
@@ -1144,89 +1149,117 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     ctx.closePath();
 
-    // Ship body fill
-    ctx.fillStyle = sunk ? "#2a1010" : fillColor;
+    // Gradient fill for depth
+    const grad = ctx.createLinearGradient(
+      horizontal ? x0 : x0,
+      horizontal ? y0 : y0,
+      horizontal ? x0 + totalW : x0 + totalW,
+      horizontal ? y0 + totalH : y0 + totalH,
+    );
+    if (sunk) {
+      grad.addColorStop(0, "#2a1010");
+      grad.addColorStop(0.5, "#3a1818");
+      grad.addColorStop(1, "#1a0808");
+    } else {
+      grad.addColorStop(0, fillColor);
+      grad.addColorStop(0.4, fillColor);
+      grad.addColorStop(1, strokeColor);
+    }
+    ctx.fillStyle = grad;
     ctx.fill();
+
     ctx.strokeStyle = sunk ? "#803030" : strokeColor;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Deck detail lines
+    // Deck detail lines (cell separators)
     ctx.strokeStyle = sunk ? "#502020" : strokeColor;
     ctx.lineWidth = 0.5;
-    ctx.globalAlpha = alpha * 0.4;
+    ctx.globalAlpha = alpha * 0.35;
     for (let i = 1; i < cells.length; i++) {
       ctx.beginPath();
       if (horizontal) {
         const lx = x0 + i * cellSize - pad;
-        ctx.moveTo(lx, y0 + 3);
-        ctx.lineTo(lx, y0 + totalH - 3);
+        ctx.moveTo(lx, y0 + 2);
+        ctx.lineTo(lx, y0 + totalH - 2);
       } else {
         const ly = y0 + i * cellSize - pad;
-        ctx.moveTo(x0 + 3, ly);
-        ctx.lineTo(x0 + totalW - 3, ly);
+        ctx.moveTo(x0 + 2, ly);
+        ctx.lineTo(x0 + totalW - 2, ly);
       }
       ctx.stroke();
     }
 
     // Type-specific details
-    ctx.globalAlpha = alpha * 0.6;
-    if (type === "carrier" && horizontal) {
-      // Flight deck runway line
-      ctx.strokeStyle = sunk ? "#502020" : strokeColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x0 + totalW * 0.15, y0 + totalH / 2);
-      ctx.lineTo(x0 + totalW * 0.85, y0 + totalH / 2);
-      ctx.stroke();
-      // Island (small bump)
-      ctx.fillStyle = sunk ? "#502020" : strokeColor;
-      ctx.fillRect(x0 + totalW * 0.65, y0 + 2, totalW * 0.06, totalH * 0.25);
-    } else if (type === "battleship") {
-      // Turret dots
-      ctx.fillStyle = sunk ? "#502020" : strokeColor;
-      const turretSize = Math.max(2, cellSize * 0.15);
+    ctx.globalAlpha = alpha * 0.7;
+    if (type === "carrier") {
       if (horizontal) {
-        ctx.fillRect(x0 + totalW * 0.25 - turretSize / 2, y0 + totalH * 0.3, turretSize, turretSize);
-        ctx.fillRect(x0 + totalW * 0.55 - turretSize / 2, y0 + totalH * 0.3, turretSize, turretSize);
-        ctx.fillRect(x0 + totalW * 0.35 - turretSize / 2, y0 + totalH * 0.6, turretSize, turretSize);
-      } else {
-        ctx.fillRect(x0 + totalW * 0.3, y0 + totalH * 0.25 - turretSize / 2, turretSize, turretSize);
-        ctx.fillRect(x0 + totalW * 0.3, y0 + totalH * 0.55 - turretSize / 2, turretSize, turretSize);
+        // Flight deck runway
+        ctx.strokeStyle = sunk ? "#502020" : strokeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0 + totalW * 0.1, y0 + totalH * 0.35);
+        ctx.lineTo(x0 + totalW * 0.88, y0 + totalH * 0.35);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x0 + totalW * 0.1, y0 + totalH * 0.65);
+        ctx.lineTo(x0 + totalW * 0.88, y0 + totalH * 0.65);
+        ctx.stroke();
+        // Island
+        ctx.fillStyle = sunk ? "#502020" : strokeColor;
+        ctx.fillRect(x0 + totalW * 0.62, y0 + 1, totalW * 0.08, totalH * 0.28);
+      }
+    } else if (type === "battleship") {
+      // Turret barbettes
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      const ts = Math.max(3, cellSize * 0.18);
+      if (horizontal) {
+        ctx.fillRect(x0 + totalW * 0.22 - ts / 2, y0 + totalH * 0.25, ts, ts);
+        ctx.fillRect(x0 + totalW * 0.50 - ts / 2, y0 + totalH * 0.25, ts, ts);
+        ctx.fillRect(x0 + totalW * 0.78 - ts / 2, y0 + totalH * 0.25, ts, ts);
+        ctx.fillRect(x0 + totalW * 0.36 - ts / 2, y0 + totalH * 0.60, ts, ts);
+        ctx.fillRect(x0 + totalW * 0.64 - ts / 2, y0 + totalH * 0.60, ts, ts);
       }
     } else if (type === "submarine") {
-      // Conning tower nub
+      // Conning tower
       ctx.fillStyle = sunk ? "#502020" : strokeColor;
       if (horizontal) {
-        ctx.fillRect(x0 + totalW * 0.45, y0 - 1, totalW * 0.1, totalH * 0.3);
-      } else {
-        ctx.fillRect(x0 - 1, y0 + totalH * 0.45, totalW * 0.3, totalH * 0.1);
+        ctx.fillRect(x0 + totalW * 0.42, y0 - 2, totalW * 0.12, totalH * 0.35);
+        ctx.fillRect(x0 + totalW * 0.44, y0 - 4, totalW * 0.08, 3);
+      }
+    } else if (type === "cruiser") {
+      // Bridge superstructure
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      if (horizontal) {
+        ctx.fillRect(x0 + totalW * 0.35, y0 + 2, totalW * 0.15, totalH * 0.2);
+      }
+    } else if (type === "destroyer") {
+      // Gun mount
+      ctx.fillStyle = sunk ? "#502020" : strokeColor;
+      const gs = Math.max(2, cellSize * 0.14);
+      if (horizontal) {
+        ctx.fillRect(x0 + totalW * 0.3, y0 + totalH * 0.3, gs, gs);
       }
     }
 
-    // Hit damage marks
+    // Hit damage marks — X marks with glow
     ctx.globalAlpha = alpha;
     for (let i = 0; i < cells.length; i++) {
       if (hitCells[i]) {
         const hx = originX + cells[i][0] * cellSize;
         const hy = originY + cells[i][1] * cellSize;
-        ctx.fillStyle = sunk ? "rgba(180, 40, 20, 0.6)" : "rgba(255, 80, 40, 0.5)";
-        ctx.beginPath();
-        // Explosion X mark
-        ctx.moveTo(hx + cellSize * 0.2, hy + cellSize * 0.2);
-        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
-        ctx.lineTo(hx + cellSize * 0.8, hy + cellSize * 0.2);
-        ctx.moveTo(hx + cellSize * 0.8, hy + cellSize * 0.2);
-        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
-        ctx.lineTo(hx + cellSize * 0.8, hy + cellSize * 0.8);
-        ctx.moveTo(hx + cellSize * 0.8, hy + cellSize * 0.8);
-        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
-        ctx.lineTo(hx + cellSize * 0.2, hy + cellSize * 0.8);
-        ctx.moveTo(hx + cellSize * 0.2, hy + cellSize * 0.8);
-        ctx.lineTo(hx + cellSize * 0.5, hy + cellSize * 0.5);
-        ctx.lineTo(hx + cellSize * 0.2, hy + cellSize * 0.2);
+        // Hit glow
+        ctx.fillStyle = sunk ? "rgba(200, 30, 10, 0.4)" : "rgba(255, 100, 40, 0.3)";
+        ctx.fillRect(hx + 1, hy + 1, cellSize - 2, cellSize - 2);
+        // X mark
         ctx.strokeStyle = sunk ? "#ff4020" : "#ff6040";
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(hx + cellSize * 0.2, hy + cellSize * 0.2);
+        ctx.lineTo(hx + cellSize * 0.8, hy + cellSize * 0.8);
+        ctx.moveTo(hx + cellSize * 0.8, hy + cellSize * 0.2);
+        ctx.lineTo(hx + cellSize * 0.2, hy + cellSize * 0.8);
         ctx.stroke();
       }
     }
@@ -1300,42 +1333,55 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.rect(x, y, w, h);
     ctx.clip();
 
-    // Deep water gradient
+    // Deep water gradient — stronger contrast
     const waterGrad = ctx.createLinearGradient(x, y, x, y + h);
     waterGrad.addColorStop(0, t.water.base);
-    waterGrad.addColorStop(0.5, t.water.wave1);
+    waterGrad.addColorStop(0.3, t.water.wave1);
+    waterGrad.addColorStop(0.6, t.water.wave2);
     waterGrad.addColorStop(1, t.water.deep);
     ctx.fillStyle = waterGrad;
     ctx.fillRect(x, y, w, h);
 
-    // Wave line 1
+    // Wave line 1 — thicker, more visible
     ctx.strokeStyle = t.water.wave1;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5;
     ctx.beginPath();
     for (let wx = x; wx <= x + w; wx += 2) {
-      const wy = y + h * 0.3 + Math.sin((wx + now * 0.02) * 0.03) * 4 + Math.sin((wx + now * 0.01) * 0.05) * 2;
+      const wy = y + h * 0.25 + Math.sin((wx + now * 0.02) * 0.03) * 5 + Math.sin((wx + now * 0.01) * 0.05) * 3;
       wx === x ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
     }
     ctx.stroke();
 
     // Wave line 2
     ctx.strokeStyle = t.water.wave2;
-    ctx.globalAlpha = 0.3;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.4;
     ctx.beginPath();
     for (let wx = x; wx <= x + w; wx += 2) {
-      const wy = y + h * 0.6 + Math.sin((wx + now * 0.015 + 50) * 0.025) * 3 + Math.cos((wx + now * 0.008) * 0.04) * 2;
+      const wy = y + h * 0.55 + Math.sin((wx + now * 0.015 + 50) * 0.025) * 4 + Math.cos((wx + now * 0.008) * 0.04) * 3;
       wx === x ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
     }
     ctx.stroke();
 
-    // Foam / sparkle dots
-    ctx.globalAlpha = 0.15;
+    // Wave line 3 — extra depth
+    ctx.strokeStyle = t.water.foam;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.2;
+    ctx.beginPath();
+    for (let wx = x; wx <= x + w; wx += 2) {
+      const wy = y + h * 0.78 + Math.sin((wx + now * 0.012 + 120) * 0.035) * 3;
+      wx === x ? ctx.moveTo(wx, wy) : ctx.lineTo(wx, wy);
+    }
+    ctx.stroke();
+
+    // Foam / sparkle dots — more of them, brighter
+    ctx.globalAlpha = 0.2;
     ctx.fillStyle = t.water.foam;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 18; i++) {
       const fx = x + ((i * 37 + now * 0.008 * (i % 3 + 1)) % w);
-      const fy = y + ((i * 53 + Math.sin(now * 0.001 + i) * 10) % h);
-      const fs = 1 + Math.sin(now * 0.003 + i * 2) * 0.5;
+      const fy = y + ((i * 53 + Math.sin(now * 0.001 + i) * 12) % h);
+      const fs = 1.5 + Math.sin(now * 0.003 + i * 2) * 0.8;
       ctx.beginPath();
       ctx.arc(fx, fy, fs, 0, Math.PI * 2);
       ctx.fill();
@@ -1356,26 +1402,40 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   ) {
     ctx.save();
     const alpha = 1 - progress;
-    const r = radius * (0.5 + progress * 0.8);
+    const r = radius * (0.4 + progress * 1.0);
 
-    // Outer glow
+    // Outer smoke ring
+    const smokeGrad = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r);
+    smokeGrad.addColorStop(0, "transparent");
+    smokeGrad.addColorStop(0.6, `${t.explosion.smoke}${Math.floor(alpha * 80).toString(16).padStart(2, "0")}`);
+    smokeGrad.addColorStop(1, "transparent");
+    ctx.fillStyle = smokeGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main fireball gradient
     const outerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
     outerGrad.addColorStop(0, `${t.explosion.core}${Math.floor(alpha * 255).toString(16).padStart(2, "0")}`);
-    outerGrad.addColorStop(0.3, `${t.explosion.mid}${Math.floor(alpha * 200).toString(16).padStart(2, "0")}`);
-    outerGrad.addColorStop(0.7, `${t.explosion.outer}${Math.floor(alpha * 120).toString(16).padStart(2, "0")}`);
+    outerGrad.addColorStop(0.25, `${t.explosion.mid}${Math.floor(alpha * 220).toString(16).padStart(2, "0")}`);
+    outerGrad.addColorStop(0.6, `${t.explosion.outer}${Math.floor(alpha * 160).toString(16).padStart(2, "0")}`);
     outerGrad.addColorStop(1, "transparent");
     ctx.fillStyle = outerGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Core flash
-    if (progress < 0.3) {
-      ctx.globalAlpha = (1 - progress / 0.3) * 0.8;
-      ctx.fillStyle = t.explosion.core;
+    // Core flash — bright white center
+    if (progress < 0.35) {
+      const coreAlpha = (1 - progress / 0.35);
+      ctx.globalAlpha = coreAlpha * 0.9;
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = t.explosion.core;
+      ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.arc(cx, cy, r * 0.3 * (1 - progress / 0.3), 0, Math.PI * 2);
+      ctx.arc(cx, cy, r * 0.35 * (1 - progress / 0.35), 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
     }
 
     ctx.restore();
@@ -1391,12 +1451,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   ) {
     ctx.save();
     const alpha = 1 - progress;
-    const maxH = cellSize * 0.8;
+    const maxH = cellSize * 1.0;
     const h = maxH * (1 - Math.abs(progress * 2 - 1));
-    const w = cellSize * 0.15 + progress * cellSize * 0.2;
+    const w = cellSize * 0.18 + progress * cellSize * 0.25;
 
     // Water column
-    ctx.globalAlpha = alpha * 0.6;
+    ctx.globalAlpha = alpha * 0.7;
     ctx.fillStyle = t.explosion.splash;
     ctx.beginPath();
     ctx.moveTo(cx - w, cy + cellSize * 0.2);
@@ -1404,9 +1464,18 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.quadraticCurveTo(cx + w * 0.5, cy - h, cx + w, cy + cellSize * 0.2);
     ctx.fill();
 
-    // Ripple ring
-    const rippleR = cellSize * 0.4 * (0.5 + progress * 0.5);
+    // Second column for depth
     ctx.globalAlpha = alpha * 0.3;
+    ctx.fillStyle = t.water.foam;
+    ctx.beginPath();
+    ctx.moveTo(cx - w * 0.6, cy + cellSize * 0.15);
+    ctx.quadraticCurveTo(cx - w * 0.3, cy - h * 0.7, cx, cy - h * 0.7);
+    ctx.quadraticCurveTo(cx + w * 0.3, cy - h * 0.7, cx + w * 0.6, cy + cellSize * 0.15);
+    ctx.fill();
+
+    // Ripple ring
+    const rippleR = cellSize * 0.45 * (0.5 + progress * 0.5);
+    ctx.globalAlpha = alpha * 0.4;
     ctx.strokeStyle = t.explosion.splash;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -1414,11 +1483,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.stroke();
 
     // Droplets
-    ctx.globalAlpha = alpha * 0.5;
+    ctx.globalAlpha = alpha * 0.6;
     ctx.fillStyle = t.water.foam;
-    for (let i = 0; i < 4; i++) {
-      const angle = (Math.PI * 2 * i) / 4 + 0.3;
-      const dist = cellSize * 0.3 * progress;
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i) / 6 + 0.3;
+      const dist = cellSize * 0.35 * progress;
       const dx = cx + Math.cos(angle) * dist;
       const dy = cy - h * 0.5 + Math.sin(angle) * dist * 0.5;
       ctx.beginPath();
@@ -2073,8 +2142,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.save();
 
     // Board border with glow
-    ctx.shadowColor = t.panelBorder;
-    ctx.shadowBlur = 6;
+    ctx.shadowColor = t.accent;
+    ctx.shadowBlur = 10;
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 2;
     ctx.strokeRect(ox - 3, oy - 3, bw + 6, bh + 6);
@@ -2083,9 +2152,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Water background for the board
     this.drawWater(ctx, ox, oy, bw, bh, t);
 
-    // Grid lines
+    // Grid lines — more visible
     ctx.strokeStyle = t.gridLine;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 0.6;
+    ctx.globalAlpha = 0.8;
     for (let i = 0; i <= GRID_SIZE; i++) {
       ctx.beginPath();
       ctx.moveTo(ox + i * cell, oy);
@@ -2096,6 +2166,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.lineTo(ox + bw, oy + i * cell);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
 
     // Cell state overlays (hit markers, miss markers on opponent board)
     for (let y = 0; y < GRID_SIZE; y++) {
@@ -2105,26 +2176,33 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         const state = grid[y][x];
 
         if (state === CELL_STATES.hit) {
-          ctx.fillStyle = `${t.hitColor}60`;
+          ctx.fillStyle = `${t.hitColor}80`;
           ctx.fillRect(cx, cy, cell, cell);
-          const fireGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.5);
-          fireGrad.addColorStop(0, `${t.hitGlow}40`);
+          const fireGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.6);
+          fireGrad.addColorStop(0, `${t.hitGlow}60`);
+          fireGrad.addColorStop(0.5, `${t.hitColor}30`);
           fireGrad.addColorStop(1, "transparent");
           ctx.fillStyle = fireGrad;
           ctx.fillRect(cx, cy, cell, cell);
         } else if (state === CELL_STATES.miss) {
-          ctx.globalAlpha = 0.25;
+          ctx.globalAlpha = 0.35;
           ctx.strokeStyle = t.missColor;
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.ellipse(cx + cell / 2, cy + cell / 2, cell * 0.3, cell * 0.12, 0, 0, Math.PI * 2);
           ctx.stroke();
+          ctx.globalAlpha = 0.15;
+          ctx.fillStyle = t.missColor;
+          ctx.beginPath();
+          ctx.ellipse(cx + cell / 2, cy + cell / 2, cell * 0.15, cell * 0.06, 0, 0, Math.PI * 2);
+          ctx.fill();
           ctx.globalAlpha = 1;
         } else if (state === CELL_STATES.sunk) {
-          ctx.fillStyle = `${t.sunkColor}80`;
+          ctx.fillStyle = `${t.sunkColor}a0`;
           ctx.fillRect(cx, cy, cell, cell);
-          const burnGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.5);
-          burnGrad.addColorStop(0, `${t.sunkGlow}30`);
+          const burnGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.6);
+          burnGrad.addColorStop(0, `${t.sunkGlow}50`);
+          burnGrad.addColorStop(0.5, `${t.sunkColor}30`);
           burnGrad.addColorStop(1, "transparent");
           ctx.fillStyle = burnGrad;
           ctx.fillRect(cx, cy, cell, cell);

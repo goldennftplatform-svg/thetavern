@@ -425,7 +425,7 @@ export function conflicThemePickStudioHtmlForMode(mode: "agent" | "hotseat"): st
     { id: "corsair", icon: "☠️", name: "CORSAIR'S GAMBIT", accent: "amber", desc: "Golden age pirates · rum & cannon" },
     { id: "voidwalker", icon: "👁️", name: "VOIDWALKER", accent: "violet", desc: "Cyber swarm · ice & intrusion" },
   ];
-  const tiles = themes.map(t => hubTileHtml(t.icon, t.name, `conflic:${mode}:${t.id}`, t.accent as "gold" | "jade" | "amber" | "cyan" | "teal" | "violet")).join("");
+  const tiles = themes.map(t => hubTileHtml(t.icon, t.name, `conflic_theme:${t.id}`, t.accent as "gold" | "jade" | "amber" | "cyan" | "teal" | "violet")).join("");
   return studioStageHtml(
     `Conflic Bouy — ${mode === "agent" ? "vs Agent" : "1v1 Hotseat"} — Choose Theme`,
     `<p class="studio-lore-line">Select your theater of war</p>
