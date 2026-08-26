@@ -114,6 +114,10 @@ export function hubWellHtml(
     </section>`
       : `<p class="tavern-table-scene__lore tavern-table-scene__lore--wire"><button type="button" class="btn ghost" data-hub-action="herald_scroll">⚔ Neighbor lore / X wire ↓</button></p>`;
 
+  const conflicBouyIcon = `<svg viewBox="0 0 32 32" role="img" aria-label="Anchor">
+    <path d="M14 4a2 2 0 1 1 4 0a2 2 0 0 1-4 0Zm1 4h2v14.7c3.9-.4 6.7-2.5 8-6.2l-3.2.8-.5-2.1 6.7-1.7-.2 7-2.2-.1.1-1.3c-1.8 4.2-5.1 6.5-9.7 6.5s-7.9-2.3-9.7-6.5l.1 1.3-2.2.1-.2-7 6.7 1.7-.5 2.1-3.2-.8c1.3 3.7 4.1 5.8 8 6.2V8Z" fill="currentColor"/>
+  </svg>`;
+
   return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
     <div class="tavern-table-scene__veil" aria-hidden="true"></div>
     <header class="tavern-table-scene__head">
@@ -145,7 +149,7 @@ export function hubWellHtml(
         </div>
         ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
         ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
-        ${hubTableSeatHtml("conflic_bouy", "⚓", "Conflic Bouy", "5 themes · Abilities · Sparrow", "northeast", "gold", "NEW")}
+        ${hubTableSeatHtml("conflic_bouy_entry", conflicBouyIcon, "Conflic Bouy", "Fleet tactics · 5 waters", "northeast", "gold", "NEW")}
         ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
         ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
         <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>

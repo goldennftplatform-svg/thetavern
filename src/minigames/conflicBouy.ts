@@ -494,9 +494,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     this.screenShake = 8;
     this.hitPause = 60;
     // Calculate screen position from grid coordinates
-    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
-    const screenY = startY + y * cell + cell / 2;
+    const { cell, startX, startY, opponentX, opponentY, boardSize } = this.getBoardLayout(w, h);
+    const targetX = byPlayer ? opponentX : startX;
+    const targetY = byPlayer ? opponentY : startY;
+    const screenX = targetX + x * cell + cell / 2;
+    const screenY = targetY + y * cell + cell / 2;
     // Spawn hit particles
     for (let i = 0; i < 12; i++) {
       const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.5;
@@ -530,8 +532,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     // Cannon fire projectile
     this.cannonFire = {
-      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
-      sy: startY + boardSize + 10,
+      sx: (byPlayer ? startX : opponentX) + boardSize / 2,
+      sy: (byPlayer ? startY : opponentY) + boardSize,
       tx: screenX,
       ty: screenY,
       t: 0,
@@ -543,9 +545,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   private triggerMissEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 3;
     this.combo = 0;
-    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
-    const screenY = startY + y * cell + cell / 2;
+    const { cell, startX, startY, opponentX, opponentY, boardSize } = this.getBoardLayout(w, h);
+    const targetX = byPlayer ? opponentX : startX;
+    const targetY = byPlayer ? opponentY : startY;
+    const screenX = targetX + x * cell + cell / 2;
+    const screenY = targetY + y * cell + cell / 2;
     // Splash particles
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8;
@@ -568,8 +572,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     // Cannon fire projectile
     this.cannonFire = {
-      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
-      sy: startY + boardSize + 10,
+      sx: (byPlayer ? startX : opponentX) + boardSize / 2,
+      sy: (byPlayer ? startY : opponentY) + boardSize,
       tx: screenX,
       ty: screenY,
       t: 0,
@@ -581,9 +585,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   private triggerSunkEffects(x: number, y: number, byPlayer: boolean, w: number, h: number) {
     this.screenShake = 20;
     this.hitPause = 120;
-    const { cell, startX, startY, boardSize, gap } = this.getBoardLayout(w, h);
-    const screenX = startX + (byPlayer ? 0 : 1) * (GRID_SIZE * cell + gap) + x * cell + cell / 2;
-    const screenY = startY + y * cell + cell / 2;
+    const { cell, startX, startY, opponentX, opponentY, boardSize } = this.getBoardLayout(w, h);
+    const targetX = byPlayer ? opponentX : startX;
+    const targetY = byPlayer ? opponentY : startY;
+    const screenX = targetX + x * cell + cell / 2;
+    const screenY = targetY + y * cell + cell / 2;
     // Explosion particles
     const shipColor = this.theme.sunkGlow;
     for (let i = 0; i < 30; i++) {
@@ -624,8 +630,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     // Cannon fire for sunk
     this.cannonFire = {
-      sx: byPlayer ? startX + (GRID_SIZE * cell) / 2 : startX + boardSize + gap + (GRID_SIZE * cell) / 2,
-      sy: startY + boardSize + 10,
+      sx: (byPlayer ? startX : opponentX) + boardSize / 2,
+      sy: (byPlayer ? startY : opponentY) + boardSize,
       tx: screenX,
       ty: screenY,
       t: 0,
@@ -635,15 +641,44 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   private getBoardLayout(w: number, h: number) {
-    const headerH = 72;
-    const footerH = 48;
-    const availH = h - headerH - footerH;
-    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const headerH = w < 520 ? 64 : 72;
+    const footerH = 36;
+    const statusH = h < 460 ? 48 : 62;
+    const messageH = 34;
+    const outerPad = Math.max(10, Math.min(24, w * 0.025));
+    const gap = Math.max(12, Math.min(30, w * 0.035));
+    const stacked = w < 560 && h > w * 1.25;
+    if (stacked) {
+      const heightLimit = (h - headerH - footerH - statusH * 2 - messageH - 48) / 2;
+      const boardSize = Math.max(80, Math.min(w - outerPad * 2, heightLimit));
+      const cell = boardSize / GRID_SIZE;
+      const startX = (w - boardSize) / 2;
+      const startY = headerH + 14;
+      const playerFleetY = startY + boardSize + 5;
+      const opponentX = startX;
+      const opponentY = playerFleetY + statusH + 16;
+      const opponentFleetY = opponentY + boardSize + 5;
+      const messageY = opponentFleetY + statusH + 4;
+      return {
+        cell, startX, startY, opponentX, opponentY, boardSize, gap: 10, headerH, footerH,
+        statusH, messageH, playerFleetY, opponentFleetY, messageY, stacked,
+      };
+    }
+    const widthLimit = (w - outerPad * 2 - gap) / 2;
+    const heightLimit = h - headerH - footerH - statusH - messageH - 30;
+    const boardSize = Math.max(80, Math.min(widthLimit, heightLimit));
     const cell = boardSize / GRID_SIZE;
-    const gap = Math.max(20, w * 0.035);
     const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + (availH - boardSize) / 2;
-    return { cell, startX, startY, boardSize, gap };
+    const startY = headerH + 14;
+    const opponentX = startX + boardSize + gap;
+    const opponentY = startY;
+    const playerFleetY = startY + boardSize + 7;
+    const opponentFleetY = playerFleetY;
+    const messageY = playerFleetY + statusH + 4;
+    return {
+      cell, startX, startY, opponentX, opponentY, boardSize, gap, headerH, footerH,
+      statusH, messageH, playerFleetY, opponentFleetY, messageY, stacked,
+    };
   }
 
   playerFire(x: number, y: number): boolean {
@@ -1037,7 +1072,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Board entrance
-    if (!this.boardEnterDone && this.phase === "setup") {
+    if (!this.boardEnterDone) {
       this.boardEnterTimer = Math.min(1, this.boardEnterTimer + dt * 0.003);
       if (this.boardEnterTimer >= 1) this.boardEnterDone = true;
     }
@@ -1526,14 +1561,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.fillRect(0, 0, w, h);
     }
 
-    const headerH = 72;
-    const footerH = 48;
-    const availH = h - headerH - footerH;
-    const boardSize = Math.min(w * 0.44, availH * 0.9);
-    const cell = boardSize / GRID_SIZE;
-    const gap = Math.max(20, w * 0.035);
-    const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + (availH - boardSize) / 2;
+    const {
+      cell, startX, startY, opponentX, opponentY, boardSize, headerH, footerH,
+      statusH, messageH, playerFleetY, opponentFleetY, messageY,
+    } = this.getBoardLayout(w, h);
 
     // Board entrance animation offsets
     let leftOffsetX = 0, rightOffsetX = 0;
@@ -1597,11 +1628,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // Draw boards with entrance animation offsets
     this.drawBoard(ctx, startX + leftOffsetX, startY, cell, "player", t);
-    this.drawBoard(ctx, startX + boardSize + gap + rightOffsetX, startY, cell, "opponent", t);
+    this.drawBoard(ctx, opponentX + rightOffsetX, opponentY, cell, "opponent", t);
 
     // Fleet status panels
-    this.drawFleetStatus(ctx, startX, startY, boardSize, cell, "player", t);
-    this.drawFleetStatus(ctx, startX + boardSize + gap, startY, boardSize, cell, "opponent", t);
+    this.drawFleetStatus(ctx, startX, playerFleetY, boardSize, statusH, "player", t);
+    this.drawFleetStatus(ctx, opponentX, opponentFleetY, boardSize, statusH, "opponent", t);
 
     // Cannon fire projectile
     if (this.cannonFire) {
@@ -1629,12 +1660,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Sink sequence (bow-to-stern flash)
     if (this.sinkSequence) {
       const ss = this.sinkSequence;
-      const boardX = ss.board === "player" ? startX + leftOffsetX : startX + boardSize + gap + rightOffsetX;
+      const boardX = ss.board === "player" ? startX + leftOffsetX : opponentX + rightOffsetX;
+      const boardY = ss.board === "player" ? startY : opponentY;
       for (let i = 0; i <= ss.cellIndex && i < ss.cells.length; i++) {
         const [cx, cy] = ss.cells[i];
         const flashAlpha = i === ss.cellIndex ? 0.8 : 0.3;
         ctx.fillStyle = `${t.sunkGlow}${Math.floor(flashAlpha * 255).toString(16).padStart(2, '0')}`;
-        ctx.fillRect(boardX + cx * cell, startY + cy * cell, cell, cell);
+        ctx.fillRect(boardX + cx * cell, boardY + cy * cell, cell, cell);
       }
     }
 
@@ -1643,13 +1675,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const alpha = Math.min(1, this.messageTimer / 500);
       // Speech bubble background
       const bubbleX = 12;
-      const bubbleY = h - footerH - 56;
-      const msgFontSize = Math.max(12, Math.floor(w * 0.024));
+      const bubbleY = messageY;
+      const msgFontSize = Math.max(10, Math.min(15, Math.floor(w * 0.022)));
       ctx.font = `${msgFontSize}px ${t.fonts.body}`;
-      const msgW = Math.min(ctx.measureText(this.message).width + 24, w - 80);
-      const bubbleW = msgW + 8;
-      const bubbleH = msgFontSize + 18;
-      ctx.globalAlpha = alpha * 0.85;
+      const bubbleW = w - 24;
+      const bubbleH = messageH;
+      ctx.globalAlpha = alpha * 0.92;
       ctx.fillStyle = t.bgDeep;
       ctx.strokeStyle = t.accent;
       ctx.lineWidth = 1;
@@ -1657,24 +1688,17 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 4);
       ctx.fill();
       ctx.stroke();
-      // Triangle pointer
-      ctx.beginPath();
-      ctx.moveTo(bubbleX + 12, bubbleY + bubbleH);
-      ctx.lineTo(bubbleX + 20, bubbleY + bubbleH + 8);
-      ctx.lineTo(bubbleX + 28, bubbleY + bubbleH);
-      ctx.fill();
-      ctx.stroke();
-      // Message text
+      // Message text stays in its own command strip below both fleet panels.
       ctx.fillStyle = t.textPrimary;
       ctx.textAlign = "left";
-      ctx.fillText(this.message, bubbleX + 12, bubbleY + msgFontSize + 4);
-      // Sparrow portrait (skull icon)
-      const portraitX = 16;
-      const portraitY = h - footerH - 28;
+      let messageText = this.message;
+      const messageMaxW = bubbleW - 52;
+      while (messageText.length > 4 && ctx.measureText(messageText).width > messageMaxW) messageText = `${messageText.slice(0, -4)}...`;
+      ctx.fillText(messageText, bubbleX + 42, bubbleY + bubbleH / 2 + msgFontSize * 0.34);
       ctx.fillStyle = t.accent;
-      ctx.font = `28px ${t.fonts.body}`;
+      ctx.font = `20px ${t.fonts.body}`;
       ctx.textAlign = "center";
-      ctx.fillText("☠", portraitX + 16, portraitY + 8);
+      ctx.fillText("☠", bubbleX + 22, bubbleY + bubbleH / 2 + 7);
       ctx.globalAlpha = 1;
       ctx.textAlign = "center";
     }
@@ -1979,37 +2003,41 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     return 1 - Math.pow(1 - t, 3);
   }
 
-  private drawFleetStatus(ctx: CanvasRenderingContext2D, ox: number, oy: number, boardSize: number, cell: number, which: "player" | "opponent", t: BouyTheme) {
+  private drawFleetStatus(ctx: CanvasRenderingContext2D, ox: number, oy: number, boardSize: number, panelH: number, which: "player" | "opponent", t: BouyTheme) {
     let board: Board;
     if (which === "player") {
       board = this.mode === "hotseat" ? (this.currentTurn === "player1" || this.phase === "setup" ? this.player1Board : this.player2Board) : this.playerBoard;
     } else {
       board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
     }
-    const isSetup = this.phase === "setup";
-    const panelX = ox + boardSize + 8;
+    const panelX = ox;
     const panelY = oy;
-    const panelW = Math.max(100, cell * 3.5);
-    const panelH = boardSize;
+    const panelW = boardSize;
+    const itemW = panelW / FLEET.length;
 
     // Panel background with slight gradient
     const panelGrad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
     panelGrad.addColorStop(0, `${t.panel}EE`);
     panelGrad.addColorStop(1, `${t.bgDeep}EE`);
     ctx.fillStyle = panelGrad;
-    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.fill();
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 1;
-    ctx.strokeRect(panelX, panelY, panelW, panelH);
+    ctx.stroke();
 
-    // Panel title
+    const afloat = board.ships.filter((ship) => !ship.sunk).length;
     ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `bold ${Math.max(10, Math.floor(cell * 0.42))}px ${t.fonts.body}`;
-    ctx.textAlign = "center";
-    ctx.fillText(t.terms[which === "player" ? "playerFleet" : "enemyFleet"], panelX + panelW / 2, panelY + 16);
+    ctx.font = `bold ${Math.max(8, Math.min(11, panelW * 0.035))}px ${t.fonts.body}`;
+    ctx.textAlign = "left";
+    ctx.fillText(t.terms[which === "player" ? "playerFleet" : "enemyFleet"], panelX + 6, panelY + 13);
+    ctx.fillStyle = t.textMuted;
+    ctx.textAlign = "right";
+    ctx.fillText(`${afloat}/${FLEET.length} AFLOAT`, panelX + panelW - 6, panelY + 13);
 
-    let yOffset = panelY + 28;
-    for (const type of FLEET) {
+    for (let typeIndex = 0; typeIndex < FLEET.length; typeIndex++) {
+      const type = FLEET[typeIndex];
       const spec = SHIP_SPECS[type];
       const ship = board.ships.find((s) => s.type === type);
       const placed = !!ship;
@@ -2017,23 +2045,25 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const hits = ship?.hits.filter((h) => h).length ?? 0;
       const total = spec.size;
       const shipColors = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+      const itemX = panelX + typeIndex * itemW;
+      const centerX = itemX + itemW / 2;
 
-      // Mini ship icon (actual silhouette)
-      this.drawMiniShip(ctx, panelX + 6, yOffset, Math.min(18, cell * 0.7), type, shipColors.main, sunk);
+      ctx.fillStyle = sunk ? t.sunkGlow : placed ? shipColors.light : t.textMuted;
+      ctx.font = `bold ${Math.max(7, Math.min(10, itemW * 0.22))}px ${t.fonts.body}`;
+      ctx.textAlign = "center";
+      ctx.fillText(spec.short, centerX, panelY + 27);
 
-      // Segmented health bar (one segment per hull cell)
-      const segW = Math.max(6, (panelW - 50) / total - 1);
+      const segGap = 1;
+      const segAreaW = Math.max(14, itemW - 8);
+      const segW = Math.max(2, (segAreaW - (total - 1) * segGap) / total);
       const segH = 5;
-      const segX = panelX + 28;
-      const segY = yOffset + 3;
+      const segX = centerX - (segW * total + segGap * (total - 1)) / 2;
+      const segY = panelY + 32;
       for (let i = 0; i < total; i++) {
-        const sx = segX + i * (segW + 1);
+        const sx = segX + i * (segW + segGap);
         if (placed && !sunk) {
           ctx.fillStyle = i < hits ? t.hitColor : `${shipColors.main}80`;
           ctx.fillRect(sx, segY, segW, segH);
-          ctx.strokeStyle = `${shipColors.dark}80`;
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(sx, segY, segW, segH);
         } else if (sunk) {
           ctx.fillStyle = `${t.sunkColor}80`;
           ctx.fillRect(sx, segY, segW, segH);
@@ -2043,82 +2073,19 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         }
       }
 
-      // Label + status
-      ctx.fillStyle = sunk ? t.sunkGlow : (placed ? t.textPrimary : t.textMuted);
-      ctx.font = `${Math.max(9, Math.floor(cell * 0.35))}px ${t.fonts.body}`;
-      ctx.textAlign = "left";
-      const status = sunk ? "SUNK" : placed ? `${hits}/${total}` : "—";
-      ctx.fillText(`${spec.short} ${status}`, panelX + 28, yOffset + 15);
-
-      // Setup highlight
-      if (isSetup && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
-        ctx.fillStyle = `${t.accent}30`;
-        ctx.fillRect(panelX + 4, yOffset - 2, panelW - 8, 18);
-        ctx.strokeStyle = `${t.accent}60`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(panelX + 4, yOffset - 2, panelW - 8, 18);
-      }
-
-      yOffset += 22;
-    }
-
-    // Ability cooldown indicators
-    if (this.phase === "play" && which === "player" && this.mode === "agent") {
-      yOffset += 4;
-      ctx.fillStyle = t.textMuted;
-      ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
-      ctx.textAlign = "center";
-      ctx.fillText("ABILITIES", panelX + panelW / 2, yOffset);
-      yOffset += 10;
-      for (const type of FLEET) {
-        const spec = SHIP_SPECS[type];
+      let status = sunk ? "SUNK" : placed ? `${hits}/${total}` : "NOT SET";
+      if (this.phase === "setup" && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
+        status = "DEPLOY";
+      } else if (this.phase === "play" && which === "player" && this.mode === "agent" && ship && !ship.sunk) {
         const ability = SHIP_ABILITIES[type];
-        const ship = board.ships.find((s) => s.type === type);
-        if (!ship || ship.sunk) continue;
         const ready = this.canUseAbility(type);
         const cdLeft = ready ? 0 : ability.cooldown - (this.result.turns - ship.abilityUsed);
-        // Cooldown ring
-        const ringR = 5;
-        const ringX = panelX + 8 + ringR;
-        const ringY = yOffset + ringR;
-        ctx.beginPath();
-        ctx.arc(ringX, ringY, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = `${t.textMuted}40`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        if (ready) {
-          ctx.beginPath();
-          ctx.arc(ringX, ringY, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = t.accent;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          ctx.fillStyle = t.accent;
-          ctx.font = `${Math.max(7, Math.floor(cell * 0.28))}px ${t.fonts.body}`;
-          ctx.textAlign = "center";
-          ctx.fillText("✓", ringX, ringY + 3);
-        } else {
-          const arcLen = (1 - cdLeft / ability.cooldown) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.arc(ringX, ringY, ringR, -Math.PI / 2, -Math.PI / 2 + arcLen);
-          ctx.strokeStyle = t.accentDim;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          ctx.fillStyle = t.textMuted;
-          ctx.font = `${Math.max(7, Math.floor(cell * 0.28))}px ${t.fonts.body}`;
-          ctx.textAlign = "center";
-          ctx.fillText(String(cdLeft), ringX, ringY + 3);
-        }
-        // Ability name
-        ctx.fillStyle = ready ? t.textPrimary : t.textMuted;
-        ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
-        ctx.textAlign = "left";
-        ctx.fillText(`${spec.short}:${ability.name}`, panelX + 20, yOffset + 8);
-        // Keybind hint
-        const keyIdx = FLEET.indexOf(type) + 1;
-        ctx.fillStyle = `${t.accent}80`;
-        ctx.fillText(`[${keyIdx}]`, panelX + panelW - 20, yOffset + 8);
-        yOffset += 14;
+        status = ready ? `[${typeIndex + 1}] READY` : `CD ${Math.max(0, cdLeft)}`;
       }
+
+      ctx.fillStyle = status === "DEPLOY" || status.includes("READY") ? t.accent : sunk ? t.sunkGlow : t.textMuted;
+      ctx.font = `${Math.max(6, Math.min(9, itemW * 0.18))}px ${t.fonts.body}`;
+      ctx.fillText(status, centerX, panelY + Math.min(panelH - 7, 49));
     }
 
     ctx.textAlign = "left";
@@ -2244,13 +2211,15 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.textAlign = "center";
     ctx.fillText(label, ox + bw / 2, oy - 8);
 
-    // Coordinate labels
+    // Coordinates sit just inside the board so they never collide with titles or fleet panels.
     ctx.fillStyle = t.textMuted;
     ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
+    ctx.globalAlpha = 0.72;
     for (let i = 0; i < GRID_SIZE; i++) {
-      ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + cell / 2, oy - 14);
-      ctx.fillText(String(i + 1), ox - 11, oy + i * cell + cell / 2 + 3);
+      ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + cell / 2, oy + 10);
+      ctx.fillText(String(i + 1), ox + 6, oy + i * cell + cell / 2 + 3);
     }
+    ctx.globalAlpha = 1;
 
     // Turn indicator — pulsing glow border on active board
     if (this.phase === "play" && !this.agentThinking) {
@@ -2304,14 +2273,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   // Input handlers
   pointerDown(nx: number, ny: number, w: number, h: number) {
-    const headerH = 72;
-    const footerH = 48;
-    const availH = h - headerH - footerH;
-    const boardSize = Math.min(w * 0.44, availH * 0.9);
-    const cell = boardSize / GRID_SIZE;
-    const gap = Math.max(20, w * 0.035);
-    const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + (availH - boardSize) / 2;
+    const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
 
     // Check own board (placement)
     const ownX = Math.floor((nx - startX) / cell);
@@ -2324,8 +2286,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Check opponent board (firing)
-    const oppX = Math.floor((nx - (startX + boardSize + gap)) / cell);
-    const oppY = Math.floor((ny - startY) / cell);
+    const oppX = Math.floor((nx - opponentX) / cell);
+    const oppY = Math.floor((ny - opponentY) / cell);
     if (oppX >= 0 && oppX < GRID_SIZE && oppY >= 0 && oppY < GRID_SIZE) {
       if (this.phase === "play") {
         if (this.mode === "agent" && this.currentTurn === "player") {
@@ -2341,13 +2303,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   pointerMove(nx: number, ny: number, w: number, h: number) {
     if (this.phase !== "setup") { this.hoverCell = null; return; }
-    const headerH = 72;
-    const footerH = 48;
-    const availH = h - headerH - footerH;
-    const boardSize = Math.min(w * 0.44, availH * 0.9);
-    const cell = boardSize / GRID_SIZE;
-    const startX = (w - boardSize * 2 - Math.max(20, w * 0.035)) / 2;
-    const startY = headerH + (availH - boardSize) / 2;
+    const { cell, startX, startY } = this.getBoardLayout(w, h);
     const x = Math.floor((nx - startX) / cell);
     const y = Math.floor((ny - startY) / cell);
     if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {

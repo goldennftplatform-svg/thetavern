@@ -1,29 +1,37 @@
 /* Conflic Bouy — seat tile, studio screens, result polish */
 
 /* ——— Seat tile on tavern table ——— */
-.tavern-table__seat[data-seat="conflic_bouy"] {
-  position: relative;
+.tavern-table__seat[data-seat="conflic_bouy_entry"] {
+  position: absolute;
   overflow: visible;
 }
 
-.tavern-table__seat[data-seat="conflic_bouy"] .tavern-table__prop-icon {
-  animation: bouy-anchor-bob 2.8s ease-in-out infinite;
+.tavern-table__seat[data-seat="conflic_bouy_entry"] .tavern-table__prop-icon {
   display: inline-block;
+  width: 30px;
+  height: 30px;
+  color: var(--gold);
 }
 
-.tavern-table__seat[data-seat="conflic_bouy"]::before {
+.tavern-table__seat[data-seat="conflic_bouy_entry"] .tavern-table__prop-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 5px rgba(232, 176, 80, 0.35));
+}
+
+.tavern-table__seat[data-seat="conflic_bouy_entry"]::before {
   content: "";
   position: absolute;
   inset: -6px;
   border-radius: 18px;
   background: radial-gradient(circle, rgba(232, 176, 80, 0.18), transparent 70%);
-  animation: bouy-seat-glow 3.2s ease-in-out infinite;
   pointer-events: none;
   z-index: -1;
 }
 
-.tavern-table__seat[data-seat="conflic_bouy"]:hover {
-  transform: scale(1.06);
+.tavern-table__seat[data-seat="conflic_bouy_entry"]:hover {
+  transform: translate(50%, -50%) scale(1.04);
   filter: brightness(1.12);
   box-shadow:
     0 6px 0 rgba(0, 0, 0, 0.45),
@@ -33,21 +41,9 @@
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.15s ease;
 }
 
-.tavern-table__seat[data-seat="conflic_bouy"]:active {
-  transform: scale(0.97);
+.tavern-table__seat[data-seat="conflic_bouy_entry"]:active:not(:disabled) {
+  transform: translate(50%, calc(-50% + 3px)) scale(0.98);
   transition: transform 0.06s ease;
-}
-
-@keyframes bouy-anchor-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-3px) rotate(-3deg); }
-  50% { transform: translateY(1px) rotate(1deg); }
-  75% { transform: translateY(-1px) rotate(-1deg); }
-}
-
-@keyframes bouy-seat-glow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.08); }
 }
 
 /* ——— NEW badge ——— */
@@ -76,6 +72,25 @@
 }
 
 /* ——— Studio pick screens ——— */
+.play-shell[data-phase="conflic_bouy"] {
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+.play-shell[data-phase="conflic_bouy"] .play-hud {
+  display: none !important;
+}
+
+.play-shell[data-phase="conflic_bouy"] .play-stage {
+  grid-area: 1 / 1 / -1 / -1 !important;
+  min-height: 0;
+}
+
+.play-shell[data-phase="conflic_bouy"] .stage-viewport,
+.play-shell[data-phase="conflic_bouy"] .canvas-wrap {
+  min-height: 0 !important;
+  height: 100%;
+}
+
 .studio-stage--pick .hub-grid--tiles {
   gap: 14px;
 }

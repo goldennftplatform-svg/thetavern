@@ -29,20 +29,25 @@ async function getGridMetrics(page) {
   return page.evaluate(() => {
     const c = document.querySelector("#well");
     if (!c) return null;
-    const w = c.width, h = c.height;
     const rect = c.getBoundingClientRect();
-    const headerH = 72, footerH = 48;
-    const availH = h - headerH - footerH;
-    const boardSize = Math.min(w * 0.44, availH * 0.9);
+    const w = rect.width, h = rect.height;
+    const headerH = w < 520 ? 64 : 72;
+    const footerH = 36;
+    const statusH = h < 460 ? 48 : 62;
+    const messageH = 34;
+    const outerPad = Math.max(10, Math.min(24, w * 0.025));
+    const gap = Math.max(12, Math.min(30, w * 0.035));
+    const widthLimit = (w - outerPad * 2 - gap) / 2;
+    const heightLimit = h - headerH - footerH - statusH - messageH - 30;
+    const boardSize = Math.max(80, Math.min(widthLimit, heightLimit));
     const cell = boardSize / 10;
-    const gap = Math.max(20, w * 0.035);
     const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + (availH - boardSize) / 2;
+    const startY = headerH + 14;
     const oppX = startX + boardSize + gap;
     return {
       cell, startX, startY, oppX,
       rectLeft: rect.left, rectTop: rect.top,
-      scaleX: rect.width / w, scaleY: rect.height / h,
+      scaleX: 1, scaleY: 1,
     };
   });
 }
@@ -62,7 +67,7 @@ async function isGameOver(page) {
 async function playGame(page, num, themeName) {
   console.log(`\n🎮 Game ${num}: ${themeName}`);
 
-  await page.click("[data-hub-action='conflic_bouy']");
+  await page.click("[data-hub-action='conflic_bouy_entry']");
   await sleep(600);
 
   const phase = await page.evaluate(() =>
@@ -120,10 +125,11 @@ async function playGame(page, num, themeName) {
   await shot(page, `g${num}-02-end`);
   console.log(`  ✅ Done: ${turns} shots, game over: ${gameOver}`);
 
-  // Return to hub
-  await page.keyboard.press("Escape");
+  // Return to hub from the result screen.
+  const backToWell = page.locator('[data-continue="well"]');
+  if (await backToWell.count()) await backToWell.click();
   await sleep(1500);
-  await page.waitForSelector("[data-hub-action='conflic_bouy']", { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector("[data-hub-action='conflic_bouy_entry']", { timeout: 5000 }).catch(() => {});
   await sleep(500);
 
   return { theme: themeName, turns, gameOver };
@@ -139,7 +145,7 @@ async function run() {
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.click("#btn-skip-gate");
-  await page.waitForSelector("[data-hub-action='conflic_bouy']", { timeout: 15000 });
+  await page.waitForSelector("[data-hub-action='conflic_bouy_entry']", { timeout: 15000 });
   console.log("✅ Hub loaded");
   await shot(page, "g0-hub");
 
@@ -157,7 +163,7 @@ async function run() {
       await sleep(1000);
       await page.goto(baseUrl, { waitUntil: "networkidle" });
       await page.click("#btn-skip-gate").catch(() => {});
-      await page.waitForSelector("[data-hub-action='conflic_bouy']", { timeout: 10000 }).catch(() => {});
+      await page.waitForSelector("[data-hub-action='conflic_bouy_entry']", { timeout: 10000 }).catch(() => {});
       await sleep(500);
       results.push({ theme: themes[i], turns: 0, gameOver: false, error: err.message });
     }

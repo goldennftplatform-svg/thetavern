@@ -1033,6 +1033,10 @@ function handleHubAction(action: string) {
     startConflicBouy();
     return;
   }
+  if (action === "conflic_bouy_entry") {
+    setPhase("conflic_theme");
+    return;
+  }
   if (action === "conflic_bouy_change") {
     // Go back to mode picker
     setPhase("conflic_theme");
@@ -1741,7 +1745,7 @@ function setPhase(next: GamePhase) {
       break;
   }
   hud();
-  if (state.phase !== "demplar_warrior") drawWell();
+  if (state.phase !== "demplar_warrior" && state.phase !== "conflic_bouy") drawWell();
   syncWarriorShell();
   broadcastFishing(true);
   broadcastChance();
@@ -2104,6 +2108,7 @@ function resizeCanvas() {
     : `${logicalH}px`;
   syncCanvasBuffer();
   if (state.phase === "demplar_warrior" && demplarGame) drawDemplar();
+  else if (state.phase === "conflic_bouy" && conflicGame) drawConflic();
   else drawWell();
 }
 

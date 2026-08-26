@@ -22,6 +22,10 @@ html.play-active .play-menu {
 .play-shell[data-phase="renown"] .canvas-wrap,
 .play-shell[data-phase="peril"] .canvas-wrap,
 .play-shell[data-phase="trivia"] .canvas-wrap,
+.play-shell[data-phase="conflic_theme"] .canvas-wrap,
+.play-shell[data-phase="conflic_theme_mode"] .canvas-wrap,
+.play-shell[data-phase="conflic_stake"] .canvas-wrap,
+.play-shell[data-phase="conflic_bouy_result"] .canvas-wrap,
 .play-shell[data-phase="chance_result"] .canvas-wrap {
   filter: brightness(0.28) saturate(0.6);
 }
@@ -36,6 +40,10 @@ html.play-active .play-menu {
 .play-shell[data-phase="renown"] .play-menu,
 .play-shell[data-phase="peril"] .play-menu,
 .play-shell[data-phase="trivia"] .play-menu,
+.play-shell[data-phase="conflic_theme"] .play-menu,
+.play-shell[data-phase="conflic_theme_mode"] .play-menu,
+.play-shell[data-phase="conflic_stake"] .play-menu,
+.play-shell[data-phase="conflic_bouy_result"] .play-menu,
 .play-shell[data-phase="chance_result"] .play-menu {
   position: absolute;
   inset: 0;
@@ -63,6 +71,10 @@ html.play-active .play-menu {
 .play-shell[data-phase="renown"] .play-toast,
 .play-shell[data-phase="peril"] .play-toast,
 .play-shell[data-phase="trivia"] .play-toast,
+.play-shell[data-phase="conflic_theme"] .play-toast,
+.play-shell[data-phase="conflic_theme_mode"] .play-toast,
+.play-shell[data-phase="conflic_stake"] .play-toast,
+.play-shell[data-phase="conflic_bouy_result"] .play-toast,
 .play-shell[data-phase="chance_result"] .play-toast,
 .play-shell[data-phase="feast"] .play-toast,
 .play-shell[data-phase="pole_rack"] .play-toast,

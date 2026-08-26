@@ -627,6 +627,11 @@ html.play-active .play-dock .actions {
 .play-shell[data-phase="renown"] .play-dock,
 .play-shell[data-phase="peril"] .play-dock,
 .play-shell[data-phase="trivia"] .play-dock,
+.play-shell[data-phase="conflic_theme"] .play-dock,
+.play-shell[data-phase="conflic_theme_mode"] .play-dock,
+.play-shell[data-phase="conflic_stake"] .play-dock,
+.play-shell[data-phase="conflic_bouy"] .play-dock,
+.play-shell[data-phase="conflic_bouy_result"] .play-dock,
 .play-shell[data-phase="chance_result"] .play-dock {
   display: none;
 }
