@@ -2142,8 +2142,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.save();
 
     // Board border with glow
-    ctx.shadowColor = t.accent;
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = t.panelBorder;
+    ctx.shadowBlur = 6;
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 2;
     ctx.strokeRect(ox - 3, oy - 3, bw + 6, bh + 6);
@@ -2152,10 +2152,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Water background for the board
     this.drawWater(ctx, ox, oy, bw, bh, t);
 
-    // Grid lines — more visible
+    // Grid lines
     ctx.strokeStyle = t.gridLine;
-    ctx.lineWidth = 0.6;
-    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = 0.5;
     for (let i = 0; i <= GRID_SIZE; i++) {
       ctx.beginPath();
       ctx.moveTo(ox + i * cell, oy);
@@ -2166,7 +2165,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.lineTo(ox + bw, oy + i * cell);
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
 
     // Cell state overlays (hit markers, miss markers on opponent board)
     for (let y = 0; y < GRID_SIZE; y++) {
