@@ -29,6 +29,17 @@ export type CharterDayArchive = {
   runCount: number;
 };
 
+/** Sticky lifetime mining totals (survive charter-night rollover). Server seam. */
+export type MineTotals = {
+  runs: number;
+  scans: number;
+  ore: number;
+  payNodes: number;
+  blocks: number;
+  payout: number; // ◎ banked from settlements + in-run dust
+  poolFed: number;
+};
+
 type AnglerSaveV1 = {
   v: 1;
   nickname: string;
@@ -108,6 +119,8 @@ type AnglerSaveV3 = {
   /** Sticky login face. */
   avatarId?: HouseAvatarId;
   avatarCustom?: string;
+  /** Lifetime mining totals (MINE THE BLOCK) — sticky, server-ready seam. */
+  mineTotals?: MineTotals;
   archive: CharterDayArchive[];
   updatedAt: number;
 };
@@ -395,6 +408,49 @@ export function pinAnglerTrophy(
   if (list.length > TROPHY_VAULT_MAX) list.length = TROPHY_VAULT_MAX;
   vault[key] = { ...existing, trophies: list, updatedAt: Date.now() };
   writeVault(vault);
+}
+
+export function loadAnglerMineTotals(name: string): MineTotals {
+  const save = prepareSave(name);
+  const t = save?.mineTotals;
+  if (t) return { ...t };
+  return { runs: 0, scans: 0, ore: 0, payNodes: 0, blocks: 0, payout: 0, poolFed: 0 };
+}
+
+/**
+ * Accumulate one finished mining round into the angler's sticky totals.
+ * The payload is the same shape a server would ingest; client persists
+ * locally behind the vault seam for now.
+ */
+export function recordMineRun(
+  name: string,
+  run: {
+    scans: number;
+    ore: number;
+    payNodes: number;
+    blocks: number;
+    payout: number;
+    poolFed: number;
+  },
+): MineTotals {
+  const key = nameKey(name);
+  if (!key) return loadAnglerMineTotals(name);
+  const vault = readVault();
+  const existing = normalizeSave(vault[key]);
+  if (!existing) return loadAnglerMineTotals(name);
+  const prev = existing.mineTotals ?? { runs: 0, scans: 0, ore: 0, payNodes: 0, blocks: 0, payout: 0, poolFed: 0 };
+  const next: MineTotals = {
+    runs: prev.runs + 1,
+    scans: prev.scans + run.scans,
+    ore: prev.ore + run.ore,
+    payNodes: prev.payNodes + run.payNodes,
+    blocks: prev.blocks + run.blocks,
+    payout: prev.payout + run.payout,
+    poolFed: prev.poolFed + run.poolFed,
+  };
+  vault[key] = { ...existing, mineTotals: next, updatedAt: Date.now() };
+  writeVault(vault);
+  return next;
 }
 
 export function loadAnglerArchives(name: string): CharterDayArchive[] {

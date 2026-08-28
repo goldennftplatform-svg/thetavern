@@ -7,6 +7,18 @@
 import { playPlatformLand, playPlatformPickup, playWarriorImpact } from "../audio/warriorSfx";
 import { BouyTheme, getTheme, BouyThemeId } from "./conflicBouyThemes";
 import { getContextualSparrowLine, getVariantLine } from "./conflicBouyPersonality";
+import {
+  DEFAULT_MINE_CONFIG,
+  drill,
+  newMineStats,
+  seedMineNodes,
+  settleMine,
+  touchStreak,
+  type MineConfig,
+  type MineNode,
+  type MineStats,
+  type MineSettlement,
+} from "./mine";
 
 export type BouyMode = "agent" | "hotseat";
 export type BouyPhase = "setup" | "play" | "over";
@@ -96,6 +108,8 @@ export type BouyResult = {
   agentHits: number;
   agentMisses: number;
   turns: number;
+  /** Mining 201 settlement, present when a mine round was played. */
+  mine?: MineSettlement;
 };
 
 function emptyGrid(): CellState[][] {
@@ -204,6 +218,14 @@ export class ConflicBouy {
   private lastH = 0;
   private _gameOverTime = 0;
 
+  /** Mining 201 — MINE THE BLOCK layer. */
+  mineEnabled = true;
+  mineConfig: MineConfig = DEFAULT_MINE_CONFIG;
+  mineStats: MineStats = newMineStats(DEFAULT_MINE_CONFIG);
+  mineNodes: Map<string, MineNode> = new Map();
+  mineSettlement: MineSettlement | null = null;
+  mineExhausted = false;
+
   // Visual effects
   private screenShake = 0;
   private screenShakeX = 0;
@@ -280,6 +302,15 @@ export class ConflicBouy {
     this.horizontal = true;
     this.hoverCell = null;
     this.result = { winner: null, playerHits: 0, playerMisses: 0, agentHits: 0, agentMisses: 0, turns: 0 };
+    // Mining 201 — reseed the claim with ore/pay nodes.
+    this.mineConfig = DEFAULT_MINE_CONFIG;
+    this.mineStats = newMineStats(this.mineConfig);
+    this.mineNodes = seedMineNodes(
+      (x, y) => this.opponentBoard.grid[y][x] === CELL_STATES.ship,
+      this.mineConfig,
+    );
+    this.mineSettlement = null;
+    this.mineExhausted = false;
     this.lastHit = null;
     this.huntMode = false;
     this.huntQueue = [];
@@ -689,6 +720,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (targetGrid[y][x] !== CELL_STATES.empty) return false;
     const opponentBoard = this.getOpponentBoard();
     const res = this.fireAt(opponentBoard, targetGrid, x, y, true);
+    this.recordMineShot(x, y, res === "sink");
     if (res === "hit") {
       this.result.playerHits++;
       this.setMessage(this.getSparrowLine("player_hit"));
@@ -706,19 +738,60 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     return true;
   }
 
+  /**
+   * Mining 201 — a player scan at (x,y). Consumes one scan from the budget,
+   * feeds the community pool, and awards ore / pay / block drill dust.
+   * Only the human player's shots / abilities spend scans — the agent's scans
+   * (shared executeAbility path) must not drain the player's budget.
+   */
+  private recordMineShot(x: number, y: number, sunk: boolean) {
+    if (this.currentTurn === "agent") return;
+    if (!this.mineEnabled || this.mineExhausted) return;
+    const node = this.mineNodes.get(`${x},${y}`);
+    const { drill: kind, exhausted } = drill(this.mineStats, node, sunk ? "sinkAtNode" : "none", this.mineConfig);
+    if (kind !== "none") {
+      if (kind === "pay") this.setMessage(this.getSparrowLine("mine_pay") || "PAYDAY — 25x ORE BLOCK MINTED!");
+      else if (kind === "ore") this.setMessage(this.getSparrowLine("mine_ore") || "ORE SEAM — dust banked.");
+      else this.setMessage(this.getSparrowLine("mine_block") || "BLOCK MINED — ore seam saturated.");
+    }
+    if (exhausted) {
+      this.mineExhausted = true;
+      this.settleMineRound();
+      const p = this.mineSettlement?.payout ?? 0;
+      this.setMessage(
+        `⛏ MINE EXHAUSTED — ${this.mineStats.oreFound} ore, ${this.mineStats.blocksMined} blocks banked. ${p > 0 ? `+${p} ◎ MINED!` : "No payout this claim."}`,
+        4200,
+      );
+    }
+  }
+
+  /**
+   * Settle the mining round: touch the burn-to-earn streak, compute the 95%-back
+   * payout, and attach settlement to the result for the UI + vault.
+   */
+  settleMineRound() {
+    if (this.mineSettlement || !this.mineEnabled) return;
+    touchStreak();
+    this.mineSettlement = settleMine(this.mineStats, this.mineConfig);
+    if (this.result) {
+      this.result.mine = this.mineSettlement;
+    }
+  }
+
   endTurn(scheduleNext = true) {
     // Turn transition wipe
     this.turnWipe = 1;
     this.turnWipeColor = this.theme.accent;
     if (this.mode === "agent") {
-      // Agent always passes to player after its turn
-      this.currentTurn = "player";
+      // Whoever is currently playing hands the turn to the other side.
+      // The player → agent after a miss/ability; the agent → player after it finishes.
+      this.currentTurn = this.currentTurn === "player" ? "agent" : "player";
     } else {
       this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
     }
     // Reset ability active flags at end of turn
     this.resetAbilityFlags();
-    if (scheduleNext && this.mode === "agent") {
+    if (scheduleNext && this.mode === "agent" && this.currentTurn === "agent") {
       this.scheduleAgentTurn();
     }
   }
@@ -774,7 +847,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
               const y = targetY + dy;
               if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
                 if (targetGrid[y][x] === CELL_STATES.empty) {
-                  this.fireAt(opponentBoard, targetGrid, x, y, true);
+                  const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
+                  this.recordMineShot(x, y, rr === "sink");
                 }
               }
             }
@@ -788,7 +862,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
             const x = targetX + dx;
             const y = targetY;
             if (x >= 0 && x < GRID_SIZE && targetGrid[y][x] === CELL_STATES.empty) {
-              this.fireAt(opponentBoard, targetGrid, x, y, true);
+              const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
+              this.recordMineShot(x, y, rr === "sink");
             }
           }
         }
@@ -802,7 +877,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
             const y = targetY + dy;
             if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
               if (targetGrid[y][x] === CELL_STATES.empty) {
-                this.fireAt(opponentBoard, targetGrid, x, y, true);
+                const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
+                this.recordMineShot(x, y, rr === "sink");
               }
             }
           }
@@ -834,7 +910,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         }
         if (hiddenCells.length > 0) {
           const [x, y] = hiddenCells[Math.floor(Math.random() * hiddenCells.length)];
-          this.fireAt(opponentBoard, targetGrid, x, y, true);
+          const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
+          this.recordMineShot(x, y, rr === "sink");
           this.setMessage(`DEPTH CHARGE DETONATED — Auto-hit at ${String.fromCharCode(65+x)}${y+1}!`);
         } else {
           this.setMessage("DEPTH CHARGE — No hidden targets found!");
@@ -1033,6 +1110,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (playerDead || opponentDead) {
       this.phase = "over";
       this._gameOverTime = performance.now();
+      this.settleMineRound();
       if (this.mode === "agent") {
         this.result.winner = opponentDead ? "player" : "agent";
         this.setMessage(this.getSparrowLine(this.result.winner === "player" ? "victory" : "defeat"), 4000);

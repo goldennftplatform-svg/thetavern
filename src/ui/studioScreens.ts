@@ -319,6 +319,21 @@ export function conflicResultStudioHtml(
     playerHits: r.playerHits,
     agentHits: r.agentHits,
   });
+  const mine = r.mine;
+  const mineStats = mine?.stats;
+  const mineHtml = mine
+    ? `<div class="studio-panel studio-panel--mine">
+        <p class="studio-lore-line studio-lore-line--hint" style="margin-bottom:6px;">⛏ MINE THE BLOCK — claim settled</p>
+        <div class="studio-scoreboard studio-scoreboard--mine">
+          <span class="studio-stat"><em>🔍</em> ${mineStats!.scansUsed} <small>Scans</small></span>
+          <span class="studio-stat"><em>🪨</em> ${mineStats!.oreFound} <small>Ore</small></span>
+          <span class="studio-stat"><em>💰</em> ${mineStats!.payNodesHit} <small>Paydays</small></span>
+          <span class="studio-stat"><em>🧱</em> ${mineStats!.blocksMined} <small>Blocks</small></span>
+        </div>
+        <p class="studio-reward" style="margin:8px 0 0;">Pool fed ${mineStats!.poolContributed} ◎ · 95% back → <span style="color:#e0c060;">+${mine.payout} ◎ miner</span><span style="opacity:0.7;"> · ${mine.poolAfter} ◎ remaining</span></p>
+        <p class="studio-lore-line studio-lore-line--hint" style="margin-top:4px;">Burn to earn — mine more, the pool deepens, payouts grow.</p>
+      </div>`
+    : "";
   return studioStageHtml(
     "Conflic Bouy",
     `<div class="bouy-victory-flash ${flashClass}" aria-hidden="true"></div>
@@ -331,6 +346,7 @@ export function conflicResultStudioHtml(
       <span class="studio-stat"><em>💧</em> ${r.playerMisses} <small>Misses</small></span>
       <span class="studio-stat"><em>🎯</em> ${accuracy}% <small>Accuracy</small></span>
     </div>
+    ${mineHtml}
     <p class="studio-reward">Turns ${r.turns} · +${renown} ★ · +${tokens} ◎</p>
     ${shipGraveyard}`,
     "studio-stage--result",

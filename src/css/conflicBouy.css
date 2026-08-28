@@ -221,6 +221,26 @@
   text-transform: uppercase;
 }
 
+.studio-panel--mine {
+  width: 100%;
+  max-width: 520px;
+  margin: 16px auto 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(28, 42, 52, 0.55);
+  border: 1px solid rgba(72, 200, 180, 0.25);
+  box-shadow: 0 0 18px rgba(72, 200, 180, 0.08) inset;
+}
+
+.studio-scoreboard--mine .studio-stat {
+  background: rgba(24, 36, 44, 0.6);
+  border-color: rgba(72, 200, 180, 0.22);
+}
+
+.studio-scoreboard--mine .studio-stat em {
+  color: var(--teal, #58e0d0);
+}
+
 .studio-stage--result .studio-reward {
   font-family: "Press Start 2P", monospace;
   font-size: 0.45rem;

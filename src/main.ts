@@ -58,6 +58,7 @@ import {
   saveAnglerState,
   loadAnglerArchives,
   formatCharterArchives,
+  recordMineRun,
 } from "./game/anglerSave";
 import {
   isTrophyRarity,
@@ -1352,16 +1353,29 @@ function finishConflicRun() {
   stopConflicLoop();
   const result = conflicGame.result;
   conflicLastResult = result;
+  const minePayout = result.mine?.payout ?? 0;
   conflicLastRewards = {
     renown: renownFromBouyScore(result),
-    tokens: tokensFromBouyScore(result, conflicStake),
+    tokens: tokensFromBouyScore(result, conflicStake) + minePayout,
   };
   addRenown(conflicLastRewards.renown);
   state.tokens += conflicLastRewards.tokens;
+  if (result.mine) {
+    const m = result.mine.stats;
+    recordMineRun(state.nickname, {
+      scans: m.scansUsed,
+      ore: m.oreFound,
+      payNodes: m.payNodesHit,
+      blocks: m.blocksMined,
+      payout: result.mine.payout,
+      poolFed: m.poolContributed,
+    });
+  }
   syncHallIdentity();
   const isVictory = result.winner === "player" || result.winner === "player1";
+  const mineBit = result.mine ? ` · mined ${result.mine.stats.oreFound} ore, ${result.mine.stats.blocksMined} blocks${result.mine.stats.payNodesHit ? `, ${result.mine.stats.payNodesHit} paydays` : ""} (~${minePayout} ◎)` : "";
   const chronicle = `${state.nickname} ${isVictory ? "commands the fleet to victory" : "watches their fleet slip beneath the waves"} in Conflic Bouy (${conflicMode}).`;
-  const subtext = `${result.playerHits} hits, ${result.playerMisses} misses · ${result.turns} turns · ${isVictory ? "victory" : "defeat"}`;
+  const subtext = `${result.playerHits} hits, ${result.playerMisses} misses · ${result.turns} turns · ${isVictory ? "victory" : "defeat"}${mineBit}`;
   announceDeed("conflic_bouy", chronicle, subtext, conflicLastRewards.renown, { winner: result.winner, turns: result.turns });
   hud();
   setPhase("conflic_bouy_result");
