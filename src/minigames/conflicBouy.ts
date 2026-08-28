@@ -716,6 +716,18 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     };
   }
 
+  private getRotateButtonRect(w: number, h: number) {
+    const { cell, startX, startY, boardSize } = this.getBoardLayout(w, h);
+    const size = Math.max(34, Math.min(56, cell * 1.7));
+    return { x: startX + boardSize - size - 8, y: startY + 8, w: size, h: size };
+  }
+
+  private getAutoButtonRect(w: number, h: number) {
+    const rb = this.getRotateButtonRect(w, h);
+    const size = rb.w;
+    return { x: rb.x - size - 6, y: rb.y, w: size, h: size };
+  }
+
   playerFire(x: number, y: number): boolean {
     if (this.phase !== "play") return false;
     const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
@@ -1727,6 +1739,32 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     this.drawFleetStatus(ctx, startX, playerFleetY, boardSize, statusH, "player", t);
     this.drawFleetStatus(ctx, opponentX, opponentFleetY, boardSize, statusH, "opponent", t);
 
+    // On-screen setup controls — mouse AND touch friendly
+    if (this.phase === "setup") {
+      const rot = this.getRotateButtonRect(w, h);
+      const auto = this.getAutoButtonRect(w, h);
+      const drawBtn = (r: { x: number; y: number; w: number; h: number }, glyph: string, label: string, highlight: boolean) => {
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.strokeStyle = highlight ? t.enemyColor : t.accent;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = highlight ? t.enemyColor : t.accent;
+        ctx.font = `bold ${Math.max(16, Math.floor(r.h * 0.42))}px ${t.fonts.body}`;
+        ctx.fillText(glyph, r.x + r.w / 2, r.y + r.h * 0.55);
+        ctx.font = `bold ${Math.max(8, Math.floor(r.w * 0.22))}px ${t.fonts.body}`;
+        ctx.fillStyle = t.textSecondary;
+        ctx.fillText(label, r.x + r.w / 2, r.y + r.h + 10);
+        ctx.restore();
+      };
+      drawBtn(rot, "⟳", "rotate", this.horizontal);
+      drawBtn(auto, "⚓", "auto", false);
+    }
+
     // ENEMY TURN banner — made prominent so the player clearly sees the agent acting
     if (this.mode === "agent" && this.phase === "play" && this.currentTurn === "agent") {
       const elapsed = performance.now() - this.agentTurnAt;
@@ -1861,7 +1899,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.font = `${Math.max(11, Math.floor(w * 0.022))}px ${t.fonts.body}`;
     let hint = "";
     if (this.phase === "setup") {
-      hint = "TAP to place · R rotate · A auto";
+      hint = "TAP board to place · ⟳ rotate · ⚓ auto";
     } else if (this.phase === "over") {
       hint = "TAP for NEW GAME · ESC tavern";
     } else {
@@ -2421,6 +2459,22 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   // Input handlers
   pointerDown(nx: number, ny: number, w: number, h: number) {
     const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
+
+    // On-screen setup controls (rotate + auto) — mouse AND touch friendly
+    if (this.phase === "setup") {
+      const rb = this.getRotateButtonRect(w, h);
+      if (nx >= rb.x && nx <= rb.x + rb.w && ny >= rb.y && ny <= rb.y + rb.h) {
+        this.horizontal = !this.horizontal;
+        this.setMessage("SHIP ROTATED");
+        return;
+      }
+      const ab = this.getAutoButtonRect(w, h);
+      if (nx >= ab.x && nx <= ab.x + ab.w && ny >= ab.y && ny <= ab.y + ab.h) {
+        this.randomizeCurrentBoard();
+        this.setMessage("FLEET AUTO-DEPLOYED");
+        return;
+      }
+    }
 
     // Check own board (placement)
     const ownX = Math.floor((nx - startX) / cell);
