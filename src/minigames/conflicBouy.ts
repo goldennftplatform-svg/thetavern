@@ -211,6 +211,10 @@ export class ConflicBouy {
   private agentThinking = false;
   private agentDifficulty: "easy" | "normal" | "hard" = "normal";
   private lastHitDirection: [number, number] | null = null;
+  /** Visible agent aiming reticle before the shot lands on the player's board. */
+  private agentAim: { x: number; y: number; t: number; dur: number } | null = null;
+  /** When the agent's current turn began (for the ENEMY TURN banner pulse). */
+  private agentTurnAt = 0;
   themeId: BouyThemeId = "charter";
   stake = 0;
   private awaitingAbility = false;
@@ -922,11 +926,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   scheduleAgentTurn() {
     this.agentThinking = true;
+    this.agentTurnAt = performance.now();
     setTimeout(() => {
       this.agentThinking = false;
       this.setMessage(this.getSparrowLine("agent_turn_start"));
       this.agentTurn();
-    }, 600 + Math.random() * 400);
+    }, 650 + Math.random() * 350);
   }
 
   agentTurn() {
@@ -985,6 +990,16 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       [x, y] = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
+    // Reveal an aiming reticle on the player's board, then fire after a short beat
+    this.agentAim = { x, y, t: 0, dur: 780 };
+    setTimeout(() => this.agentFinishShot(x, y), 800);
+  }
+
+  private agentFinishShot(x: number, y: number) {
+    this.agentAim = null;
+    if (this.phase !== "play" || this.currentTurn !== "agent") return;
+
+    const smartHunt = this.agentDifficulty === "hard";
     const res = this.fireAt(this.playerBoard, this.playerTargetGrid, x, y, false);
     if (res === "hit") {
       this.result.agentHits++;
@@ -1711,6 +1726,60 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Fleet status panels
     this.drawFleetStatus(ctx, startX, playerFleetY, boardSize, statusH, "player", t);
     this.drawFleetStatus(ctx, opponentX, opponentFleetY, boardSize, statusH, "opponent", t);
+
+    // ENEMY TURN banner — made prominent so the player clearly sees the agent acting
+    if (this.mode === "agent" && this.phase === "play" && this.currentTurn === "agent") {
+      const elapsed = performance.now() - this.agentTurnAt;
+      const pulse = 0.55 + Math.sin(performance.now() * 0.006) * 0.25;
+      const bannerY = headerH + 30;
+      ctx.save();
+      ctx.textAlign = "center";
+      const bSize = Math.max(14, Math.floor(w * 0.03));
+      ctx.font = `bold ${bSize}px ${t.fonts.title}`;
+      ctx.fillStyle = `${t.enemyColor}${Math.floor(pulse * 255).toString(16).padStart(2, "0")}`;
+      ctx.shadowColor = t.enemyColor;
+      ctx.shadowBlur = 14;
+      const bannerText = this.agentAim
+        ? "ENEMY LOCKED — FIRING..."
+        : `ENEMY TURN — ${elapsed < 650 ? "CALCULATING..." : "TARGETING"}`;
+      ctx.fillText(bannerText, w / 2, bannerY);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // Aiming reticle — sweeps to the cell the agent is about to strike on the player's board
+    if (this.agentAim && this.mode === "agent") {
+      const aim = this.agentAim;
+      aim.t = Math.min(1, aim.t + 0.016 / (aim.dur / 1000));
+      const cx = startX + aim.x * cell + cell / 2;
+      const cy = startY + aim.y * cell + cell / 2;
+      const sweep = 1 - Math.pow(1 - aim.t, 3);
+      const ringR = cell * (0.45 + sweep * 0.35);
+      const crossLen = cell * (0.3 + sweep * 0.25);
+      ctx.save();
+      ctx.strokeStyle = t.enemyColor;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5 + sweep * 0.5;
+      // Rotating outer reticle
+      ctx.translate(cx, cy);
+      ctx.rotate(performance.now() * 0.002);
+      ctx.beginPath();
+      ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+      ctx.moveTo(crossLen, 0); ctx.lineTo(crossLen * 1.45, 0);
+      ctx.moveTo(-crossLen, 0); ctx.lineTo(-crossLen * 1.45, 0);
+      ctx.moveTo(0, crossLen); ctx.lineTo(0, crossLen * 1.45);
+      ctx.moveTo(0, -crossLen); ctx.lineTo(0, -crossLen * 1.45);
+      ctx.stroke();
+      ctx.restore();
+      // Center pulse dot
+      ctx.save();
+      ctx.globalAlpha = 0.3 + Math.sin(performance.now() * 0.02) * 0.2;
+      ctx.fillStyle = t.enemyColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Cannon fire projectile
     if (this.cannonFire) {
