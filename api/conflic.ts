@@ -34,6 +34,14 @@ const supabaseUrl = environment("SUPABASE_URL", "VITE_SUPABASE_URL", "NEXT_PUBLI
 const serviceKey = environment("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY");
 const stateEndpoint = `${supabaseUrl}/rest/v1/conflic_state`;
 
+function validSupabaseUrl(value: string): boolean {
+  try {
+    return new URL(value).hostname.endsWith(".supabase.co");
+  } catch {
+    return false;
+  }
+}
+
 function headers(extra?: Record<string, string>): Record<string, string> {
   return {
     apikey: serviceKey,
@@ -135,6 +143,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.status(503).json({ ok: false, message: `Missing in Vercel Production: ${missing.join(" and ")}` });
     return;
   }
+  if (!validSupabaseUrl(supabaseUrl)) {
+    res.status(503).json({ ok: false, message: "Vercel has an invalid Supabase URL" });
+    return;
+  }
 
   const body = parseBody(req.body);
   const action = text(body.action, 24);
@@ -208,8 +220,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
     res.status(200).json(failure("Unknown action"));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Conflic service failed";
-    res.status(503).json({ ok: false, message });
+  } catch {
+    res.status(503).json({ ok: false, message: "Conflic service is temporarily unavailable" });
   }
 }
