@@ -15,6 +15,7 @@
     "smoke": "node scripts/smoke-play.mjs",
     "smoke:warrior": "node scripts/smoke-warrior.mjs",
     "smoke:bigboard": "node scripts/smoke-bigboard.mjs",
+    "smoke:conflic": "node scripts/smoke-conflic-classic.mjs",
     "smoke:all": "node scripts/smoke-all.mjs",
     "ardy:bake": "node scripts/run-ardy-bake.mjs",
     "ardy:demo": "node scripts/run-ardy-demo.mjs",

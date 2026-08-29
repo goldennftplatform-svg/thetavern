@@ -219,7 +219,6 @@ export class ConflicBouy {
   private agentTurnAt = 0;
   themeId: BouyThemeId = "charter";
   stake = 0;
-  private awaitingAbility = false;
   private lastW = 0;
   private lastH = 0;
   private _gameOverTime = 0;
@@ -333,7 +332,6 @@ export class ConflicBouy {
     this.agentThinking = false;
     this.agentDifficulty = "normal";
     this.lastHitDirection = null;
-    this.awaitingAbility = false;
     // Reset animation state
     this.popups = [];
     this.combo = 0;
@@ -789,8 +787,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   /**
    * Mining 201 — a player scan at (x,y). Consumes one scan from the budget,
    * feeds the community pool, and awards ore / pay / block drill dust.
-   * Only the human player's shots / abilities spend scans — the agent's scans
-   * (shared executeAbility path) must not drain the player's budget.
+   * Only the human player's selected shot spends a scan.
    */
   private recordMineShot(x: number, y: number, sunk: boolean) {
     if (this.currentTurn === "agent") return;
@@ -859,116 +856,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   canUseAbility(type: ShipType): boolean {
-    const ability = SHIP_ABILITIES[type];
-    if (!ability) return false;
-    const board = this.getCurrentBoard();
-    const ship = board.ships.find((s) => s.type === type);
-    if (!ship || ship.sunk) return false;
-    const currentTurn = this.result.turns;
-    return ship.abilityUsed === -1 || currentTurn - ship.abilityUsed >= ability.cooldown;
+    void type;
+    return false;
   }
 
   useAbility(type: ShipType, targetX?: number, targetY?: number): boolean {
-    if (!this.canUseAbility(type)) return false;
-    const ability = SHIP_ABILITIES[type];
-    const board = this.getCurrentBoard();
-    const ship = board.ships.find((s) => s.type === type);
-    if (!ship) return false;
-    ship.abilityUsed = this.result.turns;
-    const sparrowLine = this.getSparrowLine("ability_use");
-    this.setMessage(`${sparrowLine} — ${ability.name}!`, 3200);
-    // Ability popup
-    this.popups.push({ text: `⚡ ${ability.name}!`, x: this.lastW / 2, y: this.lastH * 0.3, life: 1000, maxLife: 1000, color: "#c0f0ff", size: 12, type: "ability" });
-    this.executeAbility(type, targetX, targetY);
-    this.result.turns++;
-    this.checkWin();
-    if (this.phase === "play") this.endTurn();
-    return true;
-  }
-
-  private executeAbility(type: ShipType, targetX?: number, targetY?: number) {
-    const opponentBoard = this.getOpponentBoard();
-    const targetGrid = this.getTargetGrid();
-    switch (type) {
-      case "carrier": // Air Strike - reveal 3x3
-        if (targetX !== undefined && targetY !== undefined) {
-          for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              const x = targetX + dx;
-              const y = targetY + dy;
-              if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                if (targetGrid[y][x] === CELL_STATES.empty) {
-                  const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
-                  this.recordMineShot(x, y, rr === "sink");
-                }
-              }
-            }
-          }
-        }
-        this.setMessage("AIR STRIKE COMPLETE — 3x3 area scanned!");
-        break;
-      case "battleship": // Broadside - 3 horizontal shots
-        if (targetX !== undefined && targetY !== undefined) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const x = targetX + dx;
-            const y = targetY;
-            if (x >= 0 && x < GRID_SIZE && targetGrid[y][x] === CELL_STATES.empty) {
-              const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
-              this.recordMineShot(x, y, rr === "sink");
-            }
-          }
-        }
-        this.setMessage("BROADSIDE FIRED — Three shots across the line!");
-        break;
-      case "cruiser": // Radar Ping - cross pattern
-        if (targetX !== undefined && targetY !== undefined) {
-          const pattern = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
-          for (const [dx, dy] of pattern) {
-            const x = targetX + dx;
-            const y = targetY + dy;
-            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-              if (targetGrid[y][x] === CELL_STATES.empty) {
-                const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
-                this.recordMineShot(x, y, rr === "sink");
-              }
-            }
-          }
-        }
-        this.setMessage("RADAR PING COMPLETE — Cross pattern scanned!");
-        break;
-      case "submarine": // Silent Run - evasion (2 shots)
-        if (targetX !== undefined && targetY !== undefined) {
-          // Target current player's own board (for hotseat) or opponent (agent mode)
-          const targetBoard = this.mode === "hotseat" ? this.getCurrentBoard() : opponentBoard;
-          const ship = targetBoard.shipMap.get(`${targetX},${targetY}`);
-          if (ship && ship.type === "submarine") {
-            ship.abilityActive = true;
-            ship.evasionCharges = 2; // Track evasion charges
-            this.setMessage("SILENT RUN ACTIVATED — Submarine evading next 2 shots!");
-          } else {
-            this.setMessage("NO FRIENDLY SUBMARINE AT TARGET!");
-          }
-        }
-        break;
-      case "destroyer": // Depth Charge - auto-hit random
-        const hiddenCells: [number, number][] = [];
-        for (let y = 0; y < GRID_SIZE; y++) {
-          for (let x = 0; x < GRID_SIZE; x++) {
-            if (targetGrid[y][x] === CELL_STATES.empty && opponentBoard.grid[y][x] === CELL_STATES.ship) {
-              hiddenCells.push([x, y]);
-            }
-          }
-        }
-        if (hiddenCells.length > 0) {
-          const [x, y] = hiddenCells[Math.floor(Math.random() * hiddenCells.length)];
-          const rr = this.fireAt(opponentBoard, targetGrid, x, y, true);
-          this.recordMineShot(x, y, rr === "sink");
-          this.setMessage(`DEPTH CHARGE DETONATED — Auto-hit at ${String.fromCharCode(65+x)}${y+1}!`);
-        } else {
-          this.setMessage("DEPTH CHARGE — No hidden targets found!");
-        }
-        break;
-    }
+    void type; void targetX; void targetY;
+    return false;
   }
 
   scheduleAgentTurn() {
@@ -988,11 +882,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   agentTurn() {
     if (this.phase !== "play" || this.currentTurn !== "agent") return;
-    
-    // Agent considers using an ability first
-    if (this.agentConsiderAbility()) {
-      return;
-    }
 
     let x: number, y: number;
 
@@ -1086,64 +975,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     this.result.turns++;
     this.checkWin();
     if (this.phase === "play") this.endTurn();
-  }
-
-  private agentConsiderAbility(): boolean {
-    if (this.agentDifficulty === "easy") return false;
-    const abilities = ["carrier", "battleship", "cruiser", "submarine", "destroyer"] as ShipType[];
-    const shuffled = [...abilities].sort(() => Math.random() - 0.5);
-    for (const type of shuffled) {
-      if (this.canUseAbility(type)) {
-        // Use ability based on situation
-        if (type === "destroyer" && this.agentDifficulty === "hard") {
-          // Always use depth charge if available on hard
-          this.useAbility(type);
-          return true;
-        }
-        if (type === "carrier" && Math.random() < 0.3) {
-          // Random target for air strike
-          const targets: [number, number][] = [];
-          for (let y = 0; y < GRID_SIZE; y++) {
-            for (let x = 0; x < GRID_SIZE; x++) {
-              if (this.playerTargetGrid[y][x] === CELL_STATES.empty) {
-                targets.push([x, y]);
-              }
-            }
-          }
-          if (targets.length > 0) {
-            const [x, y] = targets[Math.floor(Math.random() * targets.length)];
-            this.useAbility("carrier", x, y);
-            return true;
-          }
-        }
-        if (type === "cruiser" && Math.random() < 0.25) {
-          const targets: [number, number][] = [];
-          for (let y = 0; y < GRID_SIZE; y++) {
-            for (let x = 0; x < GRID_SIZE; x++) {
-              if (this.playerTargetGrid[y][x] === CELL_STATES.empty) {
-                targets.push([x, y]);
-              }
-            }
-          }
-          if (targets.length > 0) {
-            const [x, y] = targets[Math.floor(Math.random() * targets.length)];
-            this.useAbility("cruiser", x, y);
-            return true;
-          }
-        }
-        if (type === "submarine" && Math.random() < 0.2) {
-          // Protect own submarine
-          const subs = this.opponentBoard.ships.filter(s => s.type === "submarine" && !s.sunk);
-          if (subs.length > 0) {
-            const sub = subs[0];
-            const [x, y] = sub.cells[0];
-            this.useAbility("submarine", x, y);
-            return true;
-          }
-        }
-      }
-    }
-    return false;
   }
 
   addHuntTargets(x: number, y: number) {
@@ -2293,11 +2124,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       let status = sunk ? "SUNK" : placed ? `${hits}/${total}` : "NOT SET";
       if (this.phase === "setup" && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
         status = "DEPLOY";
-      } else if (this.phase === "play" && which === "player" && this.mode === "agent" && ship && !ship.sunk) {
-        const ability = SHIP_ABILITIES[type];
-        const ready = this.canUseAbility(type);
-        const cdLeft = ready ? 0 : ability.cooldown - (this.result.turns - ship.abilityUsed);
-        status = ready ? `[${typeIndex + 1}] READY` : `CD ${Math.max(0, cdLeft)}`;
       }
 
       ctx.fillStyle = status === "DEPLOY" || status.includes("READY") ? t.accent : sunk ? t.sunkGlow : t.textMuted;
@@ -2556,13 +2382,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (upper === "A") {
       if (this.phase === "setup") this.randomizeCurrentBoard();
     }
-    if (upper === "E") {
-      if (this.phase === "play" && (this.currentTurn === "player" || this.currentTurn === "player1")) {
-        // Use ability - prompt for which ship type (1-5)
-        this.setMessage("PRESS 1-5 FOR ABILITY: 1=CV 2=BB 3=CA 4=SS 5=DD", 3000);
-        this.awaitingAbility = true;
-      }
-    }
     if (upper === "D") {
       if (this.phase === "setup" && this.mode === "agent") {
         const difficulties: ("easy" | "normal" | "hard")[] = ["easy", "normal", "hard"];
@@ -2573,20 +2392,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     if (upper === "ESCAPE") {
       // Handled by main loop
-    }
-    // Handle ability number keys
-    if (this.awaitingAbility && this.phase === "play") {
-      const num = parseInt(upper);
-      if (num >= 1 && num <= 5) {
-        const types: ShipType[] = ["carrier", "battleship", "cruiser", "submarine", "destroyer"];
-        const type = types[num - 1];
-        if (this.canUseAbility(type)) {
-          this.useAbility(type);
-          this.awaitingAbility = false;
-        } else {
-          this.setMessage(`${SHIP_SPECS[type].short} ABILITY NOT READY`, 1500);
-        }
-      }
     }
   }
 }
