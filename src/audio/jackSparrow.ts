@@ -23,12 +23,8 @@ let audio: HTMLAudioElement | null = null;
 let gestureHooked = false;
 let playing = false;
 
-function prefersSilent(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 function prime(): void {
-  if (prefersSilent() || audio) return;
+  if (audio) return;
   audio = new Audio();
   audio.volume = JACK_VOLUME;
   audio.preload = "auto";
@@ -53,7 +49,7 @@ function pick(list: string[]): string {
 }
 
 function play(list: string[]): boolean {
-  if (prefersSilent() || playing) return false;
+  if (playing) return false;
   prime();
   if (!audio) return false;
   playing = true;
@@ -68,10 +64,9 @@ function play(list: string[]): boolean {
 
 /** Prime the shared element on the first user gesture so playback is allowed later. */
 export function primeJackSparrow(): void {
-  if (gestureHooked || prefersSilent()) return;
+  if (gestureHooked) return;
   gestureHooked = true;
   prime();
-  void audio?.play().then(() => audio?.pause()).catch(() => undefined);
 }
 
 export function playJackIntro(): boolean {

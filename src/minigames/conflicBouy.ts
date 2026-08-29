@@ -514,6 +514,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const sunk = checkSunk(board, ship);
       if (sunk) {
         targetGrid[y][x] = CELL_STATES.sunk;
+        for (const [sx, sy] of ship.cells) {
+          targetGrid[sy][sx] = CELL_STATES.sunk;
+        }
         this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "sink", timer: 800 });
         this.triggerSunkEffects(x, y, byPlayer, this.lastW, this.lastH);
         playWarriorImpact(1.2);
@@ -756,10 +759,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     } else if (res === "miss") {
       this.result.playerMisses++;
       this.setMessage(this.getSparrowLine("player_miss"));
-      this.endTurn();
     }
     this.result.turns++;
     this.checkWin();
+    if (this.phase === "play") this.endTurn();
     return true;
   }
 
@@ -811,6 +814,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   endTurn(scheduleNext = true) {
+    if (this.phase !== "play") return;
     // Turn transition wipe
     this.turnWipe = 1;
     this.turnWipeColor = this.theme.accent;
@@ -860,10 +864,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Ability popup
     this.popups.push({ text: `⚡ ${ability.name}!`, x: this.lastW / 2, y: this.lastH * 0.3, life: 1000, maxLife: 1000, color: "#c0f0ff", size: 12, type: "ability" });
     this.executeAbility(type, targetX, targetY);
-    // Ability counts as turn action - end turn
-    if (this.mode !== "agent" || this.currentTurn !== "agent") {
-      this.endTurn();
-    }
+    this.result.turns++;
+    this.checkWin();
+    if (this.phase === "play") this.endTurn();
     return true;
   }
 
@@ -967,8 +970,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     
     // Agent considers using an ability first
     if (this.agentConsiderAbility()) {
-      // Ability used - end agent turn, pass to player (don't schedule another agent turn)
-      this.endTurn(false);
       return;
     }
 
@@ -1039,7 +1040,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.lastHit = [x, y];
       this.huntMode = true;
       this.addHuntTargets(x, y);
-      this.scheduleAgentTurn();
     } else if (res === "sink") {
       this.result.agentHits++;
       this.setMessage(this.getSparrowLine("agent_sink"));
@@ -1047,7 +1047,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.huntQueue = [];
       this.lastHit = null;
       this.lastHitDirection = null;
-      this.endTurn();
     } else if (res === "miss") {
       this.result.agentMisses++;
       this.setMessage(this.getSparrowLine("agent_miss"));
@@ -1062,10 +1061,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
           this.huntQueue.unshift([revX, revY]);
         }
       }
-      this.endTurn();
     }
     this.result.turns++;
     this.checkWin();
+    if (this.phase === "play") this.endTurn();
   }
 
   private agentConsiderAbility(): boolean {
