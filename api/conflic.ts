@@ -43,12 +43,14 @@ function validSupabaseUrl(value: string): boolean {
 }
 
 function headers(extra?: Record<string, string>): Record<string, string> {
-  return {
+  const result: Record<string, string> = {
     apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
     "Content-Type": "application/json",
     ...extra,
   };
+  // Legacy service_role keys are JWTs; new sb_secret_ keys authenticate via apikey only.
+  if (!serviceKey.startsWith("sb_secret_")) result.Authorization = `Bearer ${serviceKey}`;
+  return result;
 }
 
 function failure(message: string): ConflicCommandResult {
