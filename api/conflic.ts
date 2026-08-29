@@ -132,12 +132,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
   if (!supabaseUrl || !serviceKey) {
     const missing = [!supabaseUrl ? "Supabase URL" : "", !serviceKey ? "Supabase service key" : ""].filter(Boolean);
-    const availableSupabaseVariables = Object.keys(process.env).filter((name) => name.includes("SUPABASE"));
-    res.status(503).json({
-      ok: false,
-      message: `Missing in Vercel Production: ${missing.join(" and ")}`,
-      availableSupabaseVariables,
-    });
+    res.status(503).json({ ok: false, message: `Missing in Vercel Production: ${missing.join(" and ")}` });
     return;
   }
 
