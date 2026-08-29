@@ -1,11 +1,11 @@
-import { ConflicRoomManager, type ConflicRoomsSnapshot } from "../server/conflicRooms";
+import { ConflicRoomManager, type ConflicRoomsSnapshot } from "../server/conflicRooms.js";
 import {
   CONFLIC_TABLE_IDS,
   type ConflicCommandResult,
   type ConflicJoinResult,
   type ConflicPlacement,
   type ConflicTableId,
-} from "../src/net/conflicProtocol";
+} from "../src/net/conflicProtocol.js";
 
 type ApiRequest = {
   method?: string;

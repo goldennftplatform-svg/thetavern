@@ -23,7 +23,7 @@ import {
   type ConflicSeatStats,
   type ConflicShipType,
   type ConflicTableId,
-} from "../src/net/conflicProtocol";
+} from "../src/net/conflicProtocol.js";
 
 type InternalShip = ConflicPlacement & { hits: boolean[]; sunk: boolean };
 
@@ -78,9 +78,9 @@ const emptyStats = (): ConflicSeatStats => ({ shots: 0, hits: 0, misses: 0, ship
 const failure = (error: Parameters<typeof makeFailure>[0], message: string) => makeFailure(error, message);
 
 function makeFailure(
-  error: import("../src/net/conflicProtocol").ConflicErrorCode,
+  error: import("../src/net/conflicProtocol.js").ConflicErrorCode,
   message: string,
-): { ok: false; error: import("../src/net/conflicProtocol").ConflicErrorCode; message: string } {
+): { ok: false; error: import("../src/net/conflicProtocol.js").ConflicErrorCode; message: string } {
   return { ok: false, error, message };
 }
 
