@@ -22,13 +22,16 @@ type ApiResponse = {
 type StoredState = { revision: number; state: ConflicRoomsSnapshot | null };
 type Body = Record<string, unknown>;
 
-const supabaseUrl = process.env.SUPABASE_URL
-  ?? process.env.VITE_SUPABASE_URL
-  ?? process.env.NEXT_PUBLIC_SUPABASE_URL
-  ?? "";
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  ?? process.env.SUPABASE_SECRET_KEY
-  ?? "";
+function environment(...names: string[]): string {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+const supabaseUrl = environment("SUPABASE_URL", "VITE_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+const serviceKey = environment("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY");
 const stateEndpoint = `${supabaseUrl}/rest/v1/conflic_state`;
 
 function headers(extra?: Record<string, string>): Record<string, string> {
@@ -129,7 +132,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
   if (!supabaseUrl || !serviceKey) {
     const missing = [!supabaseUrl ? "Supabase URL" : "", !serviceKey ? "Supabase service key" : ""].filter(Boolean);
-    res.status(503).json({ ok: false, message: `Missing in Vercel Production: ${missing.join(" and ")}` });
+    const availableSupabaseVariables = Object.keys(process.env).filter((name) => name.includes("SUPABASE"));
+    res.status(503).json({
+      ok: false,
+      message: `Missing in Vercel Production: ${missing.join(" and ")}`,
+      availableSupabaseVariables,
+    });
     return;
   }
 
