@@ -5,6 +5,7 @@
  */
 
 import { playPlatformLand, playPlatformPickup, playWarriorImpact } from "../audio/warriorSfx";
+import { playJackIntro, playJackOutro, playJackTaunt } from "../audio/jackSparrow";
 import { BouyTheme, getTheme, BouyThemeId } from "./conflicBouyThemes";
 import { getContextualSparrowLine, getVariantLine } from "./conflicBouyPersonality";
 import {
@@ -425,6 +426,9 @@ export class ConflicBouy {
         this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
         this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
         this.setMessage(this.getSparrowLine("game_start"), 2500);
+        if (this.mode === "agent") {
+          playJackIntro();
+        }
       }
     }
     return true;
@@ -465,6 +469,9 @@ export class ConflicBouy {
         this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
         this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
         this.setMessage(this.getSparrowLine("game_start"), 2500);
+        if (this.mode === "agent") {
+          playJackIntro();
+        }
       }
     }
   }
@@ -740,8 +747,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (res === "hit") {
       this.result.playerHits++;
       this.setMessage(this.getSparrowLine("player_hit"));
+      this.jackTaunt();
     } else if (res === "sink") {
       this.result.playerHits++;
+      this.jackTaunt(true);
       const shipType = opponentBoard.shipMap.get(`${x},${y}`)?.type.toUpperCase() ?? "SHIP";
       this.setMessage(this.getSparrowLine("player_sink") + ` — ${shipType} SUNK!`);
     } else if (res === "miss") {
@@ -752,6 +761,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     this.result.turns++;
     this.checkWin();
     return true;
+  }
+
+  /** Jack Sparrow voice-over — play a pre-recorded pirate taunt clip on a hit (~1-in-5; sinks always). */
+  private jackTaunt(force = false) {
+    if (!force && Math.random() > 0.2) return;
+    if (this.mode !== "agent") return;
+    playJackTaunt();
   }
 
   /**
@@ -1141,6 +1157,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       if (this.mode === "agent") {
         this.result.winner = opponentDead ? "player" : "agent";
         this.setMessage(this.getSparrowLine(this.result.winner === "player" ? "victory" : "defeat"), 4000);
+        playJackOutro();
       } else {
         this.result.winner = playerDead ? "player2" : "player1";
         this.setMessage(this.getSparrowLine(this.result.winner === "player1" ? "victory" : "defeat"), 4000);

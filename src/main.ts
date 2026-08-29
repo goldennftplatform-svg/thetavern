@@ -113,6 +113,7 @@ import {
 } from "./audio/fishingSfx";
 import { bindWarriorTouch } from "./warriorTouch";
 import { primeWarriorSfx } from "./audio/warriorSfx";
+import { primeJackSparrow } from "./audio/jackSparrow";
 import { demplarEpigraphs } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
@@ -1326,6 +1327,7 @@ function startDemplarWarrior() {
 
 function startConflicBouy(theme?: string) {
   primeWarriorSfx();
+  primeJackSparrow();
   conflicGame = new ConflicBouy({ 
     mode: conflicMode, 
     theme: (theme ?? conflicTheme) as "charter" | "odyssey" | "abyssal" | "corsair" | "voidwalker",
