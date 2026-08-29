@@ -127,6 +127,143 @@
   }
 }
 
+/* Online table lobby */
+.studio-stage--conflic-lobby {
+  width: min(100%, 1040px);
+}
+
+.conflic-table-lobby {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.conflic-table-card {
+  position: relative;
+  overflow: hidden;
+  padding: 14px;
+  border: 2px solid rgba(232, 176, 80, 0.42);
+  background:
+    linear-gradient(90deg, rgba(255, 229, 162, 0.025) 1px, transparent 1px) 0 0 / 8px 100%,
+    linear-gradient(150deg, rgba(54, 31, 19, 0.97), rgba(12, 10, 17, 0.98));
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.5), inset 0 0 22px rgba(0, 0, 0, 0.28);
+}
+
+.conflic-table-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 85% 0%, var(--table-glow, rgba(232, 176, 80, 0.16)), transparent 46%);
+}
+
+.conflic-table-card--odyssey { --table-glow: rgba(80, 170, 255, 0.2); }
+.conflic-table-card--abyssal { --table-glow: rgba(72, 220, 190, 0.2); }
+.conflic-table-card--corsair { --table-glow: rgba(235, 105, 60, 0.2); }
+.conflic-table-card--voidwalker { --table-glow: rgba(190, 70, 255, 0.24); }
+
+.conflic-table-card header,
+.conflic-table-card > p,
+.conflic-table-card > button,
+.conflic-table-seats {
+  position: relative;
+  z-index: 1;
+}
+
+.conflic-table-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--gold);
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.conflic-table-card header small,
+.conflic-table-card > p {
+  color: var(--muted);
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 0.92rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.conflic-table-card > p {
+  margin: 5px 0 10px;
+  color: var(--jade);
+}
+
+.conflic-table-seats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.conflic-table-seat {
+  display: flex;
+  min-width: 0;
+  min-height: 62px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 1px dashed rgba(104, 232, 168, 0.38);
+  background: rgba(6, 8, 13, 0.55);
+  text-align: left;
+}
+
+.conflic-table-seat--taken {
+  border-style: solid;
+  border-color: rgba(232, 176, 80, 0.35);
+}
+
+.conflic-table-seat small,
+.conflic-table-seat em {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 0.86rem;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conflic-table-seat strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 1.1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conflic-table-card > button {
+  width: 100%;
+}
+
+.conflic-lobby-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .conflic-table-lobby {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .conflic-table-lobby {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ——— Theme icon hover spin ——— */
 .studio-stage--pick .hub-tile-icon {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);

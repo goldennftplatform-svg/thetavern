@@ -55,11 +55,21 @@ Many apps ship **one** server or **one** Vercel project where the UI and realtim
 
 | Piece | What it is |
 |--------|------------|
-| **Vercel** | Only **static files** from `dist/` (game + bigboard HTML). No Node Socket.IO there. |
+| **Vercel** | Static game files plus the turn-based `/api/conflic` function. It does not host the Node Socket.IO trail. |
 | **Trail server** | Separate **Node** process (`npm run server`) for Socket.IO — must be running (or tunneled) for the dashboard feed + map to go live. |
+| **Supabase** | Durable, server-only state for the five online Conflic Bouy tables. |
 | **Port `3847`** | If you start the server twice, you get **`EADDRINUSE`** — kill the old process or change `TRAIL_PORT`. |
 
 **Dashboard URLs:** after deploy, open **`/dashboard`** or **`/bigboard.html`** (rewrites in `vercel.json`). Locally: **`http://127.0.0.1:5174/bigboard.html`** while `npm run dashboard` (or `live`) is running.
+
+## Online Conflic Bouy
+
+1. Apply `supabase/migrations/20260829000000_conflic_state.sql` in the Supabase SQL editor.
+2. Set `VITE_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in Vercel. The service-role key must never be exposed through a `VITE_` variable.
+3. Deploy the repository to Vercel. The client uses the same-origin `/api/conflic` endpoint.
+4. For a GitHub Pages client, set `VITE_CONFLIC_API_URL` to the full Vercel endpoint URL before building.
+
+The API uses optimistic revisions for atomic seat and turn updates. Private fleet coordinates remain in the server-only Supabase record and are projected only to their owning player. Waiting seats expire after five idle minutes; active matches allow thirty minutes for reconnection.
 
 ## Deploy (tunnel + env)
 

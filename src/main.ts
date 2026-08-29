@@ -95,6 +95,13 @@ import {
   type BouyResult,
 } from "./minigames/conflicBouy";
 import { connectTrail } from "./net/trailClient";
+import { ConflicOnlineClient } from "./net/conflicClient";
+import {
+  CONFLIC_TABLE_IDS,
+  type ConflicPrivateRoomView,
+  type ConflicRoomSummary,
+  type ConflicTableId,
+} from "./net/conflicProtocol";
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass, isTavernMobile } from "./mobile-detect";
@@ -148,6 +155,7 @@ import {
   triviaStudioHtml,
   triviaTeachHtml,
   conflicResultStudioHtml,
+  conflicLobbyStudioHtml,
   conflicThemePickStudioHtml,
   conflicThemePickStudioHtmlForMode,
   conflicStakePickStudioHtml,
@@ -340,6 +348,8 @@ elCredits.textContent = creditsLine;
 
 let state: GameState = initialState("Traveler");
 let socket: Socket | null = null;
+let conflicOnline: ConflicOnlineClient | null = null;
+let conflicRooms: ConflicRoomSummary[] = [];
 let hallViewOpen = false;
 
 function hallBoardHref(): string {
@@ -843,7 +853,8 @@ function ensureMenuClickDelegation() {
       } else if (cont === "interlude") setPhase(state.runCount % 2 === 0 ? "peril" : "trivia");
       else if (cont === "well") {
         closeHallView();
-        setPhase("well");
+        if (conflicOnline?.tableId) void leaveOnlineTable("well");
+        else setPhase("well");
       }
       return;
     }
@@ -1005,7 +1016,8 @@ function handleHubAction(action: string) {
   }
   if (action === "back:well") {
     closeHallView();
-    setPhase("well");
+    if (conflicOnline?.tableId) void leaveOnlineTable("well");
+    else setPhase("well");
     return;
   }
   if (action === "hall_view") {
@@ -1035,18 +1047,43 @@ function handleHubAction(action: string) {
     startConflicBouy();
     return;
   }
+  if (action === "conflic_online_return") {
+    void leaveOnlineTable("conflic_lobby");
+    return;
+  }
   if (action === "conflic_bouy_entry") {
     setPhase("conflic_theme");
     return;
   }
   if (action === "conflic_bouy_change") {
     // Go back to mode picker
+    if (conflicMode === "online") {
+      void leaveOnlineTable("conflic_theme");
+      return;
+    }
     setPhase("conflic_theme");
+    return;
+  }
+  if (action === "conflic_local") {
+    if (conflicOnline?.tableId) void leaveOnlineTable("conflic_theme");
+    else setPhase("conflic_theme");
+    return;
+  }
+  if (action === "conflic_lobby_refresh") {
+    conflicOnline?.requestLobby();
+    return;
+  }
+  if (action.startsWith("conflic_online_join:")) {
+    const tableId = action.slice("conflic_online_join:".length);
+    if (CONFLIC_TABLE_IDS.includes(tableId as ConflicTableId)) void joinOnlineTable(tableId as ConflicTableId);
     return;
   }
   if (action.startsWith("conflic_mode:")) {
     const mode = action.slice(13) as BouyMode;
-    if (mode === "agent" || mode === "hotseat") {
+    if (mode === "online") {
+      conflicMode = mode;
+      setPhase("conflic_lobby");
+    } else if (mode === "agent" || mode === "hotseat") {
       conflicMode = mode;
       setPhase("conflic_theme_mode");
     }
@@ -1345,6 +1382,73 @@ function startConflicBouy(theme?: string) {
   setPhase("conflic_bouy");
 }
 
+function startOnlineConflic(view: ConflicPrivateRoomView) {
+  conflicMode = "online";
+  conflicTheme = view.tableId;
+  conflicStake = 0;
+  conflicLastResult = null;
+  conflicLastRewards = { renown: 0, tokens: 0 };
+  primeWarriorSfx();
+  primeJackSparrow();
+  conflicGame = new ConflicBouy({
+    mode: "online",
+    theme: view.tableId,
+    stake: 0,
+    onlineCallbacks: {
+      deploy: (ships) => conflicOnline?.submitFleet(ships),
+      fire: (x, y) => conflicOnline?.fire(x, y),
+    },
+  });
+  conflicGame.applyOnlineView(view);
+  syncConflicOnlineState(view);
+  setPhase("conflic_bouy");
+}
+
+function syncConflicOnlineState(view: ConflicPrivateRoomView) {
+  canvas.dataset.conflicTable = view.tableId;
+  canvas.dataset.conflicPhase = view.phase;
+  canvas.dataset.conflicTurn = view.turn == null ? "" : String(view.turn);
+  canvas.dataset.conflicRevision = String(view.revision);
+  canvas.dataset.conflicLastShot = view.lastShot?.actionId ?? "";
+  canvas.setAttribute("aria-label", `Conflic Bouy ${view.tableId} table, ${view.phase}, ${view.turn === view.yourSeat ? "your turn" : "rival's turn"}`);
+}
+
+async function joinOnlineTable(tableId: ConflicTableId) {
+  if (!conflicOnline?.connected) {
+    showToast("Online tables cannot reach the Vercel game API.", 3600, { force: true });
+    return;
+  }
+  showToast("Claiming a private seat…", 2200, { force: true });
+  const result = await conflicOnline.join(tableId);
+  if (!result.ok) {
+    showToast(result.message, 4000, { force: true });
+    conflicOnline.requestLobby();
+    return;
+  }
+  startOnlineConflic(result.state);
+}
+
+async function leaveOnlineTable(next: GamePhase) {
+  stopConflicLoop();
+  await conflicOnline?.leave();
+  conflicGame = null;
+  delete canvas.dataset.conflicTable;
+  delete canvas.dataset.conflicPhase;
+  delete canvas.dataset.conflicTurn;
+  delete canvas.dataset.conflicRevision;
+  delete canvas.dataset.conflicLastShot;
+  canvas.setAttribute("aria-label", "Game canvas");
+  setPhase(next);
+  if (next === "conflic_lobby") conflicOnline?.requestLobby();
+}
+
+function renderConflicLobby() {
+  if (state.phase !== "conflic_lobby") return;
+  openMenu(conflicLobbyStudioHtml(conflicRooms, !!conflicOnline?.connected, conflicOnline?.tableId));
+  elPrimary.hidden = true;
+  wirePhaseHub();
+}
+
 function drawConflic() {
   const { w, h } = syncCanvasBuffer();
   conflicGame?.draw(ctx, w, h);
@@ -1361,7 +1465,9 @@ function finishConflicRun() {
   const result = conflicGame.result;
   conflicLastResult = result;
   const minePayout = result.mine?.payout ?? 0;
-  conflicLastRewards = conflicMode === "hotseat"
+  conflicLastRewards = conflicMode === "online"
+    ? { renown: 0, tokens: 0 }
+    : conflicMode === "hotseat"
     ? { renown: 0, tokens: minePayout }
     : {
         renown: renownFromBouyScore(result),
@@ -1701,13 +1807,18 @@ function setPhase(next: GamePhase) {
       break;
     }
     case "conflic_theme_mode": {
-      openMenu(conflicThemePickStudioHtmlForMode(conflicMode));
+      openMenu(conflicThemePickStudioHtmlForMode(conflicMode === "hotseat" ? "hotseat" : "agent"));
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
     }
+    case "conflic_lobby": {
+      renderConflicLobby();
+      conflicOnline?.requestLobby();
+      break;
+    }
     case "conflic_stake": {
-      openMenu(conflicStakePickStudioHtml(conflicMode, conflicTheme));
+      openMenu(conflicStakePickStudioHtml(conflicMode === "hotseat" ? "hotseat" : "agent", conflicTheme));
       elPrimary.hidden = true;
       wirePhaseHub();
       break;
@@ -2073,7 +2184,8 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "Escape") {
       e.preventDefault();
-      setPhase("well");
+      if (conflicMode === "online") void leaveOnlineTable("conflic_lobby");
+      else setPhase("well");
     }
     return;
   }
@@ -2200,6 +2312,34 @@ async function bootTrail() {
   }
 }
 
+function bootConflicOnline() {
+  conflicOnline = new ConflicOnlineClient({
+    name: state.nickname,
+    avatarId: state.avatarId,
+    onLobby: (rooms) => {
+      conflicRooms = rooms;
+      renderConflicLobby();
+    },
+    onState: (view) => {
+      if (conflicMode !== "online" || state.phase !== "conflic_bouy" || !conflicGame) return;
+      conflicGame.applyOnlineView(view);
+      syncConflicOnlineState(view);
+      drawConflic();
+    },
+    onError: (message) => {
+      if (state.phase === "conflic_lobby" || conflicMode === "online") showToast(message, 3600, { force: true });
+    },
+    onConnection: () => renderConflicLobby(),
+    onSessionLost: () => {
+      if (conflicMode !== "online") return;
+      stopConflicLoop();
+      conflicGame = null;
+      setPhase("conflic_lobby");
+      showToast("Your table seat expired. Choose an open seat to return.", 4200, { force: true });
+    },
+  });
+}
+
 async function startGameFromGate() {
   const raw = elNick.value.trim() || "Anonymous Angler";
   const display = raw.slice(0, 28);
@@ -2219,6 +2359,7 @@ async function startGameFromGate() {
   loadedTheme = await loadDailyMediaTheme();
   applyDailyMediaChrome(loadedTheme);
   await bootTrail();
+  bootConflicOnline();
   requestAnimationFrame(() => {
     resizeCanvas();
     setPhase("well");

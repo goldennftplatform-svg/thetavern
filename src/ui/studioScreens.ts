@@ -3,7 +3,7 @@ import { pickLine } from "../content/arcaneLore";
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { DemplarRunResult } from "../minigames/demplarWarrior";
-import type { BouyResult } from "../minigames/conflicBouy";
+import type { BouyMode, BouyResult } from "../minigames/conflicBouy";
 import type { FoodId } from "../content/tavernNights";
 import { FISHING_POLES, type FishingPole, type PoleId } from "../content/fishingPoles";
 import { nextPoleUnlock } from "../content/fishingPoles";
@@ -28,6 +28,12 @@ import {
 import { avatarFaceHtml, avatarLabel, houseAvatarPickerHtml } from "./avatarFace";
 import type { HouseAvatarId } from "../content/houseAvatars";
 import { type NoticeEntry, renderNoticeList } from "./notices";
+import {
+  CONFLIC_TABLE_IDS,
+  CONFLIC_TABLE_LABELS,
+  type ConflicRoomSummary,
+  type ConflicTableId,
+} from "../net/conflicProtocol";
 
 export type RunSnapshot = {
   renown: number;
@@ -303,14 +309,14 @@ export function conflicResultStudioHtml(
   r: BouyResult,
   renown: number,
   tokens: number,
-  mode: "agent" | "hotseat",
+  mode: BouyMode,
 ): string {
   const isHotseat = mode === "hotseat";
   const isVictory = isHotseat || r.winner === "player" || r.winner === "player1";
   const accuracy = r.playerHits + r.playerMisses > 0
     ? Math.round((r.playerHits / (r.playerHits + r.playerMisses)) * 100)
     : 0;
-  const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
+  const modeLabel = mode === "agent" ? "vs AGENT" : mode === "online" ? "ONLINE TABLE" : "1v1 HOTSEAT";
   const resultLabel = isHotseat
     ? `PLAYER ${r.winner === "player1" ? 1 : 2} WINS`
     : isVictory ? "VICTORY" : "DEFEAT";
@@ -369,8 +375,8 @@ export function conflicResultStudioHtml(
     ${shipGraveyard}`,
     "studio-stage--result",
     `<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-      <button type="button" class="btn primary big studio-continue" data-hub-action="conflic_bouy">⚓ Play Again (Same Mode)</button>
-      <button type="button" class="btn ghost big studio-continue" data-hub-action="conflic_bouy_change">🔄 Change Mode/Theme</button>
+      <button type="button" class="btn primary big studio-continue" data-hub-action="${mode === "online" ? "conflic_online_return" : "conflic_bouy"}">${mode === "online" ? "Return to Online Tables" : "⚓ Play Again (Same Mode)"}</button>
+      <button type="button" class="btn ghost big studio-continue" data-hub-action="conflic_bouy_change">🔄 ${mode === "online" ? "Local / Solo Modes" : "Change Mode/Theme"}</button>
       <button type="button" class="btn ghost big studio-continue" data-continue="well">Back to the Well</button>
     </div>`,
   );
@@ -381,6 +387,7 @@ export function conflicThemePickStudioHtml(): string {
   const modeTiles = [
     { icon: "🤖", label: "vs AGENT", desc: "Battle Captain Jack Sparrow", mode: "agent" },
     { icon: "👥", label: "1v1 HOTSEAT", desc: "Pass & play with a friend", mode: "hotseat" },
+    { icon: "⚔", label: "ONLINE TABLES", desc: "Five private two-captain tables", mode: "online" },
   ];
   const modeHtml = modeTiles.map((m, i) => 
     `<button type="button" class="hub-tile hub-tile--gold" data-hub-action="conflic_mode:${m.mode}" style="min-height:120px;animation-delay:${0.05 + i * 0.08}s;">
@@ -415,6 +422,57 @@ export function conflicThemePickStudioHtml(): string {
     <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid" style="opacity:0.4;">${themeHtml}</div>`,
     "studio-stage--pick",
     hubBackHtml(),
+  );
+}
+
+export function conflicLobbyStudioHtml(rooms: ConflicRoomSummary[], connected: boolean, currentTable?: ConflicTableId | null): string {
+  const byId = new Map(rooms.map((room) => [room.tableId, room]));
+  const statusLabel = (status: ConflicRoomSummary["status"]) => ({
+    empty: "OPEN TABLE",
+    waiting: "WAITING FOR RIVAL",
+    placing: "FLEETS DEPLOYING",
+    playing: "BATTLE IN PROGRESS",
+    finished: "MATCH COMPLETE",
+  })[status];
+  const cards = CONFLIC_TABLE_IDS.map((tableId) => {
+    const room = byId.get(tableId) ?? {
+      tableId,
+      label: CONFLIC_TABLE_LABELS[tableId],
+      status: "empty" as const,
+      occupants: [],
+    };
+    const seats = ([0, 1] as const).map((seat) => {
+      const player = room.occupants.find((occupant) => occupant.seat === seat);
+      return `<span class="conflic-table-seat ${player ? "conflic-table-seat--taken" : ""}">
+        <small>Seat ${seat + 1}</small>
+        <strong>${player ? escapeHtml(player.name) : "Open seat"}</strong>
+        <em>${player ? (player.connected ? (player.deployed ? "Fleet locked" : "At table") : "Reconnecting") : "Join now"}</em>
+      </span>`;
+    }).join("");
+    const resuming = currentTable === tableId;
+    const full = room.occupants.length >= 2 && !resuming;
+    const disabled = !connected || full;
+    return `<article class="conflic-table-card conflic-table-card--${tableId}">
+      <header><span>${escapeHtml(room.label)}</span><small>${room.occupants.length}/2 captains</small></header>
+      <p>${statusLabel(room.status)}</p>
+      <div class="conflic-table-seats">${seats}</div>
+      <button type="button" class="btn ${disabled ? "ghost" : "primary"}" data-hub-action="conflic_online_join:${tableId}" ${disabled ? "disabled" : ""}>
+        ${!connected ? "Online API unavailable" : resuming ? "Resume your seat" : full ? "Table full" : "Take open seat"}
+      </button>
+    </article>`;
+  }).join("");
+
+  return studioStageHtml(
+    "Conflic Bouy Online",
+    `<p class="studio-flourish">Five waters · ten captains · private fleets</p>
+    <p class="studio-lore-line studio-lore-line--hint">Choose a themed table. Battles begin when both captains lock their fleets.</p>
+    <section class="conflic-table-lobby" aria-label="Online Conflic Bouy tables">${cards}</section>`,
+    "studio-stage--pick studio-stage--conflic-lobby",
+    `<div class="conflic-lobby-actions">
+      <button type="button" class="btn ghost" data-hub-action="conflic_local">Local / solo modes</button>
+      <button type="button" class="btn ghost" data-hub-action="conflic_lobby_refresh">Refresh tables</button>
+      ${hubBackHtml()}
+    </div>`,
   );
 }
 

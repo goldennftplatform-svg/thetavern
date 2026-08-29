@@ -8,6 +8,7 @@ import { playPlatformLand, playPlatformPickup, playWarriorImpact } from "../audi
 import { playJackIntro, playJackOutro, playJackTaunt } from "../audio/jackSparrow";
 import { BouyTheme, getTheme, BouyThemeId } from "./conflicBouyThemes";
 import { getContextualSparrowLine, getVariantLine } from "./conflicBouyPersonality";
+import type { ConflicPlacement, ConflicPrivateRoomView } from "../net/conflicProtocol";
 import {
   DEFAULT_MINE_CONFIG,
   drill,
@@ -21,7 +22,7 @@ import {
   type MineSettlement,
 } from "./mine";
 
-export type BouyMode = "agent" | "hotseat";
+export type BouyMode = "agent" | "hotseat" | "online";
 export type BouyPhase = "setup" | "play" | "over";
 export type SetupSubPhase = "player1" | "player2" | "done";
 
@@ -194,6 +195,14 @@ export class ConflicBouy {
   currentTurn: "player" | "agent" | "player1" | "player2" = "player";
   handoffPending = false;
   private handoffReason: "setup" | "turn" = "setup";
+  private onlineCallbacks?: {
+    deploy: (ships: ConflicPlacement[]) => void;
+    fire: (x: number, y: number) => void;
+  };
+  private onlineView: ConflicPrivateRoomView | null = null;
+  private onlineStatus = "";
+  private onlineFleetSubmitted = false;
+  private lastOnlineActionId = "";
   playerPlacing = 0;
   horizontal = true;
   hoverCell: [number, number] | null = null;
@@ -260,10 +269,19 @@ export class ConflicBouy {
   private turnWipe = 0;
   private turnWipeColor = "";
 
-  constructor(opts?: { mode?: BouyMode; theme?: BouyThemeId; stake?: number }) {
+  constructor(opts?: {
+    mode?: BouyMode;
+    theme?: BouyThemeId;
+    stake?: number;
+    onlineCallbacks?: {
+      deploy: (ships: ConflicPlacement[]) => void;
+      fire: (x: number, y: number) => void;
+    };
+  }) {
     this.mode = opts?.mode ?? "agent";
     this.themeId = opts?.theme ?? "charter";
     this.stake = opts?.stake ?? 0;
+    this.onlineCallbacks = opts?.onlineCallbacks;
     this.reset();
   }
 
@@ -285,7 +303,7 @@ export class ConflicBouy {
 
     // Fall back to main Sparrow system
     return getContextualSparrowLine(event, {
-      mode: this.mode,
+      mode: this.mode === "online" ? "agent" : this.mode,
       phase: this.phase,
       currentTurn: this.currentTurn,
       playerBoard: this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player1Board : this.player2Board) : this.playerBoard,
@@ -304,7 +322,7 @@ export class ConflicBouy {
       this.agentTurnTimeout = null;
     }
     this.playerBoard = createBoard();
-    this.opponentBoard = randomBoard();
+    this.opponentBoard = this.mode === "agent" ? randomBoard() : createBoard();
     this.player1Board = createBoard();
     this.player2Board = createBoard();
     this.playerTargetGrid = emptyGrid();
@@ -312,11 +330,16 @@ export class ConflicBouy {
     this.currentTurn = "player";
     this.handoffPending = false;
     this.handoffReason = "setup";
+    this.onlineView = null;
+    this.onlineStatus = this.mode === "online" ? "WAITING FOR A RIVAL" : "";
+    this.onlineFleetSubmitted = false;
+    this.lastOnlineActionId = "";
     this.playerPlacing = 0;
     this.horizontal = true;
     this.hoverCell = null;
     this.result = { winner: null, playerHits: 0, playerMisses: 0, agentHits: 0, agentMisses: 0, turns: 0 };
     // Mining 201 — reseed the claim with ore/pay nodes.
+    this.mineEnabled = this.mode !== "online";
     this.mineConfig = DEFAULT_MINE_CONFIG;
     this.mineStats = newMineStats(this.mineConfig);
     this.mineNodes = seedMineNodes(
@@ -396,6 +419,94 @@ export class ConflicBouy {
     return this.playerBoard.grid;
   }
 
+  getOnlineFleet(): ConflicPlacement[] {
+    return this.playerBoard.ships.map((ship) => ({
+      type: ship.type,
+      cells: ship.cells.map(([x, y]) => [x, y]),
+    }));
+  }
+
+  applyOnlineView(view: ConflicPrivateRoomView) {
+    if (this.mode !== "online") return;
+    const previousAction = this.lastOnlineActionId;
+    this.onlineView = view;
+    this.onlineFleetSubmitted = view.ownShips.length > 0;
+    this.playerPlacing = this.onlineFleetSubmitted ? FLEET.length : 0;
+
+    this.playerBoard = createBoard();
+    this.playerBoard.grid = view.ownGrid.map((row) => [...row]) as CellState[][];
+    for (const source of view.ownShips) {
+      const ship: Ship = {
+        type: source.type,
+        cells: source.cells.map(([x, y]) => [x, y]),
+        hits: [...source.hits],
+        sunk: source.sunk,
+        abilityUsed: -1,
+        abilityActive: false,
+        evasionCharges: 0,
+      };
+      this.playerBoard.ships.push(ship);
+      for (const [x, y] of ship.cells) this.playerBoard.shipMap.set(`${x},${y}`, ship);
+    }
+
+    this.opponentBoard = createBoard();
+    for (const source of view.enemyShips) {
+      this.opponentBoard.ships.push({
+        type: source.type,
+        cells: [],
+        hits: Array.from({ length: SHIP_SPECS[source.type].size }, (_, index) => index < source.hits),
+        sunk: source.sunk,
+        abilityUsed: -1,
+        abilityActive: false,
+        evasionCharges: 0,
+      });
+    }
+    this.opponentTargetGrid = view.targetGrid.map((row) => [...row]) as CellState[][];
+    this.currentTurn = view.turn === view.yourSeat ? "player" : "agent";
+    this.result.playerHits = view.stats[view.yourSeat].hits;
+    this.result.playerMisses = view.stats[view.yourSeat].misses;
+    const enemySeat = view.yourSeat === 0 ? 1 : 0;
+    this.result.agentHits = view.stats[enemySeat].hits;
+    this.result.agentMisses = view.stats[enemySeat].misses;
+    this.result.turns = view.stats[0].shots + view.stats[1].shots;
+
+    if (view.phase === "waiting") {
+      this.phase = "setup";
+      this.onlineStatus = "WAITING FOR A RIVAL";
+    } else if (view.phase === "placing") {
+      this.phase = "setup";
+      this.onlineStatus = this.onlineFleetSubmitted ? "FLEET LOCKED — WAITING FOR RIVAL" : "";
+    } else if (view.phase === "playing") {
+      this.phase = "play";
+      const enemy = view.players[enemySeat];
+      this.onlineStatus = enemy && !enemy.connected ? "RIVAL RECONNECTING" : "";
+    } else {
+      this.phase = "over";
+      this.onlineStatus = "";
+      this.result.winner = view.winner === view.yourSeat ? "player" : "agent";
+      this._gameOverTime = performance.now();
+    }
+
+    if (view.lastShot && view.lastShot.actionId !== previousAction) {
+      this.lastOnlineActionId = view.lastShot.actionId;
+      const shotByLocal = view.lastShot.seat === view.yourSeat;
+      this.flashCells.push({
+        x: view.lastShot.x,
+        y: view.lastShot.y,
+        board: shotByLocal ? "opponent" : "player",
+        type: view.lastShot.result === "sunk" ? "sink" : view.lastShot.result,
+        timer: view.lastShot.result === "sunk" ? 800 : 300,
+      });
+      this.setMessage(
+        shotByLocal
+          ? `YOUR SHOT: ${view.lastShot.result.toUpperCase()}`
+          : `INCOMING: ${view.lastShot.result.toUpperCase()}`,
+        1800,
+      );
+      playWarriorImpact();
+    }
+  }
+
   canPlaceAt(x: number, y: number): boolean {
     const size = this.getCurrentShipSize();
     const cells: [number, number][] = [];
@@ -406,6 +517,7 @@ export class ConflicBouy {
   }
 
   placeCurrentShip(x: number, y: number): boolean {
+    if (this.mode === "online" && this.onlineFleetSubmitted) return false;
     const board = this.getCurrentBoard();
     const type = this.getCurrentShipType();
     const cells: [number, number][] = [];
@@ -423,6 +535,12 @@ export class ConflicBouy {
       this.setMessage(this.getSparrowLine("setup_deploy"), 3000);
     }
     if (this.playerPlacing >= FLEET.length) {
+      if (this.mode === "online") {
+        this.onlineFleetSubmitted = true;
+        this.onlineStatus = "FLEET LOCKED — WAITING FOR RIVAL";
+        this.onlineCallbacks?.deploy(this.getOnlineFleet());
+        return true;
+      }
       if (this.mode === "hotseat" && this.setupSubPhase === "player1") {
         this.setupSubPhase = "player2";
         this.playerPlacing = 0;
@@ -445,6 +563,7 @@ export class ConflicBouy {
   }
 
   randomizeCurrentBoard() {
+    if (this.mode === "online" && this.onlineFleetSubmitted) return;
     const board = this.getCurrentBoard();
     board.grid = emptyGrid();
     board.ships = [];
@@ -467,6 +586,12 @@ export class ConflicBouy {
     playPlatformPickup("blade");
     // Transition to play phase if all ships placed
     if (this.phase === "setup") {
+      if (this.mode === "online") {
+        this.onlineFleetSubmitted = true;
+        this.onlineStatus = "FLEET LOCKED — WAITING FOR RIVAL";
+        this.onlineCallbacks?.deploy(this.getOnlineFleet());
+        return;
+      }
       if (this.mode === "hotseat" && this.setupSubPhase === "player1") {
         this.setupSubPhase = "player2";
         this.playerPlacing = 0;
@@ -758,6 +883,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   playerFire(x: number, y: number): boolean {
+    if (this.mode === "online") {
+      if (this.phase !== "play" || this.currentTurn !== "player" || this.opponentTargetGrid[y]?.[x] !== CELL_STATES.empty) return false;
+      this.onlineCallbacks?.fire(x, y);
+      return true;
+    }
     if (this.phase !== "play" || this.handoffPending) return false;
     const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1" || this.currentTurn === "player2";
     if (!isPlayerTurn) return false;
@@ -1596,7 +1726,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.fillStyle = t.textSecondary;
     const subSize = Math.max(11, Math.floor(w * 0.022));
     ctx.font = `${subSize}px ${t.fonts.body}`;
-    const modeText = this.mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
+    const modeText = this.mode === "agent" ? "vs AGENT" : this.mode === "online" ? "ONLINE TABLE" : "1v1 HOTSEAT";
     let turnText = "";
     if (this.phase === "setup") {
       const placer = this.mode === "hotseat" ? `P${this.setupSubPhase === "player1" ? 1 : 2}` : "YOU";
@@ -1607,6 +1737,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     } else {
       const turnLabel = this.mode === "hotseat"
         ? `PLAYER ${this.currentTurn === "player1" ? 1 : 2} TURN`
+        : this.mode === "online"
+          ? (this.currentTurn === "player" ? "YOUR TURN" : "RIVAL'S TURN")
         : this.currentTurn === "player" ? t.terms.turnYou : t.terms.turnEnemy;
       const thinking = this.agentThinking ? " · THINKING" : "";
       turnText = `${turnLabel}${thinking}`;
@@ -1791,7 +1923,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     ctx.fillStyle = t.accent;
     ctx.font = `bold ${Math.max(9, Math.min(11, Math.floor(w * 0.018)))}px ${t.fonts.body}`;
-    const mineLine = `MINING 201  |  SCANS ${this.mineStats.scansUsed}/${this.mineConfig.scanBudget}  |  ORE ${this.mineStats.oreFound}  |  BLOCKS ${this.mineStats.blocksMined}`;
+    const mineLine = this.mode === "online"
+      ? "FRIENDLY ONLINE TABLE  |  SERVER-AUTHORITATIVE"
+      : `MINING 201  |  SCANS ${this.mineStats.scansUsed}/${this.mineConfig.scanBudget}  |  ORE ${this.mineStats.oreFound}  |  BLOCKS ${this.mineStats.blocksMined}`;
     ctx.fillText(mineLine, w / 2, h - 25);
 
     ctx.fillStyle = t.textMuted;
@@ -2092,6 +2226,35 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     if (this.handoffPending) this.drawHandoff(ctx, w, h, t);
+    if (this.onlineStatus) this.drawOnlineStatus(ctx, w, h, t);
+  }
+
+  private drawOnlineStatus(ctx: CanvasRenderingContext2D, w: number, h: number, t: BouyTheme) {
+    const cardW = Math.min(w - 32, 560);
+    const cardH = 190;
+    const cardX = (w - cardW) / 2;
+    const cardY = (h - cardH) / 2;
+    ctx.save();
+    ctx.fillStyle = `${t.bgDeep}f2`;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = t.panel;
+    ctx.strokeStyle = t.panelBorder;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = t.accent;
+    ctx.font = `bold ${Math.max(18, Math.min(28, Math.floor(w * 0.045)))}px ${t.fonts.title}`;
+    ctx.fillText(this.onlineStatus, w / 2, cardY + 70, cardW - 24);
+    ctx.fillStyle = t.textSecondary;
+    ctx.font = `${Math.max(12, Math.min(18, Math.floor(w * 0.026)))}px ${t.fonts.body}`;
+    const rival = this.onlineView?.players.find((player) => player?.seat !== this.onlineView?.yourSeat);
+    ctx.fillText(rival ? `${rival.name} has taken the opposite seat.` : "Share the table and wait for another captain.", w / 2, cardY + 112, cardW - 28);
+    ctx.fillStyle = t.textMuted;
+    ctx.fillText("ESC leaves this table", w / 2, cardY + 152);
+    ctx.restore();
   }
 
   private drawHandoff(ctx: CanvasRenderingContext2D, w: number, h: number, t: BouyTheme) {
@@ -2485,7 +2648,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const oppY = Math.floor((ny - opponentY) / cell);
     if (oppX >= 0 && oppX < GRID_SIZE && oppY >= 0 && oppY < GRID_SIZE) {
       if (this.phase === "play") {
-        if (this.mode === "agent" && this.currentTurn === "player") {
+        if ((this.mode === "agent" || this.mode === "online") && this.currentTurn === "player") {
           this.playerFire(oppX, oppY);
         } else if (this.mode === "hotseat") {
           this.playerFire(oppX, oppY);
