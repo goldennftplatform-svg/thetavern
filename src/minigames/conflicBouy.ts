@@ -743,6 +743,17 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     return { x: rb.x - size - 6, y: rb.y, w: size, h: size };
   }
 
+  private getBoardEntranceOffsets() {
+    if (!this.boardEnterDone && this.boardEnterTimer < 1) {
+      const ease = 1 - Math.pow(1 - this.boardEnterTimer, 3);
+      return {
+        leftOffsetX: (1 - ease) * -40,
+        rightOffsetX: (1 - ease) * 40,
+      };
+    }
+    return { leftOffsetX: 0, rightOffsetX: 0 };
+  }
+
   playerFire(x: number, y: number): boolean {
     if (this.phase !== "play") return false;
     const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
@@ -1701,12 +1712,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     } = this.getBoardLayout(w, h);
 
     // Board entrance animation offsets
-    let leftOffsetX = 0, rightOffsetX = 0;
-    if (!this.boardEnterDone && this.boardEnterTimer < 1) {
-      const ease = 1 - Math.pow(1 - this.boardEnterTimer, 3);
-      leftOffsetX = (1 - ease) * -40;
-      rightOffsetX = (1 - ease) * 40;
-    }
+    const { leftOffsetX, rightOffsetX } = this.getBoardEntranceOffsets();
 
     // Header
     ctx.fillStyle = t.bgDeep;
@@ -2488,6 +2494,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   // Input handlers
   pointerDown(nx: number, ny: number, w: number, h: number) {
     const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
+    const { leftOffsetX, rightOffsetX } = this.getBoardEntranceOffsets();
 
     // On-screen setup controls (rotate + auto) — mouse AND touch friendly
     if (this.phase === "setup") {
@@ -2506,7 +2513,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Check own board (placement)
-    const ownX = Math.floor((nx - startX) / cell);
+    const ownX = Math.floor((nx - (startX + leftOffsetX)) / cell);
     const ownY = Math.floor((ny - startY) / cell);
     if (ownX >= 0 && ownX < GRID_SIZE && ownY >= 0 && ownY < GRID_SIZE) {
       if (this.phase === "setup") {
@@ -2516,7 +2523,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Check opponent board (firing)
-    const oppX = Math.floor((nx - opponentX) / cell);
+    const oppX = Math.floor((nx - (opponentX + rightOffsetX)) / cell);
     const oppY = Math.floor((ny - opponentY) / cell);
     if (oppX >= 0 && oppX < GRID_SIZE && oppY >= 0 && oppY < GRID_SIZE) {
       if (this.phase === "play") {
@@ -2534,7 +2541,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   pointerMove(nx: number, ny: number, w: number, h: number) {
     if (this.phase !== "setup") { this.hoverCell = null; return; }
     const { cell, startX, startY } = this.getBoardLayout(w, h);
-    const x = Math.floor((nx - startX) / cell);
+    const { leftOffsetX } = this.getBoardEntranceOffsets();
+    const x = Math.floor((nx - (startX + leftOffsetX)) / cell);
     const y = Math.floor((ny - startY) / cell);
     if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
       this.hoverCell = [x, y];
