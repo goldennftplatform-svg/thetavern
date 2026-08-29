@@ -22,6 +22,8 @@ type ApiResponse = {
 type StoredState = { revision: number; state: ConflicRoomsSnapshot | null };
 type Body = Record<string, unknown>;
 
+class ConflicServiceError extends Error {}
+
 function environment(...names: string[]): string {
   for (const name of names) {
     const value = process.env[name]?.trim();
@@ -71,9 +73,9 @@ async function readState(): Promise<StoredState> {
   const response = await fetch(`${stateEndpoint}?id=eq.global&select=revision,state`, {
     headers: headers(),
   });
-  if (!response.ok) throw new Error(`Supabase state read failed (${response.status})`);
+  if (!response.ok) throw new ConflicServiceError(`Supabase state read returned HTTP ${response.status}`);
   const rows = await response.json() as StoredState[];
-  if (!rows[0]) throw new Error("Supabase Conflic migration has not been applied");
+  if (!rows[0]) throw new ConflicServiceError("Supabase Conflic state row is missing");
   return rows[0];
 }
 
@@ -90,7 +92,7 @@ async function commitState(previousRevision: number, manager: ConflicRoomManager
       }),
     },
   );
-  if (!response.ok) throw new Error(`Supabase state write failed (${response.status})`);
+  if (!response.ok) throw new ConflicServiceError(`Supabase state write returned HTTP ${response.status}`);
   return ((await response.json()) as unknown[]).length === 1;
 }
 
@@ -102,7 +104,7 @@ async function mutate<T>(operation: (manager: ConflicRoomManager) => T): Promise
     if (typeof result === "object" && result && "ok" in result && !(result as { ok: boolean }).ok) return result;
     if (await commitState(stored.revision, manager)) return result;
   }
-  throw new Error("Conflic table was busy; retry the action");
+  throw new ConflicServiceError("Conflic table was busy; retry the action");
 }
 
 async function lobby() {
@@ -111,7 +113,7 @@ async function lobby() {
     const manager = new ConflicRoomManager(stored.state);
     if (manager.expireStale() === 0 || await commitState(stored.revision, manager)) return manager.lobby();
   }
-  throw new Error("Conflic tables were busy; retry the lobby");
+  throw new ConflicServiceError("Conflic tables were busy; retry the lobby");
 }
 
 function parseBody(raw: unknown): Body {
@@ -222,7 +224,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
     res.status(200).json(failure("Unknown action"));
-  } catch {
-    res.status(503).json({ ok: false, message: "Conflic service is temporarily unavailable" });
+  } catch (error) {
+    const message = error instanceof ConflicServiceError
+      ? error.message
+      : "Conflic service is temporarily unavailable";
+    res.status(503).json({ ok: false, message });
   }
 }
