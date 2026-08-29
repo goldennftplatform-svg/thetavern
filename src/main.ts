@@ -1056,7 +1056,12 @@ function handleHubAction(action: string) {
     const theme = action.slice(14);
     if (theme) {
       conflicTheme = theme;
-      setPhase("conflic_stake");
+      if (conflicMode === "hotseat") {
+        conflicStake = 0;
+        startConflicBouy();
+      } else {
+        setPhase("conflic_stake");
+      }
     }
     return;
   }
@@ -1334,7 +1339,7 @@ function startConflicBouy(theme?: string) {
     stake: conflicStake
   });
   // Deduct stake from player tokens
-  if (conflicStake > 0) {
+  if (conflicMode === "agent" && conflicStake > 0) {
     state.tokens -= conflicStake;
   }
   setPhase("conflic_bouy");
@@ -1356,10 +1361,12 @@ function finishConflicRun() {
   const result = conflicGame.result;
   conflicLastResult = result;
   const minePayout = result.mine?.payout ?? 0;
-  conflicLastRewards = {
-    renown: renownFromBouyScore(result),
-    tokens: tokensFromBouyScore(result, conflicStake) + minePayout,
-  };
+  conflicLastRewards = conflicMode === "hotseat"
+    ? { renown: 0, tokens: minePayout }
+    : {
+        renown: renownFromBouyScore(result),
+        tokens: tokensFromBouyScore(result, conflicStake) + minePayout,
+      };
   addRenown(conflicLastRewards.renown);
   state.tokens += conflicLastRewards.tokens;
   if (result.mine) {
@@ -1375,9 +1382,12 @@ function finishConflicRun() {
   }
   syncHallIdentity();
   const isVictory = result.winner === "player" || result.winner === "player1";
+  const hotseatWinner = result.winner === "player1" ? "Player 1" : "Player 2";
   const mineBit = result.mine ? ` · mined ${result.mine.stats.oreFound} ore, ${result.mine.stats.blocksMined} blocks${result.mine.stats.payNodesHit ? `, ${result.mine.stats.payNodesHit} paydays` : ""} (~${minePayout} ◎)` : "";
-  const chronicle = `${state.nickname} ${isVictory ? "commands the fleet to victory" : "watches their fleet slip beneath the waves"} in Conflic Bouy (${conflicMode}).`;
-  const subtext = `${result.playerHits} hits, ${result.playerMisses} misses · ${result.turns} turns · ${isVictory ? "victory" : "defeat"}${mineBit}`;
+  const chronicle = conflicMode === "hotseat"
+    ? `${hotseatWinner} wins a local Conflic Bouy duel at ${state.nickname}'s table.`
+    : `${state.nickname} ${isVictory ? "commands the fleet to victory" : "watches their fleet slip beneath the waves"} in Conflic Bouy (${conflicMode}).`;
+  const subtext = `${result.playerHits} hits, ${result.playerMisses} misses · ${result.turns} turns · ${conflicMode === "hotseat" ? `${hotseatWinner} wins` : isVictory ? "victory" : "defeat"}${mineBit}`;
   announceDeed("conflic_bouy", chronicle, subtext, conflicLastRewards.renown, { winner: result.winner, turns: result.turns });
   hud();
   setPhase("conflic_bouy_result");

@@ -37,6 +37,7 @@ async function run() {
 
   const result = await page.evaluate(async () => {
     const { ConflicBouy, CELL_STATES } = await import("/src/minigames/conflicBouy.ts");
+    const { conflicResultStudioHtml } = await import("/src/ui/studioScreens.ts");
 
     const emptyGrid = () => Array.from({ length: 10 }, () => Array(10).fill(CELL_STATES.empty));
     const boardWithShip = (hits) => {
@@ -75,7 +76,53 @@ async function run() {
       b3: hitGame.playerTargetGrid[2][1],
       c4: hitGame.playerTargetGrid[3][2],
       turn: hitGame.currentTurn,
+      handoffPending: hitGame.handoffPending,
       abilityAllowed: hitGame.useAbility("destroyer"),
+    };
+
+    const player2BlockedBeforeHandoff = hitGame.playerFire(0, 0);
+    const player2Acknowledged = hitGame.acknowledgeHandoff();
+    const player2Accepted = hitGame.playerFire(0, 0);
+    const player2Result = {
+      blockedBeforeHandoff: player2BlockedBeforeHandoff,
+      acknowledged: player2Acknowledged,
+      accepted: player2Accepted,
+      resolved: countResolved(hitGame.opponentTargetGrid),
+      a1: hitGame.opponentTargetGrid[0][0],
+      b3: hitGame.opponentTargetGrid[2][1],
+      turn: hitGame.currentTurn,
+      handoffPending: hitGame.handoffPending,
+    };
+
+    const setupGame = new ConflicBouy({ mode: "hotseat" });
+    setupGame.randomizeCurrentBoard();
+    const setupHandoff = {
+      subPhase: setupGame.setupSubPhase,
+      pending: setupGame.handoffPending,
+      player1Ships: setupGame.player1Board.ships.length,
+      visibleShips: setupGame.getOwnGrid().flat().filter((cell) => cell === CELL_STATES.ship).length,
+    };
+    const setupAcknowledged = setupGame.acknowledgeHandoff();
+    setupGame.randomizeCurrentBoard();
+    const setupComplete = {
+      acknowledged: setupAcknowledged,
+      phase: setupGame.phase,
+      turn: setupGame.currentTurn,
+      pending: setupGame.handoffPending,
+      player1Ships: setupGame.player1Board.ships.length,
+      player2Ships: setupGame.player2Board.ships.length,
+    };
+    const player2ResultHtml = conflicResultStudioHtml({
+      winner: "player2",
+      playerHits: 5,
+      playerMisses: 3,
+      agentHits: 0,
+      agentMisses: 0,
+      turns: 8,
+    }, 0, 0, "hotseat");
+    const resultLabel = {
+      player2Wins: player2ResultHtml.includes("PLAYER 2 WINS"),
+      showsDefeat: player2ResultHtml.includes("DEFEAT"),
     };
 
     const sinkGame = new ConflicBouy({ mode: "hotseat" });
@@ -97,24 +144,56 @@ async function run() {
       sunkShips: sinkGame.player2Board.ships.filter((ship) => ship.sunk).length,
     };
 
-    return { hitResult, sinkResult };
+    const player2WinGame = new ConflicBouy({ mode: "hotseat" });
+    player2WinGame.phase = "play";
+    player2WinGame.currentTurn = "player2";
+    player2WinGame.player1Board = boardWithShip([false, true]);
+    player2WinGame.player2Board = boardWithShip([false, false]);
+    player2WinGame.playerTargetGrid = emptyGrid();
+    player2WinGame.opponentTargetGrid = emptyGrid();
+    player2WinGame.opponentTargetGrid[3][1] = CELL_STATES.hit;
+    const player2WinAccepted = player2WinGame.playerFire(1, 2);
+    const player2WinResult = {
+      accepted: player2WinAccepted,
+      phase: player2WinGame.phase,
+      winner: player2WinGame.result.winner,
+      sunkShips: player2WinGame.player1Board.ships.filter((ship) => ship.sunk).length,
+      handoffPending: player2WinGame.handoffPending,
+    };
+
+    return { hitResult, player2Result, setupHandoff, setupComplete, resultLabel, sinkResult, player2WinResult };
   });
 
   await browser.close();
   if (devProc) devProc.kill();
 
-  const { hitResult, sinkResult } = result;
+  const { hitResult, player2Result, setupHandoff, setupComplete, resultLabel, sinkResult, player2WinResult } = result;
   if (!hitResult.accepted || hitResult.resolved !== 1 || hitResult.b3 !== 2 || hitResult.c4 !== 0) {
     throw new Error(`B3 regression failed: ${JSON.stringify(hitResult)}`);
   }
-  if (hitResult.turn !== "player2" || hitResult.abilityAllowed) {
+  if (hitResult.turn !== "player2" || !hitResult.handoffPending || hitResult.abilityAllowed) {
     throw new Error(`Classic turn/ability regression failed: ${JSON.stringify(hitResult)}`);
+  }
+  if (player2Result.blockedBeforeHandoff || !player2Result.acknowledged || !player2Result.accepted || player2Result.resolved !== 1 || player2Result.a1 !== 3 || player2Result.b3 !== 0 || player2Result.turn !== "player1" || !player2Result.handoffPending) {
+    throw new Error(`Player 2 turn regression failed: ${JSON.stringify(player2Result)}`);
+  }
+  if (setupHandoff.subPhase !== "player2" || !setupHandoff.pending || setupHandoff.player1Ships !== 5 || setupHandoff.visibleShips !== 0) {
+    throw new Error(`Player 2 deployment privacy failed: ${JSON.stringify(setupHandoff)}`);
+  }
+  if (!setupComplete.acknowledged || setupComplete.phase !== "play" || setupComplete.turn !== "player1" || !setupComplete.pending || setupComplete.player1Ships !== 5 || setupComplete.player2Ships !== 5) {
+    throw new Error(`Hotseat setup completion failed: ${JSON.stringify(setupComplete)}`);
+  }
+  if (!resultLabel.player2Wins || resultLabel.showsDefeat) {
+    throw new Error(`Hotseat result label failed: ${JSON.stringify(resultLabel)}`);
   }
   if (!sinkResult.accepted || sinkResult.resolved !== 2 || sinkResult.b3 !== 4 || sinkResult.b4 !== 2 || sinkResult.c4 !== 0 || sinkResult.sunkShips !== 1) {
     throw new Error(`Sink regression failed: ${JSON.stringify(sinkResult)}`);
   }
+  if (!player2WinResult.accepted || player2WinResult.phase !== "over" || player2WinResult.winner !== "player2" || player2WinResult.sunkShips !== 1 || player2WinResult.handoffPending) {
+    throw new Error(`Player 2 victory regression failed: ${JSON.stringify(player2WinResult)}`);
+  }
 
-  console.log("smoke-conflic-classic: OK — one shot, one cell, one turn");
+  console.log("smoke-conflic-classic: OK — one shot per turn, both hotseat players, private handoffs");
 }
 
 run().catch((error) => {

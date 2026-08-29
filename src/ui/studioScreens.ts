@@ -305,15 +305,20 @@ export function conflicResultStudioHtml(
   tokens: number,
   mode: "agent" | "hotseat",
 ): string {
-  const isVictory = r.winner === "player" || r.winner === "player1";
+  const isHotseat = mode === "hotseat";
+  const isVictory = isHotseat || r.winner === "player" || r.winner === "player1";
   const accuracy = r.playerHits + r.playerMisses > 0
     ? Math.round((r.playerHits / (r.playerHits + r.playerMisses)) * 100)
     : 0;
   const modeLabel = mode === "agent" ? "vs AGENT" : "1v1 HOTSEAT";
-  const resultLabel = isVictory ? "VICTORY" : "DEFEAT";
+  const resultLabel = isHotseat
+    ? `PLAYER ${r.winner === "player1" ? 1 : 2} WINS`
+    : isVictory ? "VICTORY" : "DEFEAT";
   const resultColor = isVictory ? "#68e8a8" : "#e87850";
   const flashClass = isVictory ? "bouy-victory-flash--victory" : "bouy-victory-flash--defeat";
-  const tagline = isVictory
+  const tagline = isHotseat
+    ? `${r.winner === "player1" ? "Player 1" : "Player 2"} commands the table.`
+    : isVictory
     ? (accuracy === 100 ? "A flawless engagement. Not a shot wasted." : accuracy >= 75 ? "Sharp shooting, Captain." : "The fleet prevails.")
     : (accuracy >= 50 ? "A valiant effort against impossible odds." : "Better luck next voyage.");
   const shipGraveyard = isVictory

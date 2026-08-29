@@ -188,9 +188,12 @@ export class ConflicBouy {
   opponentBoard = createBoard();
   player1Board = createBoard();
   player2Board = createBoard();
+  private concealedBoard = createBoard();
   playerTargetGrid: CellState[][] = emptyGrid();
   opponentTargetGrid: CellState[][] = emptyGrid();
   currentTurn: "player" | "agent" | "player1" | "player2" = "player";
+  handoffPending = false;
+  private handoffReason: "setup" | "turn" = "setup";
   playerPlacing = 0;
   horizontal = true;
   hoverCell: [number, number] | null = null;
@@ -307,6 +310,8 @@ export class ConflicBouy {
     this.playerTargetGrid = emptyGrid();
     this.opponentTargetGrid = emptyGrid();
     this.currentTurn = "player";
+    this.handoffPending = false;
+    this.handoffReason = "setup";
     this.playerPlacing = 0;
     this.horizontal = true;
     this.hoverCell = null;
@@ -385,6 +390,7 @@ export class ConflicBouy {
 
   getOwnGrid(): CellState[][] {
     if (this.mode === "hotseat") {
+      if (this.phase === "setup") return this.getCurrentBoard().grid;
       return this.currentTurn === "player1" ? this.player1Board.grid : this.player2Board.grid;
     }
     return this.playerBoard.grid;
@@ -422,12 +428,13 @@ export class ConflicBouy {
         this.playerPlacing = 0;
         this.horizontal = true;
         this.hoverCell = null;
-        this.setMessage("PLAYER 2 — DEPLOY YOUR FLEET", 2000);
+        this.beginHandoff("setup");
       } else {
         this.phase = "play";
         this.setupSubPhase = "done";
         this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
         this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
+        this.beginHandoff("setup");
         this.setMessage(this.getSparrowLine("game_start"), 2500);
         if (this.mode === "agent") {
           playJackIntro();
@@ -465,12 +472,13 @@ export class ConflicBouy {
         this.playerPlacing = 0;
         this.horizontal = true;
         this.hoverCell = null;
-        this.setMessage("PLAYER 2 — DEPLOY YOUR FLEET", 2000);
+        this.beginHandoff("setup");
       } else {
         this.phase = "play";
         this.setupSubPhase = "done";
         this.currentTurn = this.mode === "hotseat" ? "player1" : "player";
         this.opponentBoard = this.mode === "agent" ? randomBoard() : this.player2Board;
+        this.beginHandoff("setup");
         this.setMessage(this.getSparrowLine("game_start"), 2500);
         if (this.mode === "agent") {
           playJackIntro();
@@ -750,8 +758,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   playerFire(x: number, y: number): boolean {
-    if (this.phase !== "play") return false;
-    const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
+    if (this.phase !== "play" || this.handoffPending) return false;
+    const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1" || this.currentTurn === "player2";
     if (!isPlayerTurn) return false;
     const targetGrid = this.getTargetGrid();
     if (targetGrid[y][x] !== CELL_STATES.empty) return false;
@@ -834,6 +842,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.currentTurn = this.currentTurn === "player" ? "agent" : "player";
     } else {
       this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
+      this.beginHandoff("turn");
     }
     if (this.mode === "agent" && this.currentTurn === "player") {
       this.messageQueue.push("YOUR TURN");
@@ -858,6 +867,27 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   canUseAbility(type: ShipType): boolean {
     void type;
     return false;
+  }
+
+  private beginHandoff(reason: "setup" | "turn") {
+    if (this.mode !== "hotseat" || this.phase === "over") return;
+    this.handoffPending = true;
+    this.handoffReason = reason;
+    this.hoverCell = null;
+  }
+
+  acknowledgeHandoff(): boolean {
+    if (!this.handoffPending || this.mode !== "hotseat") return false;
+    this.handoffPending = false;
+    const player = this.phase === "setup"
+      ? (this.setupSubPhase === "player1" ? 1 : 2)
+      : (this.currentTurn === "player1" ? 1 : 2);
+    this.message = this.phase === "setup"
+      ? `PLAYER ${player} — DEPLOY YOUR FLEET`
+      : `PLAYER ${player} — CHOOSE ONE TARGET`;
+    this.messageTimer = 1800;
+    this.messageQueue = [];
+    return true;
   }
 
   useAbility(type: ShipType, targetX?: number, targetY?: number): boolean {
@@ -1575,8 +1605,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const isVictory = this.result.winner === "player" || this.result.winner === "player1";
       turnText = `${isVictory ? "VICTORY" : "DEFEAT"} · ${this.result.turns} turns`;
     } else {
-      const turnLabel = this.currentTurn === "player" || this.currentTurn === "player1" ? t.terms.turnYou :
-        this.mode === "agent" ? t.terms.turnEnemy : t.terms.turnPlayer2;
+      const turnLabel = this.mode === "hotseat"
+        ? `PLAYER ${this.currentTurn === "player1" ? 1 : 2} TURN`
+        : this.currentTurn === "player" ? t.terms.turnYou : t.terms.turnEnemy;
       const thinking = this.agentThinking ? " · THINKING" : "";
       turnText = `${turnLabel}${thinking}`;
     }
@@ -1979,7 +2010,8 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // VICTORY / DEFEAT OVERLAY
     if (this.phase === "over") {
-      const isVictory = this.result.winner === "player" || this.result.winner === "player1";
+      const isHotseat = this.mode === "hotseat";
+      const isVictory = isHotseat || this.result.winner === "player" || this.result.winner === "player1";
       const overlayAlpha = Math.min(0.75, (performance.now() - (this._gameOverTime || performance.now())) * 0.001);
       if (overlayAlpha > 0) {
         ctx.save();
@@ -1992,7 +2024,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         const resultSize = Math.max(28, Math.floor(w * 0.06));
         ctx.font = `bold ${resultSize}px ${t.fonts.title}`;
         ctx.textAlign = "center";
-        const resultText = isVictory ? "VICTORY" : "DEFEAT";
+        const resultText = isHotseat
+          ? `PLAYER ${this.result.winner === "player1" ? 1 : 2} WINS`
+          : isVictory ? "VICTORY" : "DEFEAT";
         const resultColor = isVictory ? "#68e8a8" : "#e87850";
 
         // Glow
@@ -2009,8 +2043,14 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         for (let i = 0; i < FLEET.length; i++) {
           const type = FLEET[i];
           const spec = SHIP_SPECS[type];
-          const ship = this.opponentBoard.ships.find((s) => s.type === type);
-          const playerShip = this.playerBoard.ships.find((s) => s.type === type);
+          const winningBoard = isHotseat
+            ? (this.result.winner === "player1" ? this.player1Board : this.player2Board)
+            : this.playerBoard;
+          const losingBoard = isHotseat
+            ? (this.result.winner === "player1" ? this.player2Board : this.player1Board)
+            : this.opponentBoard;
+          const ship = losingBoard.ships.find((s) => s.type === type);
+          const playerShip = winningBoard.ships.find((s) => s.type === type);
           const enemySunk = ship?.sunk ?? false;
           const playerSunk = playerShip?.sunk ?? false;
           const shipColor = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
@@ -2050,6 +2090,54 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         ctx.restore();
       }
     }
+
+    if (this.handoffPending) this.drawHandoff(ctx, w, h, t);
+  }
+
+  private drawHandoff(ctx: CanvasRenderingContext2D, w: number, h: number, t: BouyTheme) {
+    const player = this.phase === "setup"
+      ? (this.setupSubPhase === "player1" ? 1 : 2)
+      : (this.currentTurn === "player1" ? 1 : 2);
+    const cardW = Math.min(w - 32, 520);
+    const cardH = Math.min(h - 48, 250);
+    const cardX = (w - cardW) / 2;
+    const cardY = (h - cardH) / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = t.bgDeep;
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+
+    const panel = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+    panel.addColorStop(0, t.panel);
+    panel.addColorStop(1, t.bgDeep);
+    ctx.fillStyle = panel;
+    ctx.strokeStyle = t.panelBorder;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = t.accent;
+    ctx.font = `bold ${Math.max(18, Math.min(30, Math.floor(w * 0.045)))}px ${t.fonts.title}`;
+    ctx.fillText(`PASS TO PLAYER ${player}`, w / 2, cardY + 58);
+    ctx.fillStyle = t.textPrimary;
+    ctx.font = `bold ${Math.max(14, Math.min(22, Math.floor(w * 0.032)))}px ${t.fonts.body}`;
+    ctx.fillText(`PLAYER ${player}: TAP WHEN READY`, w / 2, cardY + 112);
+    ctx.fillStyle = t.textMuted;
+    ctx.font = `${Math.max(11, Math.min(16, Math.floor(w * 0.024)))}px ${t.fonts.body}`;
+    const instruction = this.handoffReason === "setup"
+      ? (this.phase === "setup" ? "The previous fleet is concealed. Deploy yours in private." : "Both fleets are concealed. Player 1 opens the battle.")
+      : "The previous shot is concealed. Your waters await.";
+    ctx.fillText(instruction, w / 2, cardY + 150, cardW - 36);
+    ctx.fillStyle = t.textSecondary;
+    ctx.fillText("Tap anywhere or press Enter", w / 2, cardY + cardH - 28);
+    ctx.restore();
   }
 
   private easeOutCubic(t: number): number {
@@ -2059,9 +2147,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   private drawFleetStatus(ctx: CanvasRenderingContext2D, ox: number, oy: number, boardSize: number, panelH: number, which: "player" | "opponent", t: BouyTheme) {
     let board: Board;
     if (which === "player") {
-      board = this.mode === "hotseat" ? (this.currentTurn === "player1" || this.phase === "setup" ? this.player1Board : this.player2Board) : this.playerBoard;
+      board = this.mode === "hotseat"
+        ? (this.phase === "setup" ? this.getCurrentBoard() : this.currentTurn === "player1" ? this.player1Board : this.player2Board)
+        : this.playerBoard;
     } else {
-      board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
+      board = this.mode === "hotseat"
+        ? (this.phase === "setup" ? this.concealedBoard : this.currentTurn === "player1" ? this.player2Board : this.player1Board)
+        : this.opponentBoard;
     }
     const panelX = ox;
     const panelY = oy;
@@ -2144,8 +2236,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     let board: Board;
 
     if (which === "player") {
-      grid = this.getOwnGrid();
-      board = this.mode === "hotseat" ? (this.currentTurn === "player1" || this.phase === "setup" ? this.player1Board : this.player2Board) : this.playerBoard;
+      board = this.mode === "hotseat"
+        ? (this.phase === "setup" ? this.getCurrentBoard() : this.currentTurn === "player1" ? this.player1Board : this.player2Board)
+        : this.playerBoard;
+      grid = board.grid;
     } else {
       grid = this.getTargetGrid();
       board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
@@ -2356,6 +2450,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   // Input handlers
   pointerDown(nx: number, ny: number, w: number, h: number) {
+    if (this.acknowledgeHandoff()) return;
     const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
     const { leftOffsetX, rightOffsetX } = this.getBoardEntranceOffsets();
 
@@ -2416,6 +2511,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   keyDown(key: string) {
     const upper = key.toUpperCase();
+    if (this.handoffPending && (upper === "ENTER" || upper === " ")) {
+      this.acknowledgeHandoff();
+      return;
+    }
     if (upper === "R") {
       if (this.phase === "setup") this.horizontal = !this.horizontal;
     }
