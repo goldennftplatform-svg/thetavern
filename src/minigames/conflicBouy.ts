@@ -519,9 +519,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const sunk = checkSunk(board, ship);
       if (sunk) {
         targetGrid[y][x] = CELL_STATES.sunk;
-        for (const [sx, sy] of ship.cells) {
-          targetGrid[sy][sx] = CELL_STATES.sunk;
-        }
         this.flashCells.push({ x, y, board: byPlayer ? "opponent" : "player", type: "sink", timer: 800 });
         this.triggerSunkEffects(x, y, byPlayer, this.lastW, this.lastH);
         playWarriorImpact(1.2);
