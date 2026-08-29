@@ -694,11 +694,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const gap = Math.max(12, Math.min(30, w * 0.035));
     const stacked = w < 560 && h > w * 1.25;
     if (stacked) {
-      const heightLimit = (h - headerH - footerH - statusH * 2 - messageH - 48) / 2;
+      const heightLimit = (h - headerH - footerH - statusH * 2 - messageH - 70) / 2;
       const boardSize = Math.max(80, Math.min(w - outerPad * 2, heightLimit));
       const cell = boardSize / GRID_SIZE;
       const startX = (w - boardSize) / 2;
-      const startY = headerH + 14;
+      const startY = headerH + 36;
       const playerFleetY = startY + boardSize + 5;
       const opponentX = startX;
       const opponentY = playerFleetY + statusH + 16;
@@ -710,11 +710,11 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       };
     }
     const widthLimit = (w - outerPad * 2 - gap) / 2;
-    const heightLimit = h - headerH - footerH - statusH - messageH - 30;
+    const heightLimit = h - headerH - footerH - statusH - messageH - 52;
     const boardSize = Math.max(80, Math.min(widthLimit, heightLimit));
     const cell = boardSize / GRID_SIZE;
     const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + 14;
+    const startY = headerH + 36;
     const opponentX = startX + boardSize + gap;
     const opponentY = startY;
     const playerFleetY = startY + boardSize + 7;
@@ -1592,7 +1592,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.fillStyle = t.textMuted;
     const tagSize = Math.max(9, Math.floor(w * 0.018));
     ctx.font = `italic ${tagSize}px ${t.fonts.body}`;
-    ctx.fillText(t.tagline, w / 2, 62);
+    ctx.fillText(t.tagline, w / 2, w < 520 ? 58 : 62);
 
     // Draw boards with entrance animation offsets
     this.drawBoard(ctx, startX + leftOffsetX, startY, cell, "player", t);
@@ -2259,7 +2259,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // Label
     ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `bold ${Math.max(11, Math.floor(cell * 0.48))}px ${t.fonts.body}`;
+    ctx.font = `bold ${Math.max(10, Math.min(14, Math.floor(cell * 0.42)))}px ${t.fonts.body}`;
     ctx.textAlign = "center";
     ctx.fillText(label, ox + bw / 2, oy - 8);
 
