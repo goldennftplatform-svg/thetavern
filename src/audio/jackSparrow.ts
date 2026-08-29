@@ -67,6 +67,19 @@ export function primeJackSparrow(): void {
   if (gestureHooked) return;
   gestureHooked = true;
   prime();
+  if (!audio) return;
+  audio.src = BASE + INTRO[0];
+  audio.volume = 0;
+  audio.currentTime = 0;
+  void audio.play().then(() => {
+    audio?.pause();
+    if (audio) {
+      audio.currentTime = 0;
+      audio.volume = JACK_VOLUME;
+    }
+  }).catch(() => {
+    if (audio) audio.volume = JACK_VOLUME;
+  });
 }
 
 export function playJackIntro(): boolean {

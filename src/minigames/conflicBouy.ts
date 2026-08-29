@@ -210,6 +210,7 @@ export class ConflicBouy {
   private messageTimer = 0;
   private messageQueue: string[] = [];
   private agentThinking = false;
+  private agentTurnTimeout: number | null = null;
   private agentDifficulty: "easy" | "normal" | "hard" = "normal";
   private lastHitDirection: [number, number] | null = null;
   /** Visible agent aiming reticle before the shot lands on the player's board. */
@@ -296,6 +297,10 @@ export class ConflicBouy {
   }
 
   reset() {
+    if (this.agentTurnTimeout !== null) {
+      window.clearTimeout(this.agentTurnTimeout);
+      this.agentTurnTimeout = null;
+    }
     this.playerBoard = createBoard();
     this.opponentBoard = randomBoard();
     this.player1Board = createBoard();
@@ -825,6 +830,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     } else {
       this.currentTurn = this.currentTurn === "player1" ? "player2" : "player1";
     }
+    if (this.mode === "agent" && this.currentTurn === "player") {
+      this.messageQueue.push("YOUR TURN");
+    }
     // Reset ability active flags at end of turn
     this.resetAbilityFlags();
     if (scheduleNext && this.mode === "agent" && this.currentTurn === "agent") {
@@ -956,9 +964,14 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   scheduleAgentTurn() {
+    if (this.agentTurnTimeout !== null) {
+      window.clearTimeout(this.agentTurnTimeout);
+      this.agentTurnTimeout = null;
+    }
     this.agentThinking = true;
     this.agentTurnAt = performance.now();
-    setTimeout(() => {
+    this.agentTurnTimeout = window.setTimeout(() => {
+      this.agentTurnTimeout = null;
       this.agentThinking = false;
       this.setMessage(this.getSparrowLine("agent_turn_start"));
       this.agentTurn();
