@@ -8,7 +8,18 @@ import { playPlatformLand, playPlatformPickup, playWarriorImpact } from "../audi
 import { playJackIntro, playJackOutro, playJackTaunt } from "../audio/jackSparrow";
 import { BouyTheme, getTheme, BouyThemeId } from "./conflicBouyThemes";
 import { getContextualSparrowLine, getVariantLine } from "./conflicBouyPersonality";
-import { type MineSettlement } from "./mine";
+import {
+  DEFAULT_MINE_CONFIG,
+  drill,
+  newMineStats,
+  seedMineNodes,
+  settleMine,
+  touchStreak,
+  type MineConfig,
+  type MineNode,
+  type MineStats,
+  type MineSettlement,
+} from "./mine";
 
 export type BouyMode = "agent" | "hotseat";
 export type BouyPhase = "setup" | "play" | "over";
@@ -213,9 +224,12 @@ export class ConflicBouy {
   private lastH = 0;
   private _gameOverTime = 0;
 
-  /** Mining layer disabled — plain 1v1 Battleship only. */
-  mineEnabled = false;
-  mineSettlement: null = null;
+  /** Mining 201 — MINE THE BLOCK layer. */
+  mineEnabled = true;
+  mineConfig: MineConfig = DEFAULT_MINE_CONFIG;
+  mineStats: MineStats = newMineStats(DEFAULT_MINE_CONFIG);
+  mineNodes: Map<string, MineNode> = new Map();
+  mineSettlement: MineSettlement | null = null;
   mineExhausted = false;
 
   // Visual effects
@@ -298,6 +312,13 @@ export class ConflicBouy {
     this.horizontal = true;
     this.hoverCell = null;
     this.result = { winner: null, playerHits: 0, playerMisses: 0, agentHits: 0, agentMisses: 0, turns: 0 };
+    // Mining 201 — reseed the claim with ore/pay nodes.
+    this.mineConfig = DEFAULT_MINE_CONFIG;
+    this.mineStats = newMineStats(this.mineConfig);
+    this.mineNodes = seedMineNodes(
+      (x, y) => this.opponentBoard.grid[y][x] === CELL_STATES.ship,
+      this.mineConfig,
+    );
     this.mineSettlement = null;
     this.mineExhausted = false;
     this.lastHit = null;
@@ -775,8 +796,24 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
    * (shared executeAbility path) must not drain the player's budget.
    */
   private recordMineShot(x: number, y: number, sunk: boolean) {
-    void x; void y; void sunk;
-    return;
+    if (this.currentTurn === "agent") return;
+    if (!this.mineEnabled || this.mineExhausted) return;
+    const node = this.mineNodes.get(`${x},${y}`);
+    const { drill: kind, exhausted } = drill(this.mineStats, node, sunk ? "sinkAtNode" : "none", this.mineConfig);
+    if (kind !== "none") {
+      if (kind === "pay") this.setMessage(this.getSparrowLine("mine_pay") || "PAYDAY — 25x ORE BLOCK MINTED!");
+      else if (kind === "ore") this.setMessage(this.getSparrowLine("mine_ore") || "ORE SEAM — dust banked.");
+      else this.setMessage(this.getSparrowLine("mine_block") || "BLOCK MINED — ore seam saturated.");
+    }
+    if (exhausted) {
+      this.mineExhausted = true;
+      this.settleMineRound();
+      const p = this.mineSettlement?.payout ?? 0;
+      this.setMessage(
+        `⛏ MINE EXHAUSTED — ${this.mineStats.oreFound} ore, ${this.mineStats.blocksMined} blocks banked. ${p > 0 ? `+${p} ◎ MINED!` : "No payout this claim."}`,
+        4200,
+      );
+    }
   }
 
   /**
@@ -784,7 +821,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
    * payout, and attach settlement to the result for the UI + vault.
    */
   settleMineRound() {
-    return;
+    if (this.mineSettlement || !this.mineEnabled) return;
+    touchStreak();
+    this.mineSettlement = settleMine(this.mineStats, this.mineConfig);
+    if (this.result) {
+      this.result.mine = this.mineSettlement;
+    }
   }
 
   endTurn(scheduleNext = true) {
