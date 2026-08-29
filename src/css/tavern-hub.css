@@ -418,8 +418,82 @@ html.tavern-mobile .hub-pick {
 
 .tavern-table-wrap {
   width: 100%;
-  padding: 8px 0 4px;
+  padding: 0;
 }
+
+.tavern-charter-board {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 590px);
+  box-sizing: border-box;
+  margin: 8px auto 4px;
+  padding: 44px clamp(10px, 3vw, 22px) 18px;
+  border: 3px solid #9b6a31;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, rgba(255, 245, 205, 0.025) 1px, transparent 1px) 0 0 / 9px 100%,
+    radial-gradient(circle at 18% 20%, rgba(226, 172, 75, 0.11), transparent 28%),
+    linear-gradient(145deg, rgba(49, 29, 17, 0.98), rgba(20, 12, 10, 0.99));
+  box-shadow:
+    0 0 0 2px #241108,
+    0 0 0 5px rgba(224, 164, 69, 0.22),
+    9px 12px 0 rgba(9, 5, 13, 0.55),
+    0 18px 38px rgba(0, 0, 0, 0.55),
+    inset 0 0 28px rgba(0, 0, 0, 0.5);
+}
+
+.tavern-charter-board::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(222, 177, 98, 0.24);
+  pointer-events: none;
+}
+
+.tavern-charter-board__label {
+  position: absolute;
+  z-index: 2;
+  top: -12px;
+  left: 50%;
+  min-width: min(72%, 330px);
+  margin: 0;
+  padding: 8px 20px 7px;
+  transform: translateX(-50%) rotate(-0.6deg);
+  border: 2px solid #b88a47;
+  background: linear-gradient(180deg, #3b2314, #1d100b);
+  box-shadow: 4px 5px 0 rgba(5, 3, 8, 0.72), inset 0 0 0 1px rgba(255, 220, 148, 0.12);
+  color: #f1cf83;
+  font-family: var(--font-display, "Pixelify Sans", sans-serif);
+  font-size: clamp(0.72rem, 2.8vw, 0.92rem);
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.tavern-charter-board__label small {
+  display: block;
+  margin-top: 3px;
+  color: #bca780;
+  font-family: var(--font-body, "VT323", monospace);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.tavern-charter-board__pin {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff0aa, #a86a24 50%, #42200b 72%);
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.75), 0 0 7px rgba(232, 176, 80, 0.35);
+}
+
+.tavern-charter-board__pin--left { left: 16px; }
+.tavern-charter-board__pin--right { right: 16px; }
 
 .tavern-table {
   position: relative;
@@ -435,7 +509,7 @@ html.tavern-mobile .hub-pick {
     inset 0 -16px 32px rgba(0, 0, 0, 0.55),
     0 18px 40px rgba(0, 0, 0, 0.65),
     0 0 0 4px #1a1008,
-    0 0 0 8px rgba(232, 176, 80, 0.15);
+    0 0 0 7px rgba(232, 176, 80, 0.13);
 }
 
 .tavern-table__well {

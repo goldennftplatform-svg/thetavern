@@ -687,7 +687,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
   private getBoardLayout(w: number, h: number) {
     const headerH = w < 520 ? 64 : 72;
-    const footerH = 36;
+    const footerH = 42;
     const statusH = h < 460 ? 48 : 62;
     const messageH = 34;
     const outerPad = Math.max(10, Math.min(24, w * 0.025));
@@ -1751,15 +1751,20 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       ctx.textAlign = "center";
     }
 
-    // Footer hint
+    // Mining claim ledger and controls stay visible without competing with the boards.
     ctx.fillStyle = t.bgDeep;
     ctx.fillRect(0, h - footerH, w, footerH);
     ctx.strokeStyle = t.accent;
     ctx.lineWidth = 1;
     ctx.strokeRect(0, h - footerH, w, 1);
 
+    ctx.fillStyle = t.accent;
+    ctx.font = `bold ${Math.max(9, Math.min(11, Math.floor(w * 0.018)))}px ${t.fonts.body}`;
+    const mineLine = `MINING 201  |  SCANS ${this.mineStats.scansUsed}/${this.mineConfig.scanBudget}  |  ORE ${this.mineStats.oreFound}  |  BLOCKS ${this.mineStats.blocksMined}`;
+    ctx.fillText(mineLine, w / 2, h - 25);
+
     ctx.fillStyle = t.textMuted;
-    ctx.font = `${Math.max(11, Math.floor(w * 0.022))}px ${t.fonts.body}`;
+    ctx.font = `${Math.max(10, Math.min(12, Math.floor(w * 0.02)))}px ${t.fonts.body}`;
     let hint = "";
     if (this.phase === "setup") {
       hint = "TAP board to place · ⟳ rotate · ⚓ auto";
@@ -1768,7 +1773,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     } else {
       hint = this.mode === "hotseat" ? "TAP enemy grid to fire" : "TAP enemy grid · ESC quit";
     }
-    ctx.fillText(hint, w / 2, h - 14);
+    ctx.fillText(hint, w / 2, h - 8);
     ctx.textAlign = "left";
 
     // Turn transition wipe (subtle top-edge wipe on turn change)
@@ -2215,6 +2220,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
           ctx.fillStyle = burnGrad;
           ctx.fillRect(cx, cy, cell, cell);
         }
+
+        if (which === "opponent" && state !== CELL_STATES.empty) {
+          this.drawResolvedAnchor(ctx, cx + cell / 2, cy + cell / 2, cell, t.accent);
+        }
       }
     }
 
@@ -2311,6 +2320,37 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     ctx.textAlign = "left";
+    ctx.restore();
+  }
+
+  private drawResolvedAnchor(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    cell: number,
+    color: string,
+  ) {
+    const radius = cell * 0.12;
+    const top = cy - cell * 0.25;
+    const bottom = cy + cell * 0.24;
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(0.7, cell * 0.055);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.arc(cx, top, radius, 0, Math.PI * 2);
+    ctx.moveTo(cx, top + radius);
+    ctx.lineTo(cx, bottom);
+    ctx.moveTo(cx - cell * 0.25, cy + cell * 0.08);
+    ctx.quadraticCurveTo(cx - cell * 0.2, bottom, cx, bottom);
+    ctx.quadraticCurveTo(cx + cell * 0.2, bottom, cx + cell * 0.25, cy + cell * 0.08);
+    ctx.moveTo(cx - cell * 0.29, cy + cell * 0.1);
+    ctx.lineTo(cx - cell * 0.2, cy + cell * 0.04);
+    ctx.moveTo(cx + cell * 0.29, cy + cell * 0.1);
+    ctx.lineTo(cx + cell * 0.2, cy + cell * 0.04);
+    ctx.stroke();
     ctx.restore();
   }
 

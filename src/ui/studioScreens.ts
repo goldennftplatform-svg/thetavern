@@ -139,24 +139,29 @@ export function hubWellHtml(
     ${titleLine}
     ${poleLine}
 
-    <div class="tavern-table-wrap">
-      <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
-        <div class="tavern-table__well" aria-hidden="true">
-          <span class="tavern-table__well-glow"></span>
-          ${crest}
-          <span class="tavern-table__well-label">☽ Moonwell</span>
-          <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
+    <section class="tavern-charter-board" aria-label="Tonight's adventure charter">
+      <span class="tavern-charter-board__pin tavern-charter-board__pin--left" aria-hidden="true"></span>
+      <span class="tavern-charter-board__pin tavern-charter-board__pin--right" aria-hidden="true"></span>
+      <p class="tavern-charter-board__label">Tonight&apos;s postings <small>Choose your seat</small></p>
+      <div class="tavern-table-wrap">
+        <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
+          <div class="tavern-table__well" aria-hidden="true">
+            <span class="tavern-table__well-glow"></span>
+            ${crest}
+            <span class="tavern-table__well-label">☽ Moonwell</span>
+            <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
+          </div>
+          ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
+          ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
+          ${hubTableSeatHtml("conflic_bouy_entry", conflicBouyIcon, "Conflic Bouy", "Fleet tactics · 5 waters", "northeast", "gold", "NEW")}
+          ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
+          ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
+          <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
+          <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
+          <span class="tavern-table__candle tavern-table__candle--c" aria-hidden="true"></span>
         </div>
-        ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
-        ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
-        ${hubTableSeatHtml("conflic_bouy_entry", conflicBouyIcon, "Conflic Bouy", "Fleet tactics · 5 waters", "northeast", "gold", "NEW")}
-        ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
-        ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
-        <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
-        <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
-        <span class="tavern-table__candle tavern-table__candle--c" aria-hidden="true"></span>
       </div>
-    </div>
+    </section>
 
     <p class="tavern-table-scene__verse">${escapeHtml(s.seasonVerse)}</p>
     <p class="tavern-table-scene__lore">${escapeHtml(hubVerse)}</p>
@@ -322,17 +327,25 @@ export function conflicResultStudioHtml(
   const mine = r.mine;
   const mineStats = mine?.stats;
   const mineHtml = mine
-    ? `<div class="studio-panel studio-panel--mine">
-        <p class="studio-lore-line studio-lore-line--hint" style="margin-bottom:6px;">⛏ MINE THE BLOCK — claim settled</p>
+    ? `<section class="studio-panel studio-panel--mine" aria-label="Mining claim settlement">
+        <header class="mine-ledger__head">
+          <span class="mine-ledger__mark">⛏</span>
+          <span><strong>Mine the Block</strong><small>Claim settled · Mining 201</small></span>
+          <span class="mine-ledger__stamp">PAID</span>
+        </header>
         <div class="studio-scoreboard studio-scoreboard--mine">
           <span class="studio-stat"><em>🔍</em> ${mineStats!.scansUsed} <small>Scans</small></span>
           <span class="studio-stat"><em>🪨</em> ${mineStats!.oreFound} <small>Ore</small></span>
           <span class="studio-stat"><em>💰</em> ${mineStats!.payNodesHit} <small>Paydays</small></span>
           <span class="studio-stat"><em>🧱</em> ${mineStats!.blocksMined} <small>Blocks</small></span>
         </div>
-        <p class="studio-reward" style="margin:8px 0 0;">Pool fed ${mineStats!.poolContributed} ◎ · 95% back → <span style="color:#e0c060;">+${mine.payout} ◎ miner</span><span style="opacity:0.7;"> · ${mine.poolAfter} ◎ remaining</span></p>
-        <p class="studio-lore-line studio-lore-line--hint" style="margin-top:4px;">Burn to earn — mine more, the pool deepens, payouts grow.</p>
-      </div>`
+        <dl class="mine-ledger__settlement">
+          <div><dt>Pool fed</dt><dd>${mineStats!.poolContributed} ◎</dd></div>
+          <div class="mine-ledger__payout"><dt>Miner&apos;s share</dt><dd>+${mine.payout} ◎</dd></div>
+          <div><dt>Pool remains</dt><dd>${mine.poolAfter} ◎</dd></div>
+        </dl>
+        <p class="mine-ledger__motto">95% returned · Burn to earn · The pool deepens for the next claim</p>
+      </section>`
     : "";
   return studioStageHtml(
     "Conflic Bouy",
