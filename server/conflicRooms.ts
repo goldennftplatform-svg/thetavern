@@ -8,6 +8,7 @@ import {
   CONFLIC_TABLE_LABELS,
   type ConflicCell,
   type ConflicCellState,
+  type ConflicChatMessage,
   type ConflicCommandResult,
   type ConflicEnemyShip,
   type ConflicJoinResult,
@@ -38,6 +39,7 @@ type InternalPlayer = {
   actionIds: Set<string>;
   stats: ConflicSeatStats;
   lastSeen: number;
+  lastChatAt: number;
 };
 
 type Room = {
@@ -48,6 +50,7 @@ type Room = {
   revision: number;
   matchId: string;
   lastShot: ConflicLastShot | null;
+  chat: ConflicChatMessage[];
 };
 
 type StoredPlayer = Omit<InternalPlayer, "clientIds" | "shots" | "actionIds"> & {
@@ -56,8 +59,9 @@ type StoredPlayer = Omit<InternalPlayer, "clientIds" | "shots" | "actionIds"> & 
   actionIds: string[];
 };
 
-type StoredRoom = Omit<Room, "seats"> & {
+type StoredRoom = Omit<Room, "seats" | "chat"> & {
   seats: [StoredPlayer | null, StoredPlayer | null];
+  chat?: ConflicChatMessage[];
 };
 
 export type ConflicRoomsSnapshot = {
@@ -75,6 +79,9 @@ type JoinInput = {
 };
 
 const emptyStats = (): ConflicSeatStats => ({ shots: 0, hits: 0, misses: 0, shipsSunk: 0 });
+const CHAT_MAX_MESSAGES = 40;
+const CHAT_MAX_LENGTH = 180;
+const CHAT_INTERVAL_MS = 1_200;
 const failure = (error: Parameters<typeof makeFailure>[0], message: string) => makeFailure(error, message);
 
 function makeFailure(
@@ -203,6 +210,7 @@ export class ConflicRoomManager {
       rooms: [...this.rooms.values()].map((room) => ({
         ...room,
         lastShot: room.lastShot ? { ...room.lastShot } : null,
+        chat: room.chat.map((message) => ({ ...message })),
         seats: room.seats.map((player) => player ? {
           ...player,
           ships: player.ships.map((ship) => ({
@@ -286,6 +294,7 @@ export class ConflicRoomManager {
       actionIds: new Set(),
       stats: emptyStats(),
       lastSeen: Date.now(),
+      lastChatAt: 0,
     };
     room.seats[index] = player;
     room.revision += 1;
@@ -315,10 +324,12 @@ export class ConflicRoomManager {
     survivor.shots.clear();
     survivor.actionIds.clear();
     survivor.stats = emptyStats();
+    survivor.lastChatAt = 0;
     room.turn = null;
     room.winner = null;
     room.lastShot = null;
     room.matchId = randomUUID();
+    room.chat = [];
     room.revision += 1;
     return { ok: true, revision: room.revision };
   }
@@ -329,6 +340,41 @@ export class ConflicRoomManager {
     found.player.lastSeen = Date.now();
     found.room.revision += 1;
     return { ok: true, revision: found.room.revision };
+  }
+
+  sendChat(
+    tableId: ConflicTableId,
+    resumeToken: string,
+    text: string,
+    actionId: string,
+    now = Date.now(),
+  ): ConflicCommandResult {
+    const found = this.findPlayer(tableId, resumeToken);
+    if (!found) return failure("NOT_SEATED", "Resume token does not match a seat at this table");
+    const { room, player, seat } = found;
+    if (!room.seats[0] || !room.seats[1]) return failure("WRONG_PHASE", "Chat opens when both captains are seated");
+    if (room.chat.some((message) => message.id === actionId)) {
+      return failure("ACTION_REPLAY", "This actionId was already accepted");
+    }
+    if (now - player.lastChatAt < CHAT_INTERVAL_MS) {
+      return failure("CHAT_RATE_LIMIT", "Hold a moment before sending another hail");
+    }
+    if (typeof text !== "string") return failure("INVALID_PAYLOAD", "Chat message is required");
+    const message = text
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!message) return failure("INVALID_PAYLOAD", "Chat message is required");
+    if (message.length > CHAT_MAX_LENGTH) {
+      return failure("INVALID_PAYLOAD", `Chat messages can be at most ${CHAT_MAX_LENGTH} characters`);
+    }
+
+    player.lastChatAt = now;
+    player.lastSeen = now;
+    room.chat.push({ id: actionId, seat, name: player.name, text: message, sentAt: now });
+    if (room.chat.length > CHAT_MAX_MESSAGES) room.chat.splice(0, room.chat.length - CHAT_MAX_MESSAGES);
+    room.revision += 1;
+    return { ok: true, revision: room.revision };
   }
 
   expireStale(now = Date.now()): number {
@@ -486,6 +532,7 @@ export class ConflicRoomManager {
       revision: room.revision,
       matchId: room.matchId,
       lastShot: room.lastShot ? { ...room.lastShot } : null,
+      chat: room.chat.map((message) => ({ ...message })),
     };
   }
 
@@ -504,6 +551,7 @@ export class ConflicRoomManager {
       revision: 0,
       matchId: randomUUID(),
       lastShot: null,
+      chat: [],
     };
   }
 
@@ -511,6 +559,7 @@ export class ConflicRoomManager {
     return {
       ...stored,
       lastShot: stored.lastShot ? { ...stored.lastShot } : null,
+      chat: (stored.chat ?? []).slice(-CHAT_MAX_MESSAGES).map((message) => ({ ...message })),
       seats: stored.seats.map((player) => player ? {
         ...player,
         ships: player.ships.map((ship) => ({
@@ -523,6 +572,7 @@ export class ConflicRoomManager {
         actionIds: new Set(player.actionIds),
         stats: { ...player.stats },
         lastSeen: player.lastSeen || Date.now(),
+        lastChatAt: player.lastChatAt || 0,
       } : null) as [InternalPlayer | null, InternalPlayer | null],
     };
   }

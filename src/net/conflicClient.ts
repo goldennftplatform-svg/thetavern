@@ -137,6 +137,19 @@ export class ConflicOnlineClient {
     });
   }
 
+  async sendChat(message: string): Promise<ConflicCommandResult | null> {
+    if (!this.session) return null;
+    const result = await this.request<ConflicCommandResult>({
+      action: "chat",
+      ...this.session,
+      message,
+      actionId: crypto.randomUUID(),
+    });
+    if (!result.ok) this.onError(result.message);
+    else void this.fetchState();
+    return result;
+  }
+
   private async poll() {
     if (this.polling) return;
     this.polling = true;
@@ -190,12 +203,15 @@ export class ConflicOnlineClient {
   }
 
   private async request<T>(body: Record<string, unknown>): Promise<T> {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
     try {
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         cache: "no-store",
+        signal: controller.signal,
       });
       const result = await response.json() as T;
       this.setConnected(response.ok);
@@ -203,6 +219,8 @@ export class ConflicOnlineClient {
     } catch {
       this.setConnected(false);
       return { ok: false, message: "Online tables are temporarily unavailable" } as T;
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 

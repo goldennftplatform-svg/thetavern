@@ -104,6 +104,29 @@
               <button type="button" id="btn-warrior-jump" class="btn warrior-jump-float" aria-label="Jump">
                 ↑
               </button>
+              <aside id="conflic-chat" class="conflic-chat" aria-label="Private table chat" hidden>
+                <button type="button" id="conflic-chat-toggle" class="conflic-chat__toggle" aria-expanded="false" aria-controls="conflic-chat-panel">
+                  <span>TABLE RADIO</span>
+                  <span id="conflic-chat-unread" class="conflic-chat__unread" hidden></span>
+                </button>
+                <section id="conflic-chat-panel" class="conflic-chat__panel">
+                  <header class="conflic-chat__header">
+                    <div>
+                      <strong>PRIVATE CHANNEL</strong>
+                      <span id="conflic-chat-table"></span>
+                    </div>
+                    <button type="button" id="conflic-chat-close" aria-label="Close table chat">X</button>
+                  </header>
+                  <ol id="conflic-chat-messages" class="conflic-chat__messages"></ol>
+                  <p id="conflic-chat-announcement" class="sr-only" aria-live="polite"></p>
+                  <p id="conflic-chat-empty" class="conflic-chat__empty">No hails yet. Open the channel.</p>
+                  <form id="conflic-chat-form" class="conflic-chat__form">
+                    <label class="sr-only" for="conflic-chat-input">Message your opponent</label>
+                    <input id="conflic-chat-input" type="text" maxlength="180" autocomplete="off" placeholder="Message rival..." />
+                    <button id="conflic-chat-send" type="submit">SEND</button>
+                  </form>
+                </section>
+              </aside>
               <div id="play-toast" class="play-toast" hidden aria-live="polite"></div>
             </div>
           </section>

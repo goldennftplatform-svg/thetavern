@@ -212,6 +212,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       res.status(200).json(await mutate((manager) => manager.submitFleet(id, resumeToken, body.ships as ConflicPlacement[])));
       return;
     }
+    if (action === "chat") {
+      const message = typeof body.message === "string" ? body.message : "";
+      const actionId = text(body.actionId, 64);
+      if (!message || !actionId) {
+        res.status(200).json(failure("message and actionId are required"));
+        return;
+      }
+      res.status(200).json(await mutate((manager) => manager.sendChat(id, resumeToken, message, actionId)));
+      return;
+    }
     if (action === "fire") {
       const x = body.x;
       const y = body.y;

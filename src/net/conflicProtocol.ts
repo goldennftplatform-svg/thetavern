@@ -86,6 +86,14 @@ export type ConflicLastShot = {
   shipType?: ConflicShipType;
 };
 
+export type ConflicChatMessage = {
+  id: string;
+  seat: ConflicSeat;
+  name: string;
+  text: string;
+  sentAt: number;
+};
+
 export type ConflicPrivateRoomView = {
   tableId: ConflicTableId;
   phase: ConflicPhase;
@@ -101,6 +109,7 @@ export type ConflicPrivateRoomView = {
   revision: number;
   matchId: string;
   lastShot: ConflicLastShot | null;
+  chat: ConflicChatMessage[];
 };
 
 export type ConflicErrorCode =
@@ -114,7 +123,8 @@ export type ConflicErrorCode =
   | "WRONG_PHASE"
   | "OUT_OF_TURN"
   | "ALREADY_TARGETED"
-  | "ACTION_REPLAY";
+  | "ACTION_REPLAY"
+  | "CHAT_RATE_LIMIT";
 
 export type ConflicFailure = { ok: false; error: ConflicErrorCode; message: string };
 

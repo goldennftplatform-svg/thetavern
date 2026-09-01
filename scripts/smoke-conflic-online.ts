@@ -40,6 +40,38 @@ assert.equal(joinB.ok, true);
 if (!joinA.ok || !joinB.ok) throw new Error("Join setup failed");
 assert.notEqual(joinA.yourSeat, joinB.yourSeat);
 
+const firstChatAt = Date.now();
+assert.equal(transaction((manager) => manager.sendChat(
+  "charter", joinA.resumeToken, "Ahoy, rival!", "chat-a", firstChatAt,
+)).ok, true);
+const chatView = new ConflicRoomManager(snapshot).viewForToken("charter", joinB.resumeToken)!;
+assert.deepEqual(chatView.chat.map(({ seat, name, text }) => ({ seat, name, text })), [
+  { seat: joinA.yourSeat, name: "Captain A", text: "Ahoy, rival!" },
+]);
+const rapidChat = transaction((manager) => manager.sendChat(
+  "charter", joinA.resumeToken, "Too soon", "chat-b", firstChatAt + 100,
+));
+assert.equal(rapidChat.ok, false);
+if (!rapidChat.ok) assert.equal(rapidChat.error, "CHAT_RATE_LIMIT");
+for (let index = 0; index < 42; index += 1) {
+  const sent = transaction((manager) => manager.sendChat(
+    "charter",
+    joinA.resumeToken,
+    index === 41 ? "  final\n  hail  " : `hail ${index}`,
+    `chat-cap-${index}`,
+    firstChatAt + (index + 1) * 1_200,
+  ));
+  assert.equal(sent.ok, true);
+}
+const boundedChat = new ConflicRoomManager(snapshot).viewForToken("charter", joinB.resumeToken)!.chat;
+assert.equal(boundedChat.length, 40);
+assert.equal(boundedChat.at(-1)?.text, "final hail");
+const chatReplay = transaction((manager) => manager.sendChat(
+  "charter", joinA.resumeToken, "duplicate", "chat-cap-41", firstChatAt + 60_000,
+));
+assert.equal(chatReplay.ok, false);
+if (!chatReplay.ok) assert.equal(chatReplay.error, "ACTION_REPLAY");
+
 const third = transaction((manager) => manager.join({
   tableId: "charter", playerId: "c", name: "Captain C", clientId: "c",
 }));
@@ -71,6 +103,7 @@ assert.equal(replay.ok, false);
 if (!replay.ok) assert.equal(replay.error, "ACTION_REPLAY");
 
 assert.equal(transaction((rooms) => rooms.leave("charter", joinA.resumeToken)).ok, true);
+assert.equal(new ConflicRoomManager(snapshot).viewForToken("charter", joinB.resumeToken)?.chat.length, 0);
 assert.equal(transaction((rooms) => rooms.leave("charter", joinB.resumeToken)).ok, true);
 assert.equal(new ConflicRoomManager(snapshot).lobby().find((room) => room.tableId === "charter")?.status, "empty");
 
@@ -80,4 +113,4 @@ assert.equal(expiring.ok, true);
 assert.equal(expiryManager.expireStale(Date.now() + 6 * 60_000), 1);
 assert.equal(expiryManager.lobby().find((room) => room.tableId === "voidwalker")?.status, "empty");
 
-console.log("smoke-conflic-online: OK - persistence, privacy, seats, turns, dedupe, cleanup, expiry");
+console.log("smoke-conflic-online: OK - persistence, privacy, chat, seats, turns, dedupe, cleanup, expiry");

@@ -276,6 +276,17 @@ const elWarriorRotate = $("btn-warrior-rotate");
 const elWarriorDrop = $("btn-warrior-drop");
 const elWarriorHard = $("btn-warrior-hard");
 const elWarriorJump = $("btn-warrior-jump");
+const elConflicChat = $("conflic-chat");
+const elConflicChatToggle = $("conflic-chat-toggle");
+const elConflicChatUnread = $("conflic-chat-unread");
+const elConflicChatClose = $("conflic-chat-close");
+const elConflicChatTable = $("conflic-chat-table");
+const elConflicChatMessages = $("conflic-chat-messages") as HTMLOListElement;
+const elConflicChatAnnouncement = $("conflic-chat-announcement");
+const elConflicChatEmpty = $("conflic-chat-empty");
+const elConflicChatForm = $("conflic-chat-form") as HTMLFormElement;
+const elConflicChatInput = $("conflic-chat-input") as HTMLInputElement;
+const elConflicChatSend = $("conflic-chat-send") as HTMLButtonElement;
 const elHudR = $("hud-renown");
 const elHudT = $("hud-tokens");
 const elHudS = $("hud-season");
@@ -351,6 +362,10 @@ let socket: Socket | null = null;
 let conflicOnline: ConflicOnlineClient | null = null;
 let conflicRooms: ConflicRoomSummary[] = [];
 let hallViewOpen = false;
+let conflicChatTable: ConflicTableId | null = null;
+let conflicChatRenderKey = "";
+let conflicChatUnread = 0;
+let conflicChatKnownIds = new Set<string>();
 
 function hallBoardHref(): string {
   const base = import.meta.env.BASE_URL || "/";
@@ -1400,8 +1415,8 @@ function startOnlineConflic(view: ConflicPrivateRoomView) {
     },
   });
   conflicGame.applyOnlineView(view);
-  syncConflicOnlineState(view);
   setPhase("conflic_bouy");
+  syncConflicOnlineState(view);
 }
 
 function syncConflicOnlineState(view: ConflicPrivateRoomView) {
@@ -1411,7 +1426,109 @@ function syncConflicOnlineState(view: ConflicPrivateRoomView) {
   canvas.dataset.conflicRevision = String(view.revision);
   canvas.dataset.conflicLastShot = view.lastShot?.actionId ?? "";
   canvas.setAttribute("aria-label", `Conflic Bouy ${view.tableId} table, ${view.phase}, ${view.turn === view.yourSeat ? "your turn" : "rival's turn"}`);
+  syncConflicChat(view);
 }
+
+function setConflicChatOpen(open: boolean) {
+  elConflicChat.classList.toggle("is-open", open);
+  elConflicChatToggle.setAttribute("aria-expanded", String(open));
+  if (open) {
+    conflicChatUnread = 0;
+    updateConflicChatUnread();
+    requestAnimationFrame(() => {
+      elConflicChatMessages.scrollTop = elConflicChatMessages.scrollHeight;
+      elConflicChatInput.focus();
+    });
+  }
+}
+
+function updateConflicChatUnread() {
+  elConflicChatUnread.hidden = conflicChatUnread === 0;
+  elConflicChatUnread.textContent = conflicChatUnread > 9 ? "9+" : String(conflicChatUnread);
+}
+
+function hideConflicChat() {
+  elConflicChat.hidden = true;
+  setConflicChatOpen(false);
+  conflicChatTable = null;
+  conflicChatRenderKey = "";
+  conflicChatUnread = 0;
+  conflicChatKnownIds = new Set();
+  updateConflicChatUnread();
+}
+
+function syncConflicChat(view: ConflicPrivateRoomView) {
+  let announcement = "";
+  if (conflicChatTable !== view.tableId) {
+    conflicChatTable = view.tableId;
+    conflicChatRenderKey = "";
+    conflicChatUnread = 0;
+    conflicChatKnownIds = new Set(view.chat.map((message) => message.id));
+  } else {
+    for (const message of view.chat) {
+      if (!conflicChatKnownIds.has(message.id) && message.seat !== view.yourSeat && !elConflicChat.classList.contains("is-open")) {
+        conflicChatUnread += 1;
+      }
+      if (!conflicChatKnownIds.has(message.id) && message.seat !== view.yourSeat) {
+        announcement = `${message.name}: ${message.text}`;
+      }
+      conflicChatKnownIds.add(message.id);
+    }
+    conflicChatKnownIds = new Set(view.chat.map((message) => message.id));
+  }
+
+  elConflicChat.hidden = false;
+  elConflicChatTable.textContent = view.tableId.toUpperCase();
+  const rivalPresent = view.players[view.yourSeat === 0 ? 1 : 0] !== null;
+  elConflicChatInput.disabled = !rivalPresent;
+  elConflicChatSend.disabled = !rivalPresent;
+  elConflicChatInput.placeholder = rivalPresent ? "Message rival..." : "Waiting for rival...";
+  updateConflicChatUnread();
+  if (announcement) elConflicChatAnnouncement.textContent = announcement;
+
+  const renderKey = view.chat.map((message) => message.id).join("|");
+  if (renderKey === conflicChatRenderKey) return;
+  conflicChatRenderKey = renderKey;
+  elConflicChatMessages.replaceChildren();
+  for (const message of view.chat) {
+    const item = document.createElement("li");
+    item.className = message.seat === view.yourSeat ? "is-you" : "is-rival";
+    const meta = document.createElement("span");
+    const time = new Date(message.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    meta.textContent = `${message.seat === view.yourSeat ? "YOU" : message.name.toUpperCase()} / ${time}`;
+    const text = document.createElement("p");
+    text.textContent = message.text;
+    item.append(meta, text);
+    elConflicChatMessages.append(item);
+  }
+  elConflicChatEmpty.hidden = view.chat.length > 0;
+  if (elConflicChat.classList.contains("is-open")) {
+    requestAnimationFrame(() => { elConflicChatMessages.scrollTop = elConflicChatMessages.scrollHeight; });
+  }
+}
+
+elConflicChatToggle.addEventListener("click", () => setConflicChatOpen(true));
+elConflicChatClose.addEventListener("click", () => {
+  setConflicChatOpen(false);
+  elConflicChatToggle.focus();
+});
+elConflicChatForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const message = elConflicChatInput.value.trim();
+  if (!message || elConflicChatInput.disabled) return;
+  elConflicChatInput.disabled = true;
+  elConflicChatSend.disabled = true;
+  try {
+    const result = await conflicOnline?.sendChat(message);
+    if (result?.ok) elConflicChatInput.value = "";
+  } finally {
+    const view = conflicOnline?.view;
+    const rivalPresent = !!view?.players[view.yourSeat === 0 ? 1 : 0];
+    elConflicChatInput.disabled = !rivalPresent;
+    elConflicChatSend.disabled = !rivalPresent;
+    if (rivalPresent && !elConflicChat.hidden) elConflicChatInput.focus();
+  }
+});
 
 async function joinOnlineTable(tableId: ConflicTableId) {
   if (!conflicOnline?.connected) {
@@ -1633,6 +1750,7 @@ function startResolveCelebration(rarity: string) {
 function setPhase(next: GamePhase) {
   state.phase = next;
   elPlayShell.dataset.phase = next;
+  if (next !== "conflic_bouy" || conflicMode !== "online") hideConflicChat();
   clearAutoPhase();
   stageBanner = "";
   fishingLoreLine = "";
@@ -2133,6 +2251,16 @@ bindReelButton(elSlack, -1);
 bindReelButton(elHeave, 1);
 
 window.addEventListener("keydown", (e) => {
+  const target = e.target;
+  if (e.code === "Escape" && target instanceof Node && elConflicChat.contains(target) && elConflicChat.classList.contains("is-open")) {
+    e.preventDefault();
+    setConflicChatOpen(false);
+    elConflicChatToggle.focus();
+    return;
+  }
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) {
+    return;
+  }
   if (state.phase === "demplar_warrior") {
     if (e.code === "Space" || e.code === "ArrowUp") {
       e.preventDefault();
@@ -2215,6 +2343,8 @@ window.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("keyup", (e) => {
+  const target = e.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
   if (state.phase === "demplar_warrior") {
     if (e.code === "Space" || e.code === "ArrowUp") {
       demplarGame?.releaseJump();
