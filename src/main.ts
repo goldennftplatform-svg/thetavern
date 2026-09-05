@@ -1651,24 +1651,35 @@ bindWarriorTouch({
 });
 
 function bindConflicTouch() {
+  let touch: { id: number; x: number; y: number } | null = null;
   const onDown = (e: PointerEvent) => {
     if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    if (e.pointerType === "touch") {
+      touch = e.isPrimary ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     conflicGame.pointerDown(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
   };
   const onMove = (e: PointerEvent) => {
     if (state.phase !== "conflic_bouy" || !conflicGame) return;
+    if (touch?.id === e.pointerId && Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > 8) touch = null;
     const rect = canvas.getBoundingClientRect();
     conflicGame.pointerMove(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
   };
-  const onUp = () => {
-    if (state.phase !== "conflic_bouy" || !conflicGame) return;
-    // no special pointerup logic needed for now
+  const onUp = (e: PointerEvent) => {
+    const tap = touch;
+    touch = null;
+    if (state.phase !== "conflic_bouy" || !conflicGame || !tap || tap.id !== e.pointerId) return;
+    if (Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 8) return;
+    // A vertical swipe scrolls the battle surface; only a completed tap places/fires.
+    const rect = canvas.getBoundingClientRect();
+    conflicGame.pointerDown(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height);
   };
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerup", onUp);
-  canvas.addEventListener("pointercancel", onUp);
+  canvas.addEventListener("pointercancel", () => { touch = null; });
 }
 
 bindConflicTouch();

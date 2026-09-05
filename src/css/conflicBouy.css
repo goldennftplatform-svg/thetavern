@@ -91,6 +91,46 @@
   height: 100%;
 }
 
+/* Conflic owns its whole battle surface, not the shared tavern frame. */
+html.play-active:has(.play-shell[data-phase="conflic_bouy"]) .crt-skin::before,
+html.play-active:has(.play-shell[data-phase="conflic_bouy"]) .crt-skin::after {
+  display: none;
+}
+
+html.play-active .play-shell[data-phase="conflic_bouy"] .stage-viewport {
+  overflow: auto;
+  background: #080c18;
+}
+
+html.play-active .play-shell[data-phase="conflic_bouy"] .canvas-wrap {
+  width: 100%;
+  max-width: none;
+  min-height: 540px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #101828;
+  transform: none;
+}
+
+html.play-active .play-shell[data-phase="conflic_bouy"] canvas#well {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 540px;
+  border-radius: 0;
+  image-rendering: pixelated;
+  touch-action: pan-y;
+}
+
+@media (max-width: 559px) {
+  html.play-active .play-shell[data-phase="conflic_bouy"] .canvas-wrap,
+  html.play-active .play-shell[data-phase="conflic_bouy"] canvas#well {
+    min-height: 900px !important;
+  }
+}
+
 /* Private table radio; overlays the online board without changing canvas geometry. */
 .conflic-chat {
   position: absolute;

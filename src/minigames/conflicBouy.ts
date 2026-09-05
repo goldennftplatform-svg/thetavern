@@ -227,8 +227,6 @@ export class ConflicBouy {
   private lastHitDirection: [number, number] | null = null;
   /** Visible agent aiming reticle before the shot lands on the player's board. */
   private agentAim: { x: number; y: number; t: number; dur: number } | null = null;
-  /** When the agent's current turn began (for the ENEMY TURN banner pulse). */
-  private agentTurnAt = 0;
   themeId: BouyThemeId = "charter";
   stake = 0;
   private lastW = 0;
@@ -256,9 +254,6 @@ export class ConflicBouy {
   private combo = 0;
   private comboTimer = 0;
   private firstBlood = false;
-  // Board entrance animation
-  private boardEnterTimer = 0;
-  private boardEnterDone = false;
   // Cannon fire projectile
   private cannonFire: { sx: number; sy: number; tx: number; ty: number; t: number; duration: number; color: string } | null = null;
   // Sink sequence (bow-to-stern flash)
@@ -365,8 +360,6 @@ export class ConflicBouy {
     this.combo = 0;
     this.comboTimer = 0;
     this.firstBlood = false;
-    this.boardEnterTimer = 0;
-    this.boardEnterDone = false;
     this.cannonFire = null;
     this.sinkSequence = null;
     this.smoothHealth.clear();
@@ -819,35 +812,35 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   private getBoardLayout(w: number, h: number) {
-    const headerH = w < 520 ? 64 : 72;
-    const footerH = 42;
-    const statusH = h < 460 ? 48 : 62;
-    const messageH = 34;
-    const outerPad = Math.max(10, Math.min(24, w * 0.025));
-    const gap = Math.max(12, Math.min(30, w * 0.035));
+    const headerH = 116;
+    const footerH = 48;
+    const statusH = 66;
+    const messageH = 38;
+    const outerPad = 30;
+    const gap = 48;
     const stacked = w < 560 && h > w * 1.25;
     if (stacked) {
-      const heightLimit = (h - headerH - footerH - statusH * 2 - messageH - 70) / 2;
-      const boardSize = Math.max(80, Math.min(w - outerPad * 2, heightLimit));
-      const cell = boardSize / GRID_SIZE;
-      const startX = (w - boardSize) / 2;
-      const startY = headerH + 36;
-      const playerFleetY = startY + boardSize + 5;
+      const heightLimit = (h - headerH - footerH - statusH * 2 - messageH - 108) / 2;
+      const cell = Math.max(8, Math.floor(Math.min(w - outerPad * 2, heightLimit) / GRID_SIZE));
+      const boardSize = cell * GRID_SIZE;
+      const startX = Math.floor((w - boardSize) / 2) + 8;
+      const startY = headerH + 42;
+      const playerFleetY = startY + boardSize + 8;
       const opponentX = startX;
-      const opponentY = playerFleetY + statusH + 16;
-      const opponentFleetY = opponentY + boardSize + 5;
-      const messageY = opponentFleetY + statusH + 4;
+      const opponentY = playerFleetY + statusH + 44;
+      const opponentFleetY = opponentY + boardSize + 8;
+      const messageY = opponentFleetY + statusH + 6;
       return {
         cell, startX, startY, opponentX, opponentY, boardSize, gap: 10, headerH, footerH,
         statusH, messageH, playerFleetY, opponentFleetY, messageY, stacked,
       };
     }
     const widthLimit = (w - outerPad * 2 - gap) / 2;
-    const heightLimit = h - headerH - footerH - statusH - messageH - 52;
-    const boardSize = Math.max(80, Math.min(widthLimit, heightLimit));
-    const cell = boardSize / GRID_SIZE;
-    const startX = (w - boardSize * 2 - gap) / 2;
-    const startY = headerH + 36;
+    const heightLimit = h - headerH - footerH - statusH - messageH - 64;
+    const cell = Math.max(8, Math.floor(Math.min(widthLimit, heightLimit) / GRID_SIZE));
+    const boardSize = cell * GRID_SIZE;
+    const startX = Math.floor((w - boardSize * 2 - gap) / 2) + 8;
+    const startY = headerH + 42;
     const opponentX = startX + boardSize + gap;
     const opponentY = startY;
     const playerFleetY = startY + boardSize + 7;
@@ -860,26 +853,14 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   private getRotateButtonRect(w: number, h: number) {
-    const { cell, startX, startY, boardSize } = this.getBoardLayout(w, h);
-    const size = Math.max(34, Math.min(56, cell * 1.7));
-    return { x: startX + boardSize - size - 8, y: startY + 8, w: size, h: size };
+    void h;
+    const width = Math.min(170, Math.floor((w - 36) / 2));
+    return { x: Math.floor(w / 2) + 4, y: 66, w: width, h: 44 };
   }
 
   private getAutoButtonRect(w: number, h: number) {
     const rb = this.getRotateButtonRect(w, h);
-    const size = rb.w;
-    return { x: rb.x - size - 6, y: rb.y, w: size, h: size };
-  }
-
-  private getBoardEntranceOffsets() {
-    if (!this.boardEnterDone && this.boardEnterTimer < 1) {
-      const ease = 1 - Math.pow(1 - this.boardEnterTimer, 3);
-      return {
-        leftOffsetX: (1 - ease) * -40,
-        rightOffsetX: (1 - ease) * 40,
-      };
-    }
-    return { leftOffsetX: 0, rightOffsetX: 0 };
+    return { x: rb.x - rb.w - 8, y: rb.y, w: rb.w, h: rb.h };
   }
 
   playerFire(x: number, y: number): boolean {
@@ -1031,7 +1012,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       this.agentTurnTimeout = null;
     }
     this.agentThinking = true;
-    this.agentTurnAt = performance.now();
     this.agentTurnTimeout = window.setTimeout(() => {
       this.agentTurnTimeout = null;
       this.agentThinking = false;
@@ -1204,12 +1184,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       if (this.comboTimer <= 0) this.combo = 0;
     }
 
-    // Board entrance
-    if (!this.boardEnterDone) {
-      this.boardEnterTimer = Math.min(1, this.boardEnterTimer + dt * 0.003);
-      if (this.boardEnterTimer >= 1) this.boardEnterDone = true;
-    }
-
     // Cannon fire projectile
     if (this.cannonFire) {
       this.cannonFire.t += dt / this.cannonFire.duration;
@@ -1276,6 +1250,41 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     if (cells.length === 0) return;
     ctx.save();
     ctx.globalAlpha = alpha;
+
+    if (this.themeId === "charter") {
+      const inset = Math.max(3, Math.floor(cellSize / 5));
+      const horizontal = cells.length < 2 || cells[0][1] === cells[1][1];
+      for (let i = 0; i < cells.length; i++) {
+        const [x, y] = cells[i];
+        if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) continue;
+        const px = originX + x * cellSize;
+        const py = originY + y * cellSize;
+        const bow = i === 0 ? 4 : 0;
+        const stern = i === cells.length - 1 ? 3 : 0;
+        ctx.fillStyle = sunk ? this.theme.sunkColor : fillColor;
+        if (horizontal) {
+          ctx.fillRect(px + bow, py + inset, cellSize - bow - stern, cellSize - inset * 2);
+          if (bow) ctx.fillRect(px + 2, py + inset + 3, 2, Math.max(2, cellSize - inset * 2 - 6));
+        } else {
+          ctx.fillRect(px + inset, py + bow, cellSize - inset * 2, cellSize - bow - stern);
+          if (bow) ctx.fillRect(px + inset + 3, py + 2, Math.max(2, cellSize - inset * 2 - 6), 2);
+        }
+        ctx.fillStyle = sunk ? this.theme.sunkGlow : this.theme.playerColor;
+        if (horizontal) ctx.fillRect(px + bow, py + inset, cellSize - bow - stern, 2);
+        else ctx.fillRect(px + inset, py + bow, 2, cellSize - bow - stern);
+        ctx.fillStyle = strokeColor;
+        const turret = Math.max(3, Math.floor(cellSize / 4));
+        ctx.fillRect(px + Math.floor((cellSize - turret) / 2), py + Math.floor((cellSize - turret) / 2), turret, turret);
+        if (hitCells[i]) {
+          ctx.fillStyle = this.theme.hitColor;
+          ctx.fillRect(px + inset, py + inset, cellSize - inset * 2, cellSize - inset * 2);
+          ctx.fillStyle = this.theme.hitGlow;
+          ctx.fillRect(px + Math.floor(cellSize / 2) - 1, py + inset, 2, cellSize - inset * 2);
+        }
+      }
+      ctx.restore();
+      return;
+    }
 
     const horizontal = cells.length > 1 ? cells[1][0] !== cells[0][0] : true;
     const pad = cellSize * 0.06;
@@ -1674,7 +1683,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // Screen shake transform
     ctx.save();
-    if (this.screenShake > 0) {
+    if (this.screenShake > 0 && this.themeId !== "charter") {
       ctx.translate(this.screenShakeX, this.screenShakeY);
     }
 
@@ -1682,7 +1691,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h));
     grad.addColorStop(0, t.bg);
     grad.addColorStop(1, t.bgDeep);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = this.themeId === "charter" ? t.bg : grad;
     ctx.fillRect(0, 0, w, h);
 
     // Vignette overlay
@@ -1699,9 +1708,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       statusH, messageH, playerFleetY, opponentFleetY, messageY,
     } = this.getBoardLayout(w, h);
 
-    // Board entrance animation offsets
-    const { leftOffsetX, rightOffsetX } = this.getBoardEntranceOffsets();
-
     // Header
     ctx.fillStyle = t.bgDeep;
     ctx.fillRect(0, 0, w, headerH);
@@ -1712,7 +1718,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Title line — truncated to fit
     ctx.textAlign = "center";
     ctx.fillStyle = t.accent;
-    const titleSize = Math.max(16, Math.floor(w * 0.032));
+    const titleSize = w < 520 ? 14 : 20;
     ctx.font = `bold ${titleSize}px ${t.fonts.title}`;
     const titleMaxW = w - 32;
     let titleText = t.terms.gameTitle;
@@ -1724,7 +1730,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // Subtitle line — mode + turn info, truncated to fit
     ctx.fillStyle = t.textSecondary;
-    const subSize = Math.max(11, Math.floor(w * 0.022));
+    const subSize = w < 520 ? 11 : 14;
     ctx.font = `${subSize}px ${t.fonts.body}`;
     const modeText = this.mode === "agent" ? "vs AGENT" : this.mode === "online" ? "ONLINE TABLE" : "1v1 HOTSEAT";
     let turnText = "";
@@ -1751,64 +1757,49 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
     ctx.fillText(subLine, w / 2, 46);
 
-    // Tagline from theme (tiny, muted)
-    ctx.fillStyle = t.textMuted;
-    const tagSize = Math.max(9, Math.floor(w * 0.018));
-    ctx.font = `italic ${tagSize}px ${t.fonts.body}`;
-    ctx.fillText(t.tagline, w / 2, w < 520 ? 58 : 62);
+    // A dedicated command lane never overlaps board titles or coordinates.
+    if (this.phase !== "setup") {
+      const ready = this.phase === "play" && (this.mode === "hotseat" || this.currentTurn === "player");
+      ctx.fillStyle = ready ? t.accent : t.enemyColor;
+      ctx.fillRect(16, 64, w - 32, 44);
+      ctx.fillStyle = t.bgDeep;
+      ctx.font = `bold ${w < 520 ? 12 : 16}px ${t.fonts.body}`;
+      const coordinate = this.hoverCell ? ` ${String.fromCharCode(65 + this.hoverCell[0])}${this.hoverCell[1] + 1}` : "";
+      ctx.fillText(this.phase === "over" ? "BATTLE COMPLETE" : ready ? `FIRE${coordinate} / TAP TARGET GRID` : "HOLD FIRE / RIVAL'S TURN", w / 2, 91);
+    }
 
-    // Draw boards with entrance animation offsets
-    this.drawBoard(ctx, startX + leftOffsetX, startY, cell, "player", t);
-    this.drawBoard(ctx, opponentX + rightOffsetX, opponentY, cell, "opponent", t);
+    // Stationary boards keep pointer hitboxes aligned from the first frame.
+    this.drawBoard(ctx, startX, startY, cell, "player", t);
+    this.drawBoard(ctx, opponentX, opponentY, cell, "opponent", t);
 
     // Fleet status panels
     this.drawFleetStatus(ctx, startX, playerFleetY, boardSize, statusH, "player", t);
     this.drawFleetStatus(ctx, opponentX, opponentFleetY, boardSize, statusH, "opponent", t);
 
     // On-screen setup controls — mouse AND touch friendly
-    if (this.phase === "setup") {
+    if (this.phase === "setup" && !this.onlineFleetSubmitted) {
       const rot = this.getRotateButtonRect(w, h);
       const auto = this.getAutoButtonRect(w, h);
-      const drawBtn = (r: { x: number; y: number; w: number; h: number }, glyph: string, label: string, highlight: boolean) => {
+      const drawBtn = (r: { x: number; y: number; w: number; h: number }, glyph: string, label: string) => {
         ctx.save();
         ctx.textAlign = "center";
-        ctx.fillStyle = "rgba(0,0,0,0.45)";
-        ctx.strokeStyle = highlight ? t.enemyColor : t.accent;
+        ctx.fillStyle = t.panel;
+        ctx.strokeStyle = t.accent;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(r.x, r.y, r.w, r.h, 8);
+        ctx.rect(r.x, r.y, r.w, r.h);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = highlight ? t.enemyColor : t.accent;
-        ctx.font = `bold ${Math.max(16, Math.floor(r.h * 0.42))}px ${t.fonts.body}`;
-        ctx.fillText(glyph, r.x + r.w / 2, r.y + r.h * 0.55);
-        ctx.font = `bold ${Math.max(8, Math.floor(r.w * 0.22))}px ${t.fonts.body}`;
+        ctx.fillStyle = t.accent;
+        ctx.font = `bold 12px ${t.fonts.body}`;
+        ctx.fillText(glyph, r.x + r.w / 2, r.y + 17);
+        ctx.font = `11px ${t.fonts.body}`;
         ctx.fillStyle = t.textSecondary;
-        ctx.fillText(label, r.x + r.w / 2, r.y + r.h + 10);
+        ctx.fillText(label, r.x + r.w / 2, r.y + 34);
         ctx.restore();
       };
-      drawBtn(rot, "⟳", "rotate", this.horizontal);
-      drawBtn(auto, "⚓", "auto", false);
-    }
-
-    // ENEMY TURN banner — made prominent so the player clearly sees the agent acting
-    if (this.mode === "agent" && this.phase === "play" && this.currentTurn === "agent") {
-      const elapsed = performance.now() - this.agentTurnAt;
-      const pulse = 0.55 + Math.sin(performance.now() * 0.006) * 0.25;
-      const bannerY = headerH + 30;
-      ctx.save();
-      ctx.textAlign = "center";
-      const bSize = Math.max(14, Math.floor(w * 0.03));
-      ctx.font = `bold ${bSize}px ${t.fonts.title}`;
-      ctx.fillStyle = `${t.enemyColor}${Math.floor(pulse * 255).toString(16).padStart(2, "0")}`;
-      ctx.shadowColor = t.enemyColor;
-      ctx.shadowBlur = 14;
-      const bannerText = this.agentAim
-        ? "ENEMY LOCKED — FIRING..."
-        : `ENEMY TURN — ${elapsed < 650 ? "CALCULATING..." : "TARGETING"}`;
-      ctx.fillText(bannerText, w / 2, bannerY);
-      ctx.shadowBlur = 0;
-      ctx.restore();
+      drawBtn(rot, "[R] ROTATE", this.horizontal ? "HORIZONTAL >" : "VERTICAL v");
+      drawBtn(auto, "[A] AUTO", "DEPLOY ALL 5");
     }
 
     // Aiming reticle — sweeps to the cell the agent is about to strike on the player's board
@@ -1846,7 +1837,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Cannon fire projectile
-    if (this.cannonFire) {
+    if (this.cannonFire && this.themeId !== "charter") {
       const cf = this.cannonFire;
       const px = cf.sx + (cf.tx - cf.sx) * this.easeOutCubic(cf.t);
       const py = cf.sy + (cf.ty - cf.sy) * this.easeOutCubic(cf.t);
@@ -1871,7 +1862,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     // Sink sequence (bow-to-stern flash)
     if (this.sinkSequence) {
       const ss = this.sinkSequence;
-      const boardX = ss.board === "player" ? startX + leftOffsetX : opponentX + rightOffsetX;
+      const boardX = ss.board === "player" ? startX : opponentX;
       const boardY = ss.board === "player" ? startY : opponentY;
       for (let i = 0; i <= ss.cellIndex && i < ss.cells.length; i++) {
         const [cx, cy] = ss.cells[i];
@@ -1881,35 +1872,29 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       }
     }
 
-    // Message with Sparrow portrait
-    if (this.messageTimer > 0 && this.message) {
-      const alpha = Math.min(1, this.messageTimer / 500);
-      // Speech bubble background
+    // Bounded radio strip, with a rules reminder when the radio is quiet.
+    {
       const bubbleX = 12;
       const bubbleY = messageY;
-      const msgFontSize = Math.max(10, Math.min(15, Math.floor(w * 0.022)));
+      const msgFontSize = w < 520 ? 11 : 14;
       ctx.font = `${msgFontSize}px ${t.fonts.body}`;
       const bubbleW = w - 24;
       const bubbleH = messageH;
-      ctx.globalAlpha = alpha * 0.92;
+      ctx.globalAlpha = 1;
       ctx.fillStyle = t.bgDeep;
       ctx.strokeStyle = t.accent;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 4);
+      ctx.rect(bubbleX, bubbleY, bubbleW, bubbleH);
       ctx.fill();
       ctx.stroke();
       // Message text stays in its own command strip below both fleet panels.
       ctx.fillStyle = t.textPrimary;
       ctx.textAlign = "left";
-      let messageText = this.message;
-      const messageMaxW = bubbleW - 52;
+      let messageText = this.messageTimer > 0 && this.message ? this.message : this.phase === "setup" ? "PLACE 5 SHIPS. LEAVE A 1-CELL GAP." : "+ HIT   . MISS   X SUNK / ONE SHOT PER TURN";
+      const messageMaxW = bubbleW - 20;
       while (messageText.length > 4 && ctx.measureText(messageText).width > messageMaxW) messageText = `${messageText.slice(0, -4)}...`;
-      ctx.fillText(messageText, bubbleX + 42, bubbleY + bubbleH / 2 + msgFontSize * 0.34);
-      ctx.fillStyle = t.accent;
-      ctx.font = `20px ${t.fonts.body}`;
-      ctx.textAlign = "center";
-      ctx.fillText("☠", bubbleX + 22, bubbleY + bubbleH / 2 + 7);
+      ctx.fillText(messageText, bubbleX + 10, bubbleY + bubbleH / 2 + msgFontSize * 0.34);
       ctx.globalAlpha = 1;
       ctx.textAlign = "center";
     }
@@ -1922,17 +1907,18 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.strokeRect(0, h - footerH, w, 1);
 
     ctx.fillStyle = t.accent;
-    ctx.font = `bold ${Math.max(9, Math.min(11, Math.floor(w * 0.018)))}px ${t.fonts.body}`;
+    ctx.font = `bold 11px ${t.fonts.body}`;
+    ctx.textAlign = "center";
     const mineLine = this.mode === "online"
-      ? "FRIENDLY ONLINE TABLE  |  SERVER-AUTHORITATIVE"
-      : `MINING 201  |  SCANS ${this.mineStats.scansUsed}/${this.mineConfig.scanBudget}  |  ORE ${this.mineStats.oreFound}  |  BLOCKS ${this.mineStats.blocksMined}`;
+      ? "ONLINE / PRIVATE FLEETS"
+      : `SCANS ${this.mineStats.scansUsed}/${this.mineConfig.scanBudget}  ORE ${this.mineStats.oreFound}  BLOCKS ${this.mineStats.blocksMined}`;
     ctx.fillText(mineLine, w / 2, h - 25);
 
     ctx.fillStyle = t.textMuted;
-    ctx.font = `${Math.max(10, Math.min(12, Math.floor(w * 0.02)))}px ${t.fonts.body}`;
+    ctx.font = `11px ${t.fonts.body}`;
     let hint = "";
     if (this.phase === "setup") {
-      hint = "TAP board to place · ⟳ rotate · ⚓ auto";
+      hint = "TAP TO PLACE / R ROTATE / A AUTO";
     } else if (this.phase === "over") {
       hint = "TAP for NEW GAME · ESC tavern";
     } else {
@@ -1942,7 +1928,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.textAlign = "left";
 
     // Turn transition wipe (subtle top-edge wipe on turn change)
-    if (this.turnWipe > 0) {
+    if (this.turnWipe > 0 && this.themeId !== "charter") {
       const wipeAlpha = this.turnWipe * 0.35;
       ctx.fillStyle = `${this.turnWipeColor}${Math.floor(wipeAlpha * 255).toString(16).padStart(2, '0')}`;
       ctx.fillRect(0, 0, w, headerH + 4);
@@ -2069,28 +2055,13 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         }
       }
       ctx.restore();
-    } else if (this.themeId === "charter") {
-      // Subtle tide lines
-      ctx.save();
-      ctx.globalAlpha = 0.03;
-      ctx.strokeStyle = t.accent;
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        const waveY = h * (0.2 + i * 0.2);
-        for (let x = 0; x < w; x += 4) {
-          const y = waveY + Math.sin((x + now * 0.03 + i * 40) * 0.015) * 6;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-      ctx.restore();
     }
 
     ctx.restore(); // Restore screen shake transform
 
     // Draw particles on top (not affected by screen shake) with differentiated shapes
     for (const p of this.particles) {
+      if (this.themeId === "charter") continue;
       const alpha = Math.max(0, p.life / p.maxLife);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
@@ -2124,6 +2095,7 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     // Draw popups on top
     for (const p of this.popups) {
+      if (this.themeId === "charter") continue;
       const alpha = Math.min(1, p.life / (p.maxLife * 0.3));
       const progress = 1 - p.life / p.maxLife;
       const rise = progress * 35;
@@ -2235,18 +2207,18 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const cardX = (w - cardW) / 2;
     const cardY = (h - cardH) / 2;
     ctx.save();
-    ctx.fillStyle = `${t.bgDeep}f2`;
+    ctx.fillStyle = t.bgDeep;
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = t.panel;
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.rect(cardX, cardY, cardW, cardH);
     ctx.fill();
     ctx.stroke();
     ctx.textAlign = "center";
     ctx.fillStyle = t.accent;
-    ctx.font = `bold ${Math.max(18, Math.min(28, Math.floor(w * 0.045)))}px ${t.fonts.title}`;
+    ctx.font = `bold ${w < 520 ? 12 : 18}px ${t.fonts.body}`;
     ctx.fillText(this.onlineStatus, w / 2, cardY + 70, cardW - 24);
     ctx.fillStyle = t.textSecondary;
     ctx.font = `${Math.max(12, Math.min(18, Math.floor(w * 0.026)))}px ${t.fonts.body}`;
@@ -2274,23 +2246,20 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     ctx.lineWidth = 3;
     ctx.strokeRect(10, 10, w - 20, h - 20);
 
-    const panel = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
-    panel.addColorStop(0, t.panel);
-    panel.addColorStop(1, t.bgDeep);
-    ctx.fillStyle = panel;
+    ctx.fillStyle = t.panel;
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardW, cardH, 8);
+    ctx.rect(cardX, cardY, cardW, cardH);
     ctx.fill();
     ctx.stroke();
 
     ctx.textAlign = "center";
     ctx.fillStyle = t.accent;
-    ctx.font = `bold ${Math.max(18, Math.min(30, Math.floor(w * 0.045)))}px ${t.fonts.title}`;
+    ctx.font = `bold ${w < 520 ? 12 : 18}px ${t.fonts.title}`;
     ctx.fillText(`PASS TO PLAYER ${player}`, w / 2, cardY + 58);
     ctx.fillStyle = t.textPrimary;
-    ctx.font = `bold ${Math.max(14, Math.min(22, Math.floor(w * 0.032)))}px ${t.fonts.body}`;
+    ctx.font = `bold ${w < 520 ? 12 : 18}px ${t.fonts.body}`;
     ctx.fillText(`PLAYER ${player}: TAP WHEN READY`, w / 2, cardY + 112);
     ctx.fillStyle = t.textMuted;
     ctx.font = `${Math.max(11, Math.min(16, Math.floor(w * 0.024)))}px ${t.fonts.body}`;
@@ -2321,15 +2290,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     const panelX = ox;
     const panelY = oy;
     const panelW = boardSize;
-    const itemW = panelW / FLEET.length;
+    const itemW = Math.floor(panelW / FLEET.length);
 
-    // Panel background with slight gradient
-    const panelGrad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
-    panelGrad.addColorStop(0, `${t.panel}EE`);
-    panelGrad.addColorStop(1, `${t.bgDeep}EE`);
-    ctx.fillStyle = panelGrad;
+    // Fixed-height fleet slots keep status text separate from health pips.
+    ctx.fillStyle = t.panel;
     ctx.beginPath();
-    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.rect(panelX, panelY, panelW, panelH);
     ctx.fill();
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 1;
@@ -2337,12 +2303,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
 
     const afloat = board.ships.filter((ship) => !ship.sunk).length;
     ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `bold ${Math.max(8, Math.min(11, panelW * 0.035))}px ${t.fonts.body}`;
+    ctx.font = `bold 11px ${t.fonts.body}`;
     ctx.textAlign = "left";
-    ctx.fillText(t.terms[which === "player" ? "playerFleet" : "enemyFleet"], panelX + 6, panelY + 13);
+    ctx.fillText(which === "player" ? "FLEET" : "RIVAL", panelX + 6, panelY + 14);
     ctx.fillStyle = t.textMuted;
     ctx.textAlign = "right";
-    ctx.fillText(`${afloat}/${FLEET.length} AFLOAT`, panelX + panelW - 6, panelY + 13);
+    ctx.fillText(this.phase === "setup" && which === "opponent" ? "HIDDEN" : `${afloat}/5 ${this.phase === "setup" ? "SET" : "AFLOAT"}`, panelX + panelW - 6, panelY + 14);
 
     for (let typeIndex = 0; typeIndex < FLEET.length; typeIndex++) {
       const type = FLEET[typeIndex];
@@ -2354,41 +2320,43 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       const total = spec.size;
       const shipColors = t.shipColors[type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
       const itemX = panelX + typeIndex * itemW;
-      const centerX = itemX + itemW / 2;
+      const centerX = Math.floor(itemX + itemW / 2);
+      ctx.fillStyle = t.bgDeep;
+      ctx.fillRect(itemX + 2, panelY + 21, itemW - 4, panelH - 24);
 
       ctx.fillStyle = sunk ? t.sunkGlow : placed ? shipColors.light : t.textMuted;
-      ctx.font = `bold ${Math.max(7, Math.min(10, itemW * 0.22))}px ${t.fonts.body}`;
+      ctx.font = `bold 11px ${t.fonts.body}`;
       ctx.textAlign = "center";
-      ctx.fillText(spec.short, centerX, panelY + 27);
+      ctx.fillText(itemW >= 76 ? spec.label : spec.short, centerX, panelY + 34);
 
       const segGap = 1;
       const segAreaW = Math.max(14, itemW - 8);
-      const segW = Math.max(2, (segAreaW - (total - 1) * segGap) / total);
+      const segW = Math.max(2, Math.floor((segAreaW - (total - 1) * segGap) / total));
       const segH = 5;
-      const segX = centerX - (segW * total + segGap * (total - 1)) / 2;
-      const segY = panelY + 32;
+      const segX = Math.floor(centerX - (segW * total + segGap * (total - 1)) / 2);
+      const segY = panelY + 40;
       for (let i = 0; i < total; i++) {
         const sx = segX + i * (segW + segGap);
         if (placed && !sunk) {
-          ctx.fillStyle = i < hits ? t.hitColor : `${shipColors.main}80`;
+          ctx.fillStyle = i < hits ? t.hitColor : shipColors.light;
           ctx.fillRect(sx, segY, segW, segH);
         } else if (sunk) {
-          ctx.fillStyle = `${t.sunkColor}80`;
+          ctx.fillStyle = t.sunkGlow;
           ctx.fillRect(sx, segY, segW, segH);
         } else {
-          ctx.fillStyle = `${t.textMuted}40`;
+          ctx.fillStyle = t.gridLine;
           ctx.fillRect(sx, segY, segW, segH);
         }
       }
 
-      let status = sunk ? "SUNK" : placed ? `${hits}/${total}` : "NOT SET";
+      let status = sunk ? "SUNK" : placed ? `${total - hits}/${total}` : "--";
       if (this.phase === "setup" && which === "player" && this.getCurrentShipType() === type && this.playerPlacing < FLEET.length) {
-        status = "DEPLOY";
+        status = "NEXT";
       }
 
-      ctx.fillStyle = status === "DEPLOY" || status.includes("READY") ? t.accent : sunk ? t.sunkGlow : t.textMuted;
-      ctx.font = `${Math.max(6, Math.min(9, itemW * 0.18))}px ${t.fonts.body}`;
-      ctx.fillText(status, centerX, panelY + Math.min(panelH - 7, 49));
+      ctx.fillStyle = status === "NEXT" ? t.accent : sunk ? t.sunkGlow : t.textMuted;
+      ctx.font = `11px ${t.fonts.body}`;
+      ctx.fillText(status, centerX, panelY + 59);
     }
 
     ctx.textAlign = "left";
@@ -2407,95 +2375,84 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       grid = this.getTargetGrid();
       board = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.player2Board : this.player1Board) : this.opponentBoard;
     }
-    const label = which === "player" ? t.terms.playerFleet : t.terms.targetingGrid;
+    const label = which === "player" ? "01 / YOUR WATERS" : "02 / TARGET GRID";
     const bw = GRID_SIZE * cell;
     const bh = GRID_SIZE * cell;
 
     ctx.save();
 
-    // Board border with glow
-    ctx.shadowColor = t.panelBorder;
-    ctx.shadowBlur = 6;
+    // Flat board frame
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = t.panelBorder;
     ctx.lineWidth = 2;
     ctx.strokeRect(ox - 3, oy - 3, bw + 6, bh + 6);
     ctx.shadowBlur = 0;
 
     // Water background for the board
-    this.drawWater(ctx, ox, oy, bw, bh, t);
+    if (this.themeId === "charter") {
+      ctx.fillStyle = t.gridBg;
+      ctx.fillRect(ox, oy, bw, bh);
+    } else this.drawWater(ctx, ox, oy, bw, bh, t);
 
     // Grid lines
     ctx.strokeStyle = t.gridLine;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 1;
     for (let i = 0; i <= GRID_SIZE; i++) {
       ctx.beginPath();
-      ctx.moveTo(ox + i * cell, oy);
-      ctx.lineTo(ox + i * cell, oy + bh);
+      ctx.moveTo(ox + i * cell + 0.5, oy);
+      ctx.lineTo(ox + i * cell + 0.5, oy + bh);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(ox, oy + i * cell);
-      ctx.lineTo(ox + bw, oy + i * cell);
+      ctx.moveTo(ox, oy + i * cell + 0.5);
+      ctx.lineTo(ox + bw, oy + i * cell + 0.5);
       ctx.stroke();
     }
 
-    // Cell state overlays (hit markers, miss markers on opponent board)
+    // Ships sit below shot markers so damage symbols remain identical on both grids.
+    if (which === "player") {
+      for (const ship of board.ships) {
+        const shipColor = t.shipColors[ship.type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
+        this.drawShipSilhouette(ctx, ship.cells, cell, ox, oy, shipColor.main, shipColor.dark, 1, ship.sunk, ship.hits, ship.type);
+      }
+    }
+    // Incoming misses live in the shot grid, not in the ship grid.
+    const incoming = this.mode === "hotseat" ? (this.currentTurn === "player1" ? this.opponentTargetGrid : this.playerTargetGrid) : this.playerTargetGrid;
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const cx = ox + x * cell;
         const cy = oy + y * cell;
-        const state = grid[y][x];
+        const state = which === "player" && incoming[y][x] === CELL_STATES.miss ? CELL_STATES.miss : grid[y][x];
 
-        if (state === CELL_STATES.hit) {
-          ctx.fillStyle = `${t.hitColor}80`;
-          ctx.fillRect(cx, cy, cell, cell);
-          const fireGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.6);
-          fireGrad.addColorStop(0, `${t.hitGlow}60`);
-          fireGrad.addColorStop(0.5, `${t.hitColor}30`);
-          fireGrad.addColorStop(1, "transparent");
-          ctx.fillStyle = fireGrad;
-          ctx.fillRect(cx, cy, cell, cell);
-        } else if (state === CELL_STATES.miss) {
-          ctx.globalAlpha = 0.35;
-          ctx.strokeStyle = t.missColor;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.ellipse(cx + cell / 2, cy + cell / 2, cell * 0.3, cell * 0.12, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.globalAlpha = 0.15;
-          ctx.fillStyle = t.missColor;
-          ctx.beginPath();
-          ctx.ellipse(cx + cell / 2, cy + cell / 2, cell * 0.15, cell * 0.06, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        } else if (state === CELL_STATES.sunk) {
-          ctx.fillStyle = `${t.sunkColor}a0`;
-          ctx.fillRect(cx, cy, cell, cell);
-          const burnGrad = ctx.createRadialGradient(cx + cell / 2, cy + cell / 2, 0, cx + cell / 2, cy + cell / 2, cell * 0.6);
-          burnGrad.addColorStop(0, `${t.sunkGlow}50`);
-          burnGrad.addColorStop(0.5, `${t.sunkColor}30`);
-          burnGrad.addColorStop(1, "transparent");
-          ctx.fillStyle = burnGrad;
-          ctx.fillRect(cx, cy, cell, cell);
-        }
-
-        if (which === "opponent" && state !== CELL_STATES.empty) {
-          this.drawResolvedAnchor(ctx, cx + cell / 2, cy + cell / 2, cell, t.accent);
+        if (state === CELL_STATES.hit || state === CELL_STATES.miss || state === CELL_STATES.sunk) {
+          const midX = cx + Math.floor(cell / 2);
+          const midY = cy + Math.floor(cell / 2);
+          const arm = Math.max(3, Math.floor(cell / 4));
+          ctx.fillStyle = state === CELL_STATES.miss ? t.textSecondary : t.hitColor;
+          if (state === CELL_STATES.miss) ctx.fillRect(midX - 2, midY - 2, 4, 4);
+          else {
+            ctx.fillRect(cx + 2, cy + 2, cell - 4, cell - 4);
+            ctx.fillStyle = t.textPrimary;
+            if (state === CELL_STATES.sunk) {
+              for (let d = -arm; d <= arm; d++) {
+                ctx.fillRect(midX + d, midY + d, 2, 2);
+                ctx.fillRect(midX + d, midY - d, 2, 2);
+              }
+            } else {
+              ctx.fillRect(midX - arm, midY - 1, arm * 2 + 1, 3);
+              ctx.fillRect(midX - 1, midY - arm, 3, arm * 2 + 1);
+            }
+          }
         }
       }
     }
 
-    // Draw ship silhouettes
     if (which === "player") {
-      for (const ship of board.ships) {
-        const shipColor = t.shipColors[ship.type] ?? { main: t.accent, light: t.accent, dark: t.accentDim };
-        this.drawShipSilhouette(
-          ctx, ship.cells, cell, ox, oy,
-          shipColor.main, shipColor.dark,
-          1, ship.sunk, ship.hits, ship.type,
-        );
-      }
       // Ghost preview during setup
-      if (this.phase === "setup" && this.hoverCell) {
+      if (this.phase === "setup" && this.hoverCell && !this.onlineFleetSubmitted) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ox, oy, bw, bh);
+        ctx.clip();
         const [hx, hy] = this.hoverCell;
         const size = this.getCurrentShipSize();
         const previewCells: [number, number][] = [];
@@ -2511,40 +2468,45 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
           valid ? shipColor.main : t.hitColor,
           0.6, false, [], previewType,
         );
+        ctx.restore();
       }
     }
 
     // Label
     ctx.fillStyle = which === "player" ? t.playerColor : t.enemyColor;
-    ctx.font = `bold ${Math.max(10, Math.min(14, Math.floor(cell * 0.42)))}px ${t.fonts.body}`;
+    ctx.font = `bold 12px ${t.fonts.body}`;
     ctx.textAlign = "center";
-    ctx.fillText(label, ox + bw / 2, oy - 8);
+    ctx.fillText(label, ox + bw / 2, oy - 27);
 
-    // Coordinates sit just inside the board so they never collide with titles or fleet panels.
+    // Dedicated gutters keep coordinates readable even when the edge cells contain ships.
     ctx.fillStyle = t.textMuted;
-    ctx.font = `${Math.max(8, Math.floor(cell * 0.3))}px ${t.fonts.body}`;
-    ctx.globalAlpha = 0.72;
+    ctx.font = `11px ${t.fonts.body}`;
     for (let i = 0; i < GRID_SIZE; i++) {
-      ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + cell / 2, oy + 10);
-      ctx.fillText(String(i + 1), ox + 6, oy + i * cell + cell / 2 + 3);
+      ctx.fillText(String.fromCharCode(65 + i), ox + i * cell + Math.floor(cell / 2), oy - 9);
+      ctx.fillText(String(i + 1), ox - 16, oy + i * cell + Math.floor(cell / 2) + 4);
     }
     ctx.globalAlpha = 1;
 
-    // Turn indicator — pulsing glow border on active board
+    // Both hotseat players fire at the target grid, never their own waters.
     if (this.phase === "play" && !this.agentThinking) {
-      const isPlayerTurn = this.currentTurn === "player" || this.currentTurn === "player1";
-      if ((which === "opponent" && isPlayerTurn) || (which === "player" && !isPlayerTurn && this.mode === "hotseat")) {
-        const pulse = 0.3 + Math.sin(performance.now() * 0.004) * 0.15;
-        ctx.shadowColor = t.accent;
-        ctx.shadowBlur = 8;
-        ctx.strokeStyle = `${t.accent}${Math.floor(pulse * 255).toString(16).padStart(2, "0")}`;
-        ctx.lineWidth = 3;
+      const isPlayerTurn = this.currentTurn === "player" || this.mode === "hotseat";
+      if (which === "opponent" && isPlayerTurn) {
+        ctx.strokeStyle = t.accent;
+        ctx.lineWidth = 2;
         ctx.strokeRect(ox - 5, oy - 5, bw + 10, bh + 10);
-        ctx.shadowBlur = 0;
+        if (this.hoverCell) {
+          const [x, y] = this.hoverCell;
+          ctx.strokeStyle = grid[y][x] === CELL_STATES.empty ? t.accent : t.enemyColor;
+          ctx.strokeRect(ox + x * cell + 2, oy + y * cell + 2, cell - 4, cell - 4);
+        }
       }
     }
 
     // Flash effects (explosions for hits, splashes for misses, expanding rings for sinks)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, bw, bh);
+    ctx.clip();
     for (const f of this.flashCells) {
       const boards: ("player" | "opponent" | "player1" | "player2")[] = [];
       if (f.board === "player") boards.push("player");
@@ -2553,6 +2515,12 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
       else if (f.board === "player2") boards.push(this.mode === "hotseat" && this.currentTurn === "player1" ? "player" : "opponent");
 
       if (boards.includes(which)) {
+        if (this.themeId === "charter") {
+          ctx.strokeStyle = f.type === "miss" ? t.textSecondary : t.accent;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(ox + f.x * cell + 2, oy + f.y * cell + 2, cell - 4, cell - 4);
+          continue;
+        }
         const fx = ox + f.x * cell + cell / 2;
         const fy = oy + f.y * cell + cell / 2;
         const maxTimer = f.type === "sink" ? 800 : f.type === "hit" ? 300 : 250;
@@ -2575,39 +2543,9 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
         }
       }
     }
+    ctx.restore();
 
     ctx.textAlign = "left";
-    ctx.restore();
-  }
-
-  private drawResolvedAnchor(
-    ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    cell: number,
-    color: string,
-  ) {
-    const radius = cell * 0.12;
-    const top = cy - cell * 0.25;
-    const bottom = cy + cell * 0.24;
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = Math.max(0.7, cell * 0.055);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.arc(cx, top, radius, 0, Math.PI * 2);
-    ctx.moveTo(cx, top + radius);
-    ctx.lineTo(cx, bottom);
-    ctx.moveTo(cx - cell * 0.25, cy + cell * 0.08);
-    ctx.quadraticCurveTo(cx - cell * 0.2, bottom, cx, bottom);
-    ctx.quadraticCurveTo(cx + cell * 0.2, bottom, cx + cell * 0.25, cy + cell * 0.08);
-    ctx.moveTo(cx - cell * 0.29, cy + cell * 0.1);
-    ctx.lineTo(cx - cell * 0.2, cy + cell * 0.04);
-    ctx.moveTo(cx + cell * 0.29, cy + cell * 0.1);
-    ctx.lineTo(cx + cell * 0.2, cy + cell * 0.04);
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -2615,7 +2553,6 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   pointerDown(nx: number, ny: number, w: number, h: number) {
     if (this.acknowledgeHandoff()) return;
     const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
-    const { leftOffsetX, rightOffsetX } = this.getBoardEntranceOffsets();
 
     // On-screen setup controls (rotate + auto) — mouse AND touch friendly
     if (this.phase === "setup") {
@@ -2634,17 +2571,21 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
     }
 
     // Check own board (placement)
-    const ownX = Math.floor((nx - (startX + leftOffsetX)) / cell);
+    const ownX = Math.floor((nx - startX) / cell);
     const ownY = Math.floor((ny - startY) / cell);
     if (ownX >= 0 && ownX < GRID_SIZE && ownY >= 0 && ownY < GRID_SIZE) {
       if (this.phase === "setup") {
         if (this.canPlaceAt(ownX, ownY)) this.placeCurrentShip(ownX, ownY);
+        else {
+          this.message = "BLOCKED / KEEP A 1-CELL GAP; STAY IN GRID";
+          this.messageTimer = 1800;
+        }
       }
       return;
     }
 
     // Check opponent board (firing)
-    const oppX = Math.floor((nx - (opponentX + rightOffsetX)) / cell);
+    const oppX = Math.floor((nx - opponentX) / cell);
     const oppY = Math.floor((ny - opponentY) / cell);
     if (oppX >= 0 && oppX < GRID_SIZE && oppY >= 0 && oppY < GRID_SIZE) {
       if (this.phase === "play") {
@@ -2660,11 +2601,10 @@ fireAt(board: Board, targetGrid: CellState[][], x: number, y: number, byPlayer: 
   }
 
   pointerMove(nx: number, ny: number, w: number, h: number) {
-    if (this.phase !== "setup") { this.hoverCell = null; return; }
-    const { cell, startX, startY } = this.getBoardLayout(w, h);
-    const { leftOffsetX } = this.getBoardEntranceOffsets();
-    const x = Math.floor((nx - (startX + leftOffsetX)) / cell);
-    const y = Math.floor((ny - startY) / cell);
+    if (this.handoffPending || this.phase === "over") { this.hoverCell = null; return; }
+    const { cell, startX, startY, opponentX, opponentY } = this.getBoardLayout(w, h);
+    const x = Math.floor((nx - (this.phase === "setup" ? startX : opponentX)) / cell);
+    const y = Math.floor((ny - (this.phase === "setup" ? startY : opponentY)) / cell);
     if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
       this.hoverCell = [x, y];
     } else {
