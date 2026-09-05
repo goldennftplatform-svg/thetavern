@@ -2463,7 +2463,8 @@ function bootConflicOnline() {
       renderConflicLobby();
     },
     onState: (view) => {
-      if (conflicMode !== "online" || state.phase !== "conflic_bouy" || !conflicGame) return;
+      if (conflicMode !== "online") return;
+      if (!conflicGame) conflicGame = new ConflicBouy({ mode: "online", theme: view.tableId, stake: 0, onlineCallbacks: { deploy: (ships) => conflicOnline?.submitFleet(ships), fire: (x, y) => conflicOnline?.fire(x, y) } });
       conflicGame.applyOnlineView(view);
       syncConflicOnlineState(view);
       drawConflic();
