@@ -269,12 +269,13 @@ export class KnightTetris {
 
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, hudTop: number, footReserve = 28, touchPad = false) {
     const pad = 8;
-    const playH = h - hudTop - footReserve - pad * 2;
-    const cell = Math.floor(Math.min((w - pad * 2) / (COLS + 3.2), playH / ROWS));
+    const playH = h - hudTop - footReserve - pad * 2 - 28;
+    const cell = Math.max(1, Math.floor(Math.min((w - 48) / (COLS + 2.2), playH / ROWS)));
     const boardW = cell * COLS;
     const boardH = cell * ROWS;
-    const ox = Math.floor((w - boardW) / 2);
-    const oy = hudTop + Math.floor((playH - boardH) / 2) + pad;
+    const previewW = Math.max(6, Math.floor(cell * 0.55)) * 4 + 18;
+    const ox = Math.floor((w - boardW - previewW) / 2);
+    const oy = hudTop + 28 + Math.floor((playH - boardH) / 2) + pad;
 
     ctx.fillStyle = "#0a1020";
     ctx.fillRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
@@ -283,9 +284,9 @@ export class KnightTetris {
     ctx.strokeRect(ox - 4, oy - 4, boardW + 8, boardH + 8);
 
     ctx.fillStyle = "#68e8a8";
-    ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
+    ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.042)))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("II · STACK ATTACK", w / 2, oy - 10);
+    if (!this.linesClearedThisDrop || this.flashMs <= 0) ctx.fillText("II · STACK ATTACK", w / 2, oy - 10);
     ctx.textAlign = "left";
 
     const flash = this.flashMs > 0 ? this.flashMs / 140 : 0;
@@ -321,7 +322,7 @@ export class KnightTetris {
     // Draw lines cleared message during flash
     if (this.linesClearedThisDrop > 0 && flash > 0) {
       const linesText = `CLEAR ${this.linesClearedThisDrop} LINES`;
-      const titlePx = Math.max(16, Math.floor(w * 0.042));
+      const titlePx = Math.max(16, Math.min(22, Math.floor(w * 0.042)));
       ctx.fillStyle = `rgba(232, 176, 80, ${flash * 0.5})`;
       ctx.font = `${titlePx}px "VT323", monospace`;
       ctx.textAlign = "center";
@@ -333,9 +334,10 @@ export class KnightTetris {
 
     if (!touchPad) {
       ctx.fillStyle = "rgba(248,240,255,0.7)";
-      ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
+      ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.034)))}px "VT323", monospace`;
       ctx.textAlign = "center";
-      ctx.fillText("← → MOVE · ↑ ROTATE · ↓ DROP · F SLAM", w / 2, h - 8);
+      ctx.fillText("← → Move · ↑ / Space Rotate", w / 2, h - 28);
+      ctx.fillText("↓ Soft drop · F Hard drop", w / 2, h - 8);
       ctx.textAlign = "left";
     }
   }

@@ -53,6 +53,25 @@ function bindHold(
 
 export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   const { touchFriendly, canvas, getPhase, getGame, buttons } = opts;
+  const labels: [HTMLElement, string, string][] = [
+    [buttons.rotate, "Rotate", "Rotate piece"],
+    [buttons.hard, "Hard drop", "Hard drop: place piece immediately"],
+    [buttons.jump, "Jump", "Jump: hold for height, release for a short hop"],
+  ];
+  for (const [button, label, description] of labels) {
+    const caption = button.querySelector(".warrior-tap-label");
+    if (caption) caption.textContent = label;
+    else button.textContent = label;
+    button.setAttribute("aria-label", description);
+    button.title = description;
+  }
+  // The rotate button has a narrow fixed share of the mobile control row.
+  buttons.rotate.style.fontSize = "clamp(14px, 3.6vw, 18px)";
+  const softLabel = buttons.drop.querySelector(".warrior-tap-label--tetris");
+  if (softLabel) softLabel.textContent = "Soft drop";
+  const stepLabel = buttons.drop.querySelector(".warrior-tap-label--drmario");
+  if (stepLabel) stepLabel.textContent = "Step down";
+  buttons.drop.title = "Hold to move down; hard drop places immediately";
 
   const puzzleGate = () => warriorActive(getPhase(), getGame()) && puzzleStage(getGame());
   const platformGate = () => {

@@ -108,6 +108,11 @@ html.play-active .play-menu {
   flex-direction: column;
   align-items: stretch;
   gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 6px 10px;
 }
 
 .studio-stage-head {
@@ -123,18 +128,33 @@ html.play-active .play-menu {
 }
 
 .studio-stage-body {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 14px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 4px;
+  padding-bottom: 10px;
+}
+
+/* One scroll surface keeps long instructions and footers reachable on short screens. */
+.studio-stage-body > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Component specificity protects rounded chrome from style.css's legacy .btn reset. */
+.studio-stage .btn {
+  border-radius: 10px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.studio-stage :is(.btn, .hub-tile):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .studio-stage-footer {
@@ -198,6 +218,7 @@ html.play-active .play-menu {
 /* ——— Playing cards (override tavern-hub tiny cards) ——— */
 .play-menu .playing-card {
   position: relative;
+  container-type: inline-size;
   width: 72px;
   height: 100px;
   border-radius: 10px;
@@ -242,7 +263,7 @@ html.play-active .play-menu {
 }
 
 .play-menu .playing-card--hero .playing-card-rank {
-  font-size: clamp(1.75rem, 7vw, 2.25rem) !important;
+  font-size: min(2.25rem, 18cqw) !important;
 }
 
 .playing-card-corner {
@@ -281,7 +302,7 @@ html.play-active .play-menu {
 }
 
 .play-menu .playing-card--hero .playing-card-suit-sm {
-  font-size: clamp(1.1rem, 4.5vw, 1.35rem);
+  font-size: min(1.35rem, 14cqw);
 }
 
 .playing-card-pip {
@@ -294,7 +315,7 @@ html.play-active .play-menu {
 }
 
 .play-menu .playing-card--hero .playing-card-pip {
-  font-size: clamp(3.5rem, 16vw, 5rem);
+  font-size: min(5rem, 45cqw);
 }
 
 .play-menu .playing-card--cups,
@@ -360,9 +381,9 @@ html.play-active .play-menu {
 
 .chance-rank-ladder {
   font-family: var(--font-display, "Pixelify Sans", sans-serif);
-  font-size: clamp(0.62rem, 2.8vw, 0.75rem);
+  font-size: 0.85rem;
   letter-spacing: 0.06em;
-  color: rgba(232, 220, 200, 0.5);
+  color: #d8ccba;
   margin: 10px 0 0;
 }
 
@@ -376,20 +397,35 @@ html.play-active .play-menu {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  padding-top: 14px;
 }
 
-.chance-color-legend {
+.play-menu-body p.chance-color-legend {
+  display: block;
   margin: 10px 0 0;
-  font-size: 0.8rem;
+  font-size: 1rem;
 }
 
 .chance-hilo-reveal {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   justify-content: center;
   gap: clamp(8px, 3vw, 16px);
   width: 100%;
   margin: 8px 0 4px;
+  padding-top: 14px;
+}
+
+.play-menu .chance-hilo-reveal .playing-card--hero {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  min-width: 0;
+}
+
+.play-menu .chance-hilo-reveal .playing-card-pip {
+  font-size: min(3.5rem, 40cqw);
 }
 
 .chance-hilo-arrow {
@@ -441,7 +477,7 @@ html.play-active .play-menu {
 .chance-actions--studio {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
   margin: 8px 0 0;
 }
@@ -479,6 +515,19 @@ html.play-active .play-menu {
   border: none;
   font-family: var(--font-display, "Pixelify Sans", sans-serif);
   cursor: pointer;
+  min-width: 0;
+}
+
+.chance-actions .studio-choice--red {
+  background: linear-gradient(180deg, #662a36, #361b27);
+  color: #ffe0da;
+  border: 1px solid #ce7b83;
+}
+
+.chance-actions .studio-choice--black {
+  background: linear-gradient(180deg, #303a4a, #151e2a);
+  color: #e4eaf2;
+  border: 1px solid #899bb3;
 }
 
 .studio-choice-label {
@@ -506,10 +555,38 @@ html.play-active .play-menu {
 
 .hub-grid--studio {
   width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  padding: 4px;
 }
 
 .hub-grid--studio .hub-tile {
   min-height: 96px;
+  min-width: 0;
+  padding: 16px 12px;
+  overflow-wrap: anywhere;
+}
+
+.hub-grid--studio .hub-tile > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.studio-stage--chance-menu .chance-menu-grid {
+  grid-template-columns: 1fr;
+}
+
+.chance-menu-description,
+.chance-menu-stakes {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+}
+
+.chance-menu-stakes {
+  color: var(--gold);
 }
 
 .hub-grid--studio .hub-tile-label {
@@ -786,10 +863,6 @@ html.play-active .play-menu {
   color: var(--muted);
   text-align: center;
   max-width: 300px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .studio-omen,
@@ -1108,12 +1181,11 @@ html.play-active .play-menu {
 }
 
 .studio-stage--herald .studio-stage-body {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   align-items: stretch;
   gap: 10px;
   width: 100%;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -1126,13 +1198,8 @@ html.play-active .play-menu {
 }
 
 .studio-x-scroll {
-  flex: 1 1 auto;
-  min-height: 12rem;
+  flex: 0 0 auto;
   max-height: none;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1445,9 +1512,8 @@ html.tavern-mobile .studio-stage--ledger .studio-stage-lead {
 .mobile-hall-lb-name {
   font-family: var(--font-body, "VT323", monospace);
   font-size: 1.15rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .mobile-hall-lb-score {

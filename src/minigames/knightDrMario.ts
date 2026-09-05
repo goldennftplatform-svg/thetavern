@@ -327,12 +327,13 @@ export class KnightDrMario {
   ) {
     const pad = 8;
     const timerBand = typeof timeLeftSec === "number" ? 28 : 0;
-    const playH = h - hudTop - footReserve - pad * 2 - timerBand;
-    const cell = Math.floor(Math.min((w - pad * 2) / (COLS + 2.4), playH / ROWS));
+    const playH = h - hudTop - footReserve - pad * 2 - timerBand - 28;
+    const cell = Math.max(1, Math.floor(Math.min((w - 56) / (COLS + 2.1), playH / ROWS)));
     const boardW = cell * COLS;
     const boardH = cell * ROWS;
-    const ox = Math.floor((w - boardW) / 2) - Math.floor(cell);
-    const oy = hudTop + timerBand + Math.floor((playH - boardH) / 2) + pad;
+    const previewW = Math.max(8, Math.floor(cell * 0.7)) * 3 + 26;
+    const ox = Math.floor((w - boardW - previewW) / 2);
+    const oy = hudTop + timerBand + 28 + Math.floor((playH - boardH) / 2) + pad;
 
     if (typeof timeLeftSec === "number") {
       const pct = Math.max(0, Math.min(1, timeLeftSec / Math.max(1, timeLimitSec)));
@@ -345,10 +346,10 @@ export class KnightDrMario {
       ctx.strokeStyle = "#e8b050";
       ctx.strokeRect(12, barY, barW, 10);
       ctx.fillStyle = timeLeftSec <= 5 ? "#ffb898" : "#f8f0ff";
-      ctx.font = `${Math.max(14, Math.floor(w * 0.036))}px "VT323", monospace`;
+      ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.036)))}px "VT323", monospace`;
       ctx.textAlign = "center";
       ctx.fillText(
-        `TRIAL III · ${Math.max(0, timeLeftSec).toFixed(0)}s · ♥${this.virusesLeft} viruses`,
+        `${Math.ceil(Math.max(0, timeLeftSec))}s · ${this.virusesLeft} viruses left`,
         w / 2,
         barY + 24,
       );
@@ -382,7 +383,7 @@ export class KnightDrMario {
     }
 
     ctx.fillStyle = "#e8b050";
-    ctx.font = `${Math.max(16, Math.floor(w * 0.042))}px "VT323", monospace`;
+    ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.042)))}px "VT323", monospace`;
     ctx.textAlign = "center";
     ctx.fillText("III · VEIL CURE", w / 2, oy - 10);
     ctx.textAlign = "left";
@@ -429,9 +430,10 @@ export class KnightDrMario {
 
     if (!touchPad) {
       ctx.fillStyle = "rgba(248,240,255,0.7)";
-      ctx.font = `${Math.max(14, Math.floor(w * 0.034))}px "VT323", monospace`;
+      ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.034)))}px "VT323", monospace`;
       ctx.textAlign = "center";
-      ctx.fillText("← → MOVE · ↑ ROTATE · ↓ STEP · F SLAM", w / 2, h - 8);
+      ctx.fillText("← → Move · ↑ / Space Rotate", w / 2, h - 28);
+      ctx.fillText("↓ Step down · F Hard drop", w / 2, h - 8);
       ctx.textAlign = "left";
     }
   }

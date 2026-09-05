@@ -1136,7 +1136,7 @@ for (const pick of p.pickups) {
 
     this.drawHud(ctx, w, h, now);
     const touchPad = this.mobileEase && (this.stage === "tetris" || this.stage === "drmario");
-    const footReserve = touchPad ? 96 : 28;
+    const footReserve = touchPad ? 96 : 52;
     if (this.stage === "platform") this.drawPlatform(ctx, w, h, now);
     else if (this.stage === "tetris") {
       const timerBand =
@@ -1167,12 +1167,10 @@ for (const pick of p.pickups) {
     ctx.strokeStyle = "#e8b050";
     ctx.strokeRect(12, barY, barW, 10);
     ctx.fillStyle = left <= 5 ? "#ffb898" : "#f8f0ff";
-    ctx.font = `${Math.max(14, Math.floor(w * 0.036))}px "VT323", monospace`;
+    ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.036)))}px "VT323", monospace`;
     ctx.textAlign = "center";
     ctx.fillText(
-      this.mobileEase
-        ? `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines`
-        : `TRIAL II · ${left.toFixed(0)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · then VEIL CURE`,
+      `${Math.ceil(left)}s · ${this.tetris.lines}/${TETRIS_WIN_LINES} lines · ${this.tetris.piecesLocked}/${TETRIS_MAX_PIECES} pieces`,
       w / 2,
       barY + 24,
     );
@@ -1191,10 +1189,10 @@ for (const pick of p.pickups) {
     const subPx = Math.max(20, Math.min(30, Math.floor(w * 0.062)));
     ctx.fillStyle = `rgba(232, 176, 80, ${pulse})`;
     ctx.font = `${titlePx}px "VT323", monospace`;
-    ctx.fillText(br.title, w / 2, h * 0.38);
+    ctx.fillText(br.title, w / 2, h * 0.38, w - 24);
     ctx.fillStyle = "#f8f0ff";
     ctx.font = `${subPx}px "VT323", monospace`;
-    ctx.fillText(br.subtitle, w / 2, h * 0.48);
+    ctx.fillText(br.subtitle, w / 2, h * 0.48, w - 24);
     ctx.fillStyle = "#98b8e8";
     ctx.font = `${Math.max(16, subPx - 4)}px "VT323", monospace`;
     ctx.fillText("GET READY…", w / 2, h * 0.58);
@@ -1224,33 +1222,20 @@ for (const pick of p.pickups) {
     ctx.fillRect(0, 0, w, hudH);
     ctx.fillStyle = "#e8b050";
     ctx.font = `${titlePx}px "VT323", monospace`;
-    ctx.fillText(this.fitHudLine(ctx, this.banner, w * 0.42), 10, 16);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(this.fitHudLine(ctx, this.banner, w - 100), 10, 19);
     ctx.fillStyle = "#98b8e8";
     ctx.font = `${subPx}px "VT323", monospace`;
-    ctx.fillText(this.fitHudLine(ctx, this.subBanner, w * 0.58), 10, 34);
+    const detail = this.stage === "tetris" ? `Clear full rows · Level ${this.tetris.level}`
+      : this.stage === "drmario" ? "Match 4 of one color"
+      : this.subBanner;
+    ctx.fillText(this.fitHudLine(ctx, detail, w - 120), 10, 38);
 
-    if (this.stage === "tetris") {
-      ctx.fillStyle = "#f8f0ff";
-      ctx.font = `${statPx}px "VT323", monospace`;
-      ctx.fillText(this.tetris.hudLine(), w * 0.34, 16);
-    }
-
-    if (this.stage === "drmario") {
-      ctx.fillStyle = "#f8f0ff";
-      ctx.font = `${statPx}px "VT323", monospace`;
-      ctx.fillText(this.drMario.hudLine(), w * 0.34, 16);
-      if (this.drMario.combo > 1) {
-        ctx.fillStyle = "#e87850";
-        ctx.fillText(`x${this.drMario.combo}`, w * 0.58, 16);
-      }
-    }
-
-    if (timeLeft > 0) {
+    if (timeLeft > 0 && this.stage === "platform") {
       ctx.textAlign = "right";
-      ctx.fillStyle = timeLeft <= 5 && this.stage === "tetris" ? "#e87850" : "#68b8a8";
+      ctx.fillStyle = timeLeft <= 5 ? "#e87850" : "#68b8a8";
       ctx.font = `${timePx}px "VT323", monospace`;
-      const label =
-        timeLeft <= 5 && this.stage === "tetris" ? `⏱ ${timeLeft.toFixed(1)}s` : `${timeLeft.toFixed(1)}s`;
+      const label = `${timeLeft.toFixed(1)}s`;
       ctx.fillText(label, w - 10, 20);
       ctx.textAlign = "left";
     }
@@ -1280,8 +1265,8 @@ for (const pick of p.pickups) {
   private drawBrief(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
     const elapsed = this.stageElapsed(now);
     const tick = elapsed * 0.06;
-    const basePx = this.briefBasePx;
     const rows = this.syncBriefLayout(ctx, w, h);
+    const basePx = this.briefBasePx;
     const lineH = this.briefLineH;
     const panelLeft = w * 0.04;
     const panelW = w * 0.92;
@@ -1344,6 +1329,7 @@ for (const pick of p.pickups) {
     const knightScale = Math.min(1.35, w / 280, (h * 0.16) / 48);
     drawKnightPortrait(ctx, w / 2, knightFootY, tick, knightScale);
     ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
   }
 
   private drawPlatform(ctx: CanvasRenderingContext2D, w: number, h: number, now: number) {
@@ -1432,7 +1418,8 @@ for (const pick of p.pickups) {
     ctx.fillStyle = "rgba(248, 240, 255, 0.8)";
     ctx.font = warriorHintFont(w);
     ctx.textAlign = "center";
-    ctx.fillText("SARGAANO CAUSEWAY — JUMP THE PITS · HOLD HIGHER", w / 2, h - 28);
+    ctx.fillText("Auto-run: jump the pits", w / 2, h - 50);
+    ctx.fillText(this.mobileEase ? "Hold JUMP for height" : "Hold Space / Up / click", w / 2, h - 30);
     ctx.textAlign = "left";
 
     // Draw score popup if active
@@ -1441,7 +1428,7 @@ for (const pick of p.pickups) {
       ctx.fillStyle = SARGAANO.gold;
       ctx.font = `${Math.max(14, Math.floor(w * 0.03))}px "VT323", monospace`;
       ctx.textAlign = "center";
-      ctx.fillText(`+${sp.value}`, sp.x - cam, sp.y);
+      ctx.fillText(`+${sp.value}`, sp.x - cam, groundY + sp.y);
       ctx.textAlign = "left";
     }
   }
@@ -1467,12 +1454,12 @@ for (const pick of p.pickups) {
 
   hint(): string {
     if (this.stage === "brief") return "";
-    if (this.stage === "platform") return "Sprint the causeway — jump clear pits, hold for higher hops";
+    if (this.stage === "platform") return "Auto-run to the gate. Hold jump for height; release for a short hop.";
     if (this.stage === "tetris") {
-      return `70s max · ${TETRIS_WIN_LINES} lines · ${TETRIS_MAX_PIECES} pieces — then Veil Cure`;
+      return `Clear full rows. Ends at 70s, ${TETRIS_WIN_LINES} lines, ${TETRIS_MAX_PIECES} pieces or a full stack; then Veil Cure.`;
     }
     if (this.stage === "drmario") {
-      return `${this.drMario.virusesLeft} viruses · ${Math.ceil(STAGE_MS.drmario / 1000)}s · match 4 to clear`;
+      return `${this.drMario.virusesLeft} viruses · Match 4 of one color horizontally or vertically to clear.`;
     }
     return "Tavern arcade — three back-room trials";
   }

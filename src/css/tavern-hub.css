@@ -931,9 +931,7 @@ html.tavern-mobile .hub-pick {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--gold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .pole-card__tag,
@@ -943,13 +941,6 @@ html.tavern-mobile .hub-pick {
   font-size: 1.05rem;
   line-height: 1.25;
   overflow-wrap: anywhere;
-}
-
-.pole-card__lore {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .pole-card__equip {

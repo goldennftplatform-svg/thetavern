@@ -8,6 +8,7 @@ import type { FoodId } from "../content/tavernNights";
 import { FISHING_POLES, type FishingPole, type PoleId } from "../content/fishingPoles";
 import { nextPoleUnlock } from "../content/fishingPoles";
 import { MOONWELL_DECK_LORE } from "../minigames/moonwellDeck";
+import { CHANCE_GAMES, HI_LO_RANK_LADDER } from "../minigames/chance";
 import type { XLoreFeed, XLorePost } from "../lore/xFeed";
 import { formatXPostAge, heraldScrollMeta, heraldScrollPosts, isRealXPost } from "../lore/xFeed";
 import type { MobileHallSnapshot } from "../hall/mobileHall";
@@ -532,15 +533,22 @@ export function conflicThemePickStudioHtmlForMode(mode: "agent" | "hotseat"): st
 }
 
 export function chancePickStudioHtml(intro: string): string {
+  const games = CHANCE_GAMES.map((game) => {
+    const hilo = game.id === "high_low";
+    return `<button type="button" class="hub-tile hub-tile--${hilo ? "gold" : "jade"}" data-hub-action="chance:${game.id}">
+      <span class="hub-tile-label">${escapeHtml(game.name)}</span>
+      <span class="chance-menu-description">${escapeHtml(game.blurb)}</span>
+      <span class="chance-menu-stakes">Risk ${game.stake} token · Win +${hilo ? game.stake * 2 : game.stake + 1} tokens and +${hilo ? 1 : 2} Legend · Lose ${game.stake} token</span>
+      <span class="chance-menu-description">${hilo ? `Rank order: ${HI_LO_RANK_LADDER}. Ace is high. Equal ranks: no tokens or Legend gained or lost.` : "Red: hearts / diamonds. Black: clubs / spades. Rank does not matter."}</span>
+    </button>`;
+  }).join("");
   return studioStageHtml(
     "Divination Table",
     `<p class="studio-lore-line">${escapeHtml(intro)}</p>
     <p class="studio-lore-line studio-lore-line--hint">${escapeHtml(MOONWELL_DECK_LORE)}</p>
-    <div class="hub-grid hub-grid--tiles hub-grid--studio" id="hub-grid">
-      ${hubTileHtml("▲", "Hi-Lo", "chance:high_low", "gold")}
-      ${hubTileHtml("◆", "Red / Black", "chance:red_black", "jade")}
-    </div>`,
-    "studio-stage--pick",
+    <p class="studio-lore-line">Choose a game, then make one call to settle the round. Rewards below are net changes to your balance; choosing a game does not spend tokens.</p>
+    <div class="hub-grid hub-grid--tiles hub-grid--studio chance-menu-grid" id="hub-grid">${games}</div>`,
+    "studio-stage--pick studio-stage--chance-menu",
     hubBackHtml(),
   );
 }

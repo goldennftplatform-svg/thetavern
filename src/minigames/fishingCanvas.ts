@@ -567,17 +567,42 @@ function drawFishShadow(
   }
 }
 
+function fitFishingText(ctx: CanvasRenderingContext2D, text: string, width: number): string {
+  if (ctx.measureText(text).width <= width) return text;
+  let end = text.length;
+  while (end > 0 && ctx.measureText(`${text.slice(0, end)}...`).width > width) end--;
+  return end ? `${text.slice(0, end)}...` : "";
+}
+
 function drawMeters(ctx: CanvasRenderingContext2D, d: DrawCtx, w: number, h: number) {
-  const font = `${Math.max(10, Math.floor(w * 0.028))}px "VT323", monospace`;
-  const labelFont = `${Math.max(11, Math.floor(w * 0.032))}px "Press Start 2P", monospace`;
+  if (!["fish_cast", "fish_wait", "fish_reel"].includes(d.phase)) return;
+  const font = `${Math.max(16, Math.min(20, Math.floor(w * 0.045)))}px "VT323", monospace`;
+  const labelFont = `${Math.max(10, Math.min(14, Math.floor(w * 0.03)))}px "Press Start 2P", monospace`;
+  const bx = Math.max(16, Math.floor(w * 0.08));
+  const barW = w - bx * 2;
+  // Bottom-anchored rows keep the HUD inside short stages and away from sky plaques.
+  const top = h - 116;
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(6, 10, 16, 0.92)";
+  floorRect(ctx, bx - 8, top, barW + 16, 108);
+  ctx.strokeStyle = "rgba(232, 176, 80, 0.4)";
+  ctx.strokeRect(bx - 8.5, top + 0.5, barW + 17, 107);
+  const title = (text: string, color: string) => {
+    ctx.fillStyle = color;
+    ctx.font = labelFont;
+    ctx.fillText(fitFishingText(ctx, text, barW), bx, top + 21);
+  };
+  const hint = (text: string, y: number) => {
+    ctx.fillStyle = "#d8d0e8";
+    ctx.font = font;
+    ctx.fillText(fitFishingText(ctx, text, barW), bx, y);
+  };
 
   if (d.phase === "fish_cast") {
-    const barW = Math.floor(w * 0.72);
-    const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.8);
+    const by = top + 53;
     const bh = 22;
-    ctx.fillStyle = "rgba(6, 10, 16, 0.85)";
-    floorRect(ctx, bx - 4, by - 22, barW + 8, bh + 30);
     ctx.fillStyle = "#0a0e14";
     floorRect(ctx, bx, by, barW, bh);
     ctx.fillStyle = "#1a222c";
@@ -590,35 +615,28 @@ function drawMeters(ctx: CanvasRenderingContext2D, d: DrawCtx, w: number, h: num
     ctx.fillStyle = "rgba(104, 232, 168, 0.55)";
     floorRect(ctx, bx + 2 + Math.floor((barW - 4) * 0.72), by + 1, 2, bh + 2);
     floorRect(ctx, bx + 2 + Math.floor((barW - 4) * 0.92), by + 1, 2, bh + 2);
-    ctx.fillStyle = hot ? "#68e8a8" : "#c8d0dc";
-    ctx.font = labelFont;
-    ctx.fillText(hot ? "SWEET!" : "HOLD → RELEASE", bx, by - 6);
+    title(hot ? "SWEET! RELEASE NOW" : "CAST POWER", hot ? "#68e8a8" : "#e8b050");
+    hint("Hold Cast / Space to charge.", top + 43);
+    hint("Release between the green marks.", top + 97);
   }
 
   if (d.phase === "fish_wait") {
-    ctx.font = labelFont;
-    ctx.textAlign = "center";
     if (d.biteOpen) {
-      const pulse = 0.7 + 0.3 * Math.sin((d.now ?? 0) * 0.02);
-      ctx.fillStyle = `rgba(232, 120, 80, ${pulse})`;
-      ctx.font = `${Math.max(16, Math.floor(w * 0.055))}px "Press Start 2P", monospace`;
-      ctx.fillText("STRIKE!", w / 2, h * 0.2);
+      title("BITE! STRIKE NOW", "#ffd080");
+      hint("Tap Strike or press Space.", top + 49);
+      hint("Hook it before the bite passes!", top + 77);
     } else {
-      ctx.fillStyle = "rgba(200, 210, 220, 0.8)";
-      ctx.fillText("Waiting on the mist…", w / 2, h * 0.2);
+      title("WAIT FOR A BITE", "#e8b050");
+      hint("Watch the bobber in the mist.", top + 49);
+      hint("Strike when the bite appears.", top + 77);
     }
-    ctx.textAlign = "left";
   }
 
   if (d.phase === "fish_reel") {
-    const barW = Math.floor(w * 0.84);
-    const bx = Math.floor((w - barW) / 2);
-    const by = Math.floor(h * 0.74);
-    const bh = 32;
+    const by = top + 48;
+    const bh = 22;
     const lo = d.greenLo ?? 0.34;
     const hi = d.greenHi ?? 0.66;
-    ctx.fillStyle = "rgba(6, 10, 16, 0.88)";
-    floorRect(ctx, bx - 4, by - 24, barW + 8, bh + 44);
     ctx.fillStyle = "#0a0e14";
     floorRect(ctx, bx, by, barW, bh);
     ctx.fillStyle = "#1a222c";
@@ -634,18 +652,21 @@ function drawMeters(ctx: CanvasRenderingContext2D, d: DrawCtx, w: number, h: num
     ctx.strokeStyle = "#f8f0ff";
     ctx.lineWidth = 2;
     ctx.strokeRect(tx - 7, by, 14, bh + 4);
-    ctx.fillStyle = inZone ? "#68e8a8" : "#e87850";
-    ctx.font = labelFont;
-    ctx.fillText(inZone ? "LINE HOLDS" : "FIGHT THE LINE", bx, by - 6);
-    const progH = 10;
-    const py = by + bh + 10;
+    title(inZone ? "LINE HOLDS" : d.reelTension < lo ? "PULL RIGHT" : "EASE LEFT", inZone ? "#68e8a8" : "#e87850");
+    hint("Use left / right to stay in green.", top + 41);
+    const progH = 6;
+    const py = top + 96;
+    ctx.fillStyle = "#1a222c";
     floorRect(ctx, bx, py, barW, progH);
     ctx.fillStyle = "#5eb8a8";
     floorRect(ctx, bx + 1, py + 1, Math.floor((barW - 2) * d.reelProgress), progH - 2);
     ctx.fillStyle = "#c8d0dc";
     ctx.font = font;
-    ctx.fillText(`${Math.floor(d.reelProgress * 100)}%`, bx + barW - 36, py + 9);
+    ctx.fillText("Catch progress", bx, top + 89);
+    ctx.textAlign = "right";
+    ctx.fillText(`${Math.floor(d.reelProgress * 100)}%`, bx + barW, top + 89);
   }
+  ctx.restore();
 }
 
 /** Cohesive moonlit well — knightly charter rim + live fishing props. */
@@ -808,12 +829,14 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
 
   drawMeters(ctx2d, { ...d, now }, w, h);
 
-  if (d.loreLine) {
-    const lore = d.loreLine.length > 64 ? `${d.loreLine.slice(0, 62)}…` : d.loreLine;
-    ctx2d.font = `${Math.max(12, Math.floor(w * 0.032))}px "VT323", monospace`;
-    const tw = Math.min(w * 0.92, ctx2d.measureText(lore).width + 24);
+  let plaqueY = 12;
+  if (d.loreLine && h >= 320) {
+    ctx2d.font = `${Math.max(16, Math.min(20, Math.floor(w * 0.04)))}px "VT323", monospace`;
+    const lore = fitFishingText(ctx2d, d.loreLine, w - 56);
+    const tw = ctx2d.measureText(lore).width + 24;
     const bx = Math.floor((w - tw) / 2);
-    const by = Math.floor(h * 0.085);
+    const by = plaqueY;
+    plaqueY += 36;
     ctx2d.fillStyle = "rgba(8, 10, 16, 0.78)";
     floorRect(ctx2d, bx, by, tw, 28);
     ctx2d.strokeStyle = "rgba(152, 144, 200, 0.55)";
@@ -826,11 +849,11 @@ export function drawMoonwell(ctx2d: CanvasRenderingContext2D, d: DrawCtx, w: num
   }
 
   if (d.banner) {
-    const label = d.banner.length > 32 ? `${d.banner.slice(0, 30)}…` : d.banner;
-    ctx2d.font = `${Math.max(11, w * 0.028)}px "VT323", monospace`;
+    ctx2d.font = `${Math.max(16, Math.min(20, w * 0.04))}px "VT323", monospace`;
+    const label = fitFishingText(ctx2d, d.banner, w - 60);
     const tw = ctx2d.measureText(label).width;
     const bx = Math.floor((w - tw) / 2) - 14;
-    const by = Math.floor(h * (d.loreLine ? 0.155 : 0.12));
+    const by = plaqueY;
     ctx2d.fillStyle = "rgba(0, 0, 0, 0.72)";
     floorRect(ctx2d, bx, by, tw + 28, 24);
     ctx2d.strokeStyle = "#e8b050";

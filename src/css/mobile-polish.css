@@ -321,7 +321,7 @@ html.tavern-mobile .tavern-table__seat--jade:active:not(:disabled) {
 
 /* ——— Chance: keep 2-col studio choices, float hero card ——— */
 html.tavern-mobile .chance-actions--studio {
-  grid-template-columns: 1fr 1fr !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 html.tavern-mobile .play-menu .playing-card--hero {
