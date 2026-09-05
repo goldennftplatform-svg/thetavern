@@ -1,30 +1,19 @@
 /** Demplar Warrior — synthesized impact hits for brief title chunks (Web Audio). */
 
-let ctx: AudioContext | null = null;
-
-function prefersSilent(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+import { audioContext, audioOutput, canPlayAudio, primeAudio } from "./soundtrack";
 
 function getCtx(): AudioContext | null {
-  if (prefersSilent()) return null;
-  if (!ctx) {
-    const Ctx = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return null;
-    ctx = new Ctx();
-  }
-  return ctx;
+  return canPlayAudio() ? audioContext() : null;
 }
 
 export function primeWarriorSfx(): void {
-  void getCtx()?.resume();
+  primeAudio();
 }
 
 /** Short charter slam — one per 8-char brief chunk. */
 export function playWarriorImpact(punch = 1): void {
   const ac = getCtx();
   if (!ac) return;
-  void ac.resume();
 
   const t0 = ac.currentTime;
   const vol = Math.min(0.42, 0.22 + punch * 0.06);
@@ -37,7 +26,8 @@ export function playWarriorImpact(punch = 1): void {
   gain.gain.setValueAtTime(vol, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
   osc.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(audioOutput());
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   osc.start(t0);
   osc.stop(t0 + 0.12);
 
@@ -53,7 +43,8 @@ export function playWarriorImpact(punch = 1): void {
   nGain.gain.setValueAtTime(vol * 0.55, t0);
   nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
   noise.connect(nGain);
-  nGain.connect(ac.destination);
+  nGain.connect(audioOutput());
+  noise.onended = () => { noise.disconnect(); nGain.disconnect(); };
   noise.start(t0);
   noise.stop(t0 + 0.06);
 }
@@ -61,7 +52,6 @@ export function playWarriorImpact(punch = 1): void {
 function blip(freq: number, dur: number, vol: number, type: OscillatorType = "square"): void {
   const ac = getCtx();
   if (!ac) return;
-  void ac.resume();
   const t0 = ac.currentTime;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
@@ -71,7 +61,8 @@ function blip(freq: number, dur: number, vol: number, type: OscillatorType = "sq
   gain.gain.setValueAtTime(vol, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   osc.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(audioOutput());
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   osc.start(t0);
   osc.stop(t0 + dur + 0.02);
 }

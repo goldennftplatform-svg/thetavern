@@ -105,7 +105,7 @@ import {
 import { resolveTrailServerUrl } from "./net/trailResolve";
 import type { Socket } from "socket.io-client";
 import { initMobileShellClass, isTavernMobile } from "./mobile-detect";
-import { bindHallMusicGestures, playCatchFanfare, primeHallMusic } from "./audio/hallMusic";
+import { playCatchFanfare } from "./audio/hallMusic";
 import { compressAvatarFile, houseAvatarPickerHtml } from "./ui/avatarFace";
 import {
   playCastWhoosh,
@@ -121,6 +121,8 @@ import {
 import { bindWarriorTouch } from "./warriorTouch";
 import { primeWarriorSfx } from "./audio/warriorSfx";
 import { primeJackSparrow } from "./audio/jackSparrow";
+import { bindAudio, setAudioPhase } from "./audio/soundtrack";
+import "./css/audio-controls.css";
 import { demplarEpigraphs } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
@@ -163,8 +165,7 @@ import {
 } from "./ui/studioScreens";
 
 initMobileShellClass();
-bindHallMusicGestures();
-primeHallMusic();
+bindAudio();
 
 const boardMq = window.matchMedia("(min-width: 800px)");
 function syncBoardDetails() {
@@ -1332,6 +1333,7 @@ let lastWarriorStage: string | undefined;
 function syncWarriorShell() {
   if (state.phase === "demplar_warrior" && demplarGame) {
     const stage = demplarGame.stage;
+    setAudioPhase(state.phase, stage);
     elPlayShell.dataset.warriorStage = stage;
     if (stage === "drmario" && lastWarriorStage !== "drmario") {
       showToast("TRIAL III — Veil Cure · match 4 to clear viruses", 2800);
@@ -1760,6 +1762,7 @@ function startResolveCelebration(rarity: string) {
 
 function setPhase(next: GamePhase) {
   state.phase = next;
+  setAudioPhase(next, demplarGame?.stage, state.chanceGame);
   elPlayShell.dataset.phase = next;
   if (next !== "conflic_bouy" || conflicMode !== "online") hideConflicChat();
   clearAutoPhase();
@@ -2514,13 +2517,11 @@ async function startGameFromGate() {
 }
 
 $("btn-enter-name").addEventListener("click", () => {
-  primeHallMusic();
   void startGameFromGate();
 });
 elBtnSkipGate.addEventListener("click", () => {
   elNick.value = "";
   updateGateRecall();
-  primeHallMusic();
   void startGameFromGate();
 });
 

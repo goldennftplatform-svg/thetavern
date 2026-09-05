@@ -17,6 +17,12 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body class="crt-skin">
+    <div id="audio-controls" class="audio-controls" role="group" aria-label="Sound controls">
+      <button id="audio-mute" type="button" aria-label="Mute all audio" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor"/><path class="audio-waves" d="M16 8q5 4 0 8m3-11q8 7 0 14" fill="none" stroke="currentColor" stroke-width="2"/><path class="audio-cross" d="m16 9 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <input id="audio-volume" type="range" min="0" max="100" value="35" aria-label="All audio volume" />
+    </div>
     <div id="app">
       <header class="top">
         <h1 id="title">The Moonwell Anglers</h1>

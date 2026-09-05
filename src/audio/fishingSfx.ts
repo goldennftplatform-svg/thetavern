@@ -1,25 +1,13 @@
 /** Fishing stage one-shots — Web Audio, no asset files. */
 
-let ctx: AudioContext | null = null;
-
-function prefersSilent(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+import { audioContext, audioOutput, canPlayAudio, primeAudio } from "./soundtrack";
 
 function getCtx(): AudioContext | null {
-  if (prefersSilent()) return null;
-  if (!ctx) {
-    const Ctx =
-      window.AudioContext ??
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return null;
-    ctx = new Ctx();
-  }
-  return ctx;
+  return canPlayAudio() ? audioContext() : null;
 }
 
 export function primeFishingSfx(): void {
-  void getCtx()?.resume();
+  primeAudio();
 }
 
 function tone(
@@ -31,7 +19,6 @@ function tone(
 ): void {
   const ac = getCtx();
   if (!ac) return;
-  void ac.resume();
   const t0 = ac.currentTime;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
@@ -41,7 +28,8 @@ function tone(
   gain.gain.setValueAtTime(vol, t0);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   osc.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(audioOutput());
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   osc.start(t0);
   osc.stop(t0 + dur + 0.02);
 }
@@ -49,7 +37,6 @@ function tone(
 function noiseBurst(dur: number, vol: number): void {
   const ac = getCtx();
   if (!ac) return;
-  void ac.resume();
   const t0 = ac.currentTime;
   const bufLen = Math.floor(ac.sampleRate * dur);
   const noiseBuf = ac.createBuffer(1, bufLen, ac.sampleRate);
@@ -65,7 +52,8 @@ function noiseBurst(dur: number, vol: number): void {
   nGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   noise.connect(filter);
   filter.connect(nGain);
-  nGain.connect(ac.destination);
+  nGain.connect(audioOutput());
+  noise.onended = () => { noise.disconnect(); filter.disconnect(); nGain.disconnect(); };
   noise.start(t0);
   noise.stop(t0 + dur + 0.01);
 }

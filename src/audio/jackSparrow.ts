@@ -1,5 +1,7 @@
 /** JSparrow — pre-recorded pirate taunt clips (recorded locally via Qwen3-TTS voice clone, shipped in public/audio). */
 
+import { audioContext, canPlayAudio, connectMedia } from "./soundtrack";
+
 const BASE = `${import.meta.env.BASE_URL}audio/jackSparrow/`;
 
 const INTRO = ["intro_1.ogg", "intro_2.ogg"];
@@ -20,14 +22,14 @@ const OUTRO = ["outro_1.ogg", "outro_2.ogg"];
 const JACK_VOLUME = 0.9;
 
 let audio: HTMLAudioElement | null = null;
-let gestureHooked = false;
 let playing = false;
 
 function prime(): void {
-  if (audio) return;
+  if (audio || !audioContext()) return;
   audio = new Audio();
   audio.volume = JACK_VOLUME;
   audio.preload = "auto";
+  connectMedia(audio, () => { playing = false; });
   audio.addEventListener("ended", () => {
     playing = false;
   });
@@ -49,7 +51,7 @@ function pick(list: string[]): string {
 }
 
 function play(list: string[]): boolean {
-  if (playing) return false;
+  if (playing || !canPlayAudio()) return false;
   prime();
   if (!audio) return false;
   playing = true;
@@ -64,22 +66,7 @@ function play(list: string[]): boolean {
 
 /** Prime the shared element on the first user gesture so playback is allowed later. */
 export function primeJackSparrow(): void {
-  if (gestureHooked) return;
-  gestureHooked = true;
-  prime();
-  if (!audio) return;
-  audio.src = BASE + INTRO[0];
-  audio.volume = 0;
-  audio.currentTime = 0;
-  void audio.play().then(() => {
-    audio?.pause();
-    if (audio) {
-      audio.currentTime = 0;
-      audio.volume = JACK_VOLUME;
-    }
-  }).catch(() => {
-    if (audio) audio.volume = JACK_VOLUME;
-  });
+  if (canPlayAudio()) prime();
 }
 
 export function playJackIntro(): boolean {
