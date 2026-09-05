@@ -1,0 +1,55 @@
+/* Cabinet-only overrides; shared hub and result styles belong to the tavern shell. */
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .stage-viewport {
+  padding-bottom: 0;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .canvas-wrap {
+  pointer-events: auto;
+}
+
+.play-shell[data-phase="demplar_warrior"] #well {
+  touch-action: none;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .warrior-puzzle-float {
+  animation: none;
+  padding: 6px;
+  gap: 6px;
+  border: 2px solid #586080;
+  border-radius: 0;
+  background: #141c38;
+  backdrop-filter: none;
+  box-shadow: 0 -3px 0 #080c20;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .warrior-tap {
+  animation: none;
+  height: 44px;
+  min-height: 44px;
+  border: 2px solid #7880a0;
+  border-radius: 2px;
+  background: #242c48;
+  color: #f8f8e8;
+  box-shadow: inset -2px -2px #080c20;
+  touch-action: none;
+}
+
+.play-shell[data-phase="demplar_warrior"] .warrior-tap-label {
+  font-family: "VT323", monospace;
+  font-size: 16px;
+  letter-spacing: 0;
+  opacity: 1;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .warrior-tap--action {
+  border-color: #58f8b0;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .warrior-tap--slam {
+  border-color: #fc78b8;
+}
+
+html.tavern-mobile .play-shell[data-phase="demplar_warrior"] .warrior-tap:active {
+  transform: translateY(1px);
+  background: #384060;
+}

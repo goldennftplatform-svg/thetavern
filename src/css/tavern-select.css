@@ -1,0 +1,111 @@
+/* The hub owns one scroll surface; game screens and the audio rail stay independent. */
+html.play-active .play-shell[data-phase="well"] .play-menu:has(.tavern-select) {
+  padding: 12px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left));
+  background: #0b1423;
+  backdrop-filter: none;
+  animation: none;
+}
+.play-menu:has(.tavern-select) .play-menu-body {
+  max-width: 980px;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-color: #53665e #0b1423;
+}
+.tavern-select {
+  --select-gold: #e7c779;
+  --select-jade: #91c6a6;
+  flex: 0 0 auto;
+  padding: 12px 16px 16px;
+  color: #ebe4ce;
+  font-family: var(--font-body, monospace);
+  font-size: 18px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  border: 2px solid #657565;
+  box-shadow: inset 0 0 0 4px #0b1423, inset 0 0 0 5px #293d48;
+  background: #101d2d;
+}
+.tavern-select *, .tavern-select *::before, .tavern-select *::after { box-sizing: border-box; }
+.tavern-select p, .tavern-select h2, .tavern-select h3, .tavern-select dl, .tavern-select dd { margin: 0; }
+.tavern-select button { cursor: pointer; font: inherit; border-radius: 0; white-space: normal; min-width: 0; color: inherit; touch-action: manipulation; }
+.tavern-select button:focus-visible, .tavern-select summary:focus-visible { outline: 3px solid #fff0b1; outline-offset: -5px; }
+.tavern-select__head { display: flex; align-items: center; gap: 12px; padding: 6px 0 14px; }
+.tavern-select__head > div { flex: 1; min-width: 0; }
+.tavern-select__crest { width: 58px; height: 58px; object-fit: contain; image-rendering: pixelated; }
+.tavern-select__eyebrow { font-family: var(--font-label, monospace); font-size: 10px; letter-spacing: .08em; color: var(--select-jade); text-transform: uppercase; }
+.tavern-select__head h2 { font-family: var(--font-display, monospace); font-size: clamp(28px, 4vw, 40px); line-height: 1.15; color: var(--select-gold); text-shadow: 2px 2px #030a13; }
+.tavern-select__night { font-size: 16px; margin-top: 5px !important; }
+.tavern-select__night span { color: #a9b6ba; }
+.tavern-select__night-number { text-align: right; color: var(--select-gold); font-size: 16px; }
+.tavern-select__night-number small { display: block; font-size: 13px; color: #a9b6ba; }
+.tavern-select__hud { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #40535e; background: #0b1423; }
+.tavern-select .tavern-select__avatar { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 0; box-shadow: none; }
+.tavern-select__identity { flex: 1; min-width: 0; }
+.tavern-select__identity > strong { display: block; font-size: 21px; }
+.tavern-select__identity > span, .tavern-select__titles { font-size: 14px; color: #a9b6ba; }
+.tavern-select__stats { display: grid; grid-template-columns: repeat(3, minmax(64px, 1fr)); gap: 16px; text-align: center; }
+.tavern-select__stats dt { font-family: var(--font-label, monospace); font-size: 10px; text-transform: uppercase; color: #a9b6ba; }
+.tavern-select__stats dd { font-size: 26px; color: var(--select-gold); font-variant-numeric: tabular-nums; }
+.tavern-select__section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 18px 0 10px; }
+.tavern-select__section-head h3 { font-family: var(--font-label, monospace); font-size: 12px; text-transform: uppercase; color: var(--select-gold); }
+.tavern-select__section-head > span { font-size: 14px; color: #a9b6ba; }
+.tavern-select__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tavern-select .tavern-select__game { --ink: var(--select-gold); display: flex; flex-direction: column; text-align: left; padding: 0; border: 2px solid #657565; background: #152637; box-shadow: 3px 3px #050c17; transition: border-color .12s, background .12s; }
+.tavern-select .tavern-select__game--jade { --ink: var(--select-jade); }
+.tavern-select__index { padding: 10px 12px; font-family: var(--font-label, monospace); font-size: 9px; color: var(--ink); }
+.tavern-select__art { display: block; width: 100%; height: 120px; border-block: 1px solid #344956; background: repeating-linear-gradient(0deg, transparent 0 23px, #1a3041 23px 24px), #0b1727; }
+.tavern-select__art svg { display: block; width: 100%; height: 100%; fill: var(--ink); }
+.tavern-select__art .select-stars { fill: #657e86; }
+.tavern-select__game > strong { padding: 12px 12px 3px; font-family: var(--font-display, monospace); font-size: 25px; line-height: 1.1; color: #f1e6c5; }
+.tavern-select__hint { padding: 0 12px 14px; font-size: 16px; color: #b5c4c9; flex: 1; }
+.tavern-select__start { display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; border-top: 1px solid #40535e; color: var(--ink); background: #0c1b29; font-size: 16px; }
+.tavern-select__sidequests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.tavern-select__sidequests button { display: flex; align-items: center; gap: 12px; padding: 10px 12px; text-align: left; border: 1px solid #52665f; background: #162c30; }
+.tavern-select__sidequests button > span:nth-child(2) { flex: 1; min-width: 0; }
+.tavern-select__sidequests strong { display: block; font-family: var(--font-display, monospace); font-size: 21px; color: var(--select-jade); }
+.tavern-select__sidequests small, .tavern-select__pole { display: block; color: #b5c4c9; font-size: 14px; }
+.tavern-select__mini-icon { flex: 0 0 30px; text-align: center; font-size: 32px; color: var(--select-jade); }
+.tavern-select__utilities { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 16px; border: 1px solid #40535e; }
+.tavern-select__utilities button { min-height: 44px; padding: 6px; border: 0; border-right: 1px solid #40535e; background: #0b1423; font-size: 16px; }
+.tavern-select__utilities button:last-child { border-right: 0; }
+@media (hover: hover) {
+  .tavern-select button:hover { background-color: #263d42; border-color: var(--select-gold); }
+  .tavern-select button:hover .tavern-select__start { background: #283d3c; }
+}
+.tavern-select button:active { background-color: #34514e; }
+.tavern-select__chronicle { display: flex; gap: 20px; padding-top: 16px; color: #a9b6ba; font-size: 15px; }
+.tavern-select__chronicle > div { flex: 1; min-width: 0; }
+.tavern-select__chronicle p + p { margin-top: 6px; }
+.tavern-select summary { cursor: pointer; color: var(--select-jade); padding: 10px 0; min-height: 44px; }
+.tavern-select__seal { flex: 0 0 80px; align-self: flex-start; text-align: center; border: 2px solid #40535e; padding: 8px; font-family: var(--font-label, monospace); font-size: 10px; line-height: 1.7; color: #80968c; }
+.tavern-select .tavern-overheard { width: 100%; max-width: none; margin-top: 12px; background: #0b1423; border-color: #40535e; }
+.tavern-select .tavern-overheard__head { flex-wrap: wrap; color: var(--select-gold); }
+.tavern-select .tavern-overheard__more { min-height: 44px; padding: 6px 10px; background: #162c30; color: var(--select-jade); border: 1px solid #52665f; box-shadow: none; font-size: 14px; }
+.tavern-select .tavern-overheard__item { border-left-color: #657565; }
+.tavern-select .tavern-overheard__item--live { border-left-color: var(--select-jade); }
+.tavern-select .tavern-overheard__who { color: var(--select-jade); }
+.tavern-select .tavern-overheard__text { color: #ebe4ce; }
+@media (max-width: 600px) {
+  .tavern-select { padding: 10px; }
+  .tavern-select__head { flex-wrap: wrap; gap: 8px; }
+  .tavern-select__crest { display: none; }
+  .tavern-select__night-number { width: 100%; text-align: left; font-size: 13px; }
+  .tavern-select__night-number small { display: inline; margin-left: 8px; }
+  .tavern-select__night span { display: block; }
+  .tavern-select__hud { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  .tavern-select__stats { width: 100%; border-top: 1px solid #344956; padding-top: 8px; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tavern-select__stats dd { font-size: 23px; }
+  .tavern-select__section-head > span { display: none; }
+  .tavern-select__grid { grid-template-columns: 1fr; gap: 10px; }
+  .tavern-select .tavern-select__game { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 0; }
+  .tavern-select__index { grid-column: 1 / -1; padding: 7px 10px; font-size: 8px; border-bottom: 1px solid #344956; }
+  .tavern-select__art { grid-column: 1; grid-row: 2 / 5; height: 100%; min-height: 96px; border: 0; border-right: 1px solid #344956; }
+  .tavern-select__game > strong { padding: 8px 10px 3px; font-size: 22px; }
+  .tavern-select__hint { padding: 0 10px 8px; font-size: 14px; }
+  .tavern-select__start { padding: 6px 10px; font-size: 14px; }
+  .tavern-select__sidequests { grid-template-columns: 1fr; gap: 8px; }
+  .tavern-select__utilities { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tavern-select__utilities button:nth-child(-n+3) { border-bottom: 1px solid #40535e; }
+  .tavern-select__seal { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .tavern-select button { transition: none; } }

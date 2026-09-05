@@ -54,12 +54,12 @@ async function run() {
     throw new Error(`Warrior brief too few rows: ${metrics.rowCount}`);
   }
 
-  await page.waitForSelector("#play-shell[data-warrior-stage='platform']", { timeout: 20000 });
+  await page.waitForSelector("#play-shell[data-warrior-stage='tetris']", { timeout: 5000 });
 
   if (errors.length) throw new Error(`Page errors:\n${errors.join("\n")}`);
 
   console.log(
-    `smoke-warrior: OK — canvas ${Math.round(canvasBox.height)}px, brief min ${metrics.minFontPx}px, platform started`,
+    `smoke-warrior: OK - canvas ${Math.round(canvasBox.height)}px, brief min ${metrics.minFontPx}px, Stack Attack started`,
   );
   await browser.close();
 }

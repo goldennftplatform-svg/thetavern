@@ -28,7 +28,7 @@ Ship **The Moonwell Anglers** — a browser tavern hangout (fishing spine + chan
 
 1. **Guest / Play** → herald → **well hub** (fish · warrior · cards · feast)
 2. **Fish** — cast → strike → reel → resolve → renown → peril/trivia → hub
-3. **Warrior** — readable brief intro → platform → race → asteroids → result
+3. **Puzzle Combo** - skippable 3-second intro -> Stack Attack (Tetris) -> Veil Cure (Dr Mario) -> combined result
 4. **Bigboard** — one viewport, no page scroll; demo patrons if trail offline
 
 **Layout:** mobile-first full-width canvas; from 600px center in `680px`, from 900px widen to `920px` / warrior `860px` tall stage. No 520px phone strip on desktop.
@@ -41,7 +41,7 @@ npm run smoke:all     # play + warrior + bigboard
 npm run build         # production bundle
 ```
 
-**Warrior brief must pass:** `minFontPx >= 26`, canvas height ≥ 280px, `warriorStage` reaches `platform`.
+**Puzzle Combo must pass:** `minFontPx >= 26`, canvas height >= 280px, `warriorStage` reaches `tetris`, then `drmario`. Run `node scripts/warrior-playtest.mjs` for the full combo regression.
 
 ## Important constraints
 

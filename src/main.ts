@@ -123,6 +123,7 @@ import { primeWarriorSfx } from "./audio/warriorSfx";
 import { primeJackSparrow } from "./audio/jackSparrow";
 import { bindAudio, setAudioPhase } from "./audio/soundtrack";
 import "./css/audio-controls.css";
+import "./css/puzzle-combo.css";
 import { demplarEpigraphs } from "./content/demplarKnights";
 import { charterDayId, formatCharterDayLabel } from "./game/charterDay";
 import { createMobileHall } from "./hall/mobileHall";
@@ -276,7 +277,8 @@ const elWarriorRight = $("btn-warrior-right");
 const elWarriorRotate = $("btn-warrior-rotate");
 const elWarriorDrop = $("btn-warrior-drop");
 const elWarriorHard = $("btn-warrior-hard");
-const elWarriorJump = $("btn-warrior-jump");
+// The old platform control is no longer part of the puzzle cabinet.
+$("btn-warrior-jump").remove();
 const elConflicChat = $("conflic-chat");
 const elConflicChatToggle = $("conflic-chat-toggle");
 const elConflicChatUnread = $("conflic-chat-unread");
@@ -1287,6 +1289,7 @@ function syncCanvasBuffer(): { w: number; h: number } {
 function drawDemplar() {
   const { w, h } = syncCanvasBuffer();
   demplarGame?.draw(ctx, w, h, performance.now());
+  if (demplarGame) canvas.setAttribute("aria-label", demplarGame.hint());
 }
 
 function stopDemplarLoop() {
@@ -1318,7 +1321,6 @@ function finishDemplarRun() {
   syncHallIdentity();
   const { chronicle, subtext } = composeDemplarDeed(
     state.nickname,
-    result.platform,
     result.race,
     result.asteroids,
     result.total,
@@ -1336,7 +1338,7 @@ function syncWarriorShell() {
     setAudioPhase(state.phase, stage);
     elPlayShell.dataset.warriorStage = stage;
     if (stage === "drmario" && lastWarriorStage !== "drmario") {
-      showToast("TRIAL III — Veil Cure · match 4 to clear viruses", 2800);
+      showToast("STAGE 02 / Veil Cure: match 4 across or down", 1800);
     }
     lastWarriorStage = stage;
   } else {
@@ -1648,7 +1650,6 @@ bindWarriorTouch({
     rotate: elWarriorRotate,
     drop: elWarriorDrop,
     hard: elWarriorHard,
-    jump: elWarriorJump,
   },
 });
 
@@ -1761,6 +1762,7 @@ function startResolveCelebration(rarity: string) {
 }
 
 function setPhase(next: GamePhase) {
+  if (next !== "demplar_warrior") canvas.setAttribute("aria-label", "Moonwell");
   state.phase = next;
   setAudioPhase(next, demplarGame?.stage, state.chanceGame);
   elPlayShell.dataset.phase = next;
@@ -1992,7 +1994,6 @@ function setPhase(next: GamePhase) {
     case "demplar_result": {
       const r = demplarLastResult ?? demplarGame?.result ?? {
         total: 0,
-        platform: 0,
         race: 0,
         asteroids: 0,
       };
@@ -2278,7 +2279,7 @@ window.addEventListener("keydown", (e) => {
   if (state.phase === "demplar_warrior") {
     if (e.code === "Space" || e.code === "ArrowUp") {
       e.preventDefault();
-      demplarGame?.jump();
+      if (!e.repeat) demplarGame?.rotate();
     }
     if (e.code === "ArrowDown") {
       e.preventDefault();
@@ -2295,7 +2296,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (e.code === "KeyF") {
       e.preventDefault();
-      demplarGame?.hardDrop();
+      if (!e.repeat) demplarGame?.hardDrop();
     }
     return;
   }
@@ -2360,11 +2361,8 @@ window.addEventListener("keyup", (e) => {
   const target = e.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
   if (state.phase === "demplar_warrior") {
-    if (e.code === "Space" || e.code === "ArrowUp") {
-      demplarGame?.releaseJump();
-    }
     if (e.code === "ArrowDown") {
-      if (demplarGame?.stage !== "drmario") demplarGame?.boost(false);
+      demplarGame?.boost(false);
     }
     if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "ArrowRight" || e.code === "KeyD") {
       demplarGame?.releaseSteer();

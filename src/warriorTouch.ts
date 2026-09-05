@@ -13,7 +13,6 @@ type WarriorTouchOpts = {
     rotate: HTMLElement;
     drop: HTMLElement;
     hard: HTMLElement;
-    jump: HTMLElement;
   };
 };
 
@@ -49,6 +48,7 @@ function bindHold(
   btn.addEventListener("pointerdown", down);
   btn.addEventListener("pointerup", up);
   btn.addEventListener("pointercancel", up);
+  btn.addEventListener("lostpointercapture", up);
 }
 
 export function bindWarriorTouch(opts: WarriorTouchOpts): void {
@@ -56,7 +56,6 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   const labels: [HTMLElement, string, string][] = [
     [buttons.rotate, "Rotate", "Rotate piece"],
     [buttons.hard, "Hard drop", "Hard drop: place piece immediately"],
-    [buttons.jump, "Jump", "Jump: hold for height, release for a short hop"],
   ];
   for (const [button, label, description] of labels) {
     const caption = button.querySelector(".warrior-tap-label");
@@ -74,10 +73,6 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   buttons.drop.title = "Hold to move down; hard drop places immediately";
 
   const puzzleGate = () => warriorActive(getPhase(), getGame()) && puzzleStage(getGame());
-  const platformGate = () => {
-    const game = getGame();
-    return warriorActive(getPhase(), game) && game!.stage === "platform";
-  };
 
   bindHold(
     buttons.left,
@@ -101,7 +96,7 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
   buttons.rotate.addEventListener("pointerdown", (e) => {
     if (!puzzleGate()) return;
     e.preventDefault();
-    getGame()?.jump();
+    getGame()?.rotate();
   });
 
   buttons.hard.addEventListener("pointerdown", (e) => {
@@ -110,13 +105,6 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
     getGame()?.hardDrop();
   });
 
-  bindHold(
-    buttons.jump,
-    () => getGame()?.jump(),
-    () => getGame()?.releaseJump(),
-    platformGate,
-  );
-
   let canvasPointerActive = false;
 
   canvas.addEventListener("pointerdown", (e) => {
@@ -124,9 +112,9 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
     const game = getGame();
     if (!warriorActive(phase, game)) return;
 
-    if (touchFriendly && puzzleStage(game)) return;
-
     canvasPointerActive = true;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
     const rect = canvas.getBoundingClientRect();
     game!.pointerDown(
       e.clientX - rect.left,
@@ -161,4 +149,9 @@ export function bindWarriorTouch(opts: WarriorTouchOpts): void {
 
   canvas.addEventListener("pointerup", pointerEnd);
   canvas.addEventListener("pointercancel", pointerEnd);
+  canvas.addEventListener("lostpointercapture", pointerEnd);
+  window.addEventListener("blur", () => getGame()?.pointerUp());
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) getGame()?.pointerUp();
+  });
 }

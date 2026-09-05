@@ -40,8 +40,13 @@ try {
           rectangles.push({ x, y, width, height });
           strokeRect(x, y, width, height);
         };
-        for (const stage of ["tetris", "drmario"]) {
-          game.advanceStage(performance.now() - 3000, stage);
+        for (const stage of ["brief", "tetris", "handoff", "drmario", "done"]) {
+          if (stage === "tetris") game.rotate();
+          else if (stage === "handoff") {
+            game.tetris.finished = true;
+            game.update(0, performance.now());
+          } else if (stage === "drmario") game.rotate();
+          else if (stage === "done") game.update(0, game.stageStarted + 38000);
           texts.length = rectangles.length = 0;
           game.draw(ctx, w, h, performance.now());
           const tag = `${stage} ${w}x${h} touch=${mobileEase}`;
@@ -58,18 +63,9 @@ try {
             }
           }
         }
-        game.advanceStage(performance.now(), "platform");
-        game.platform.scorePopup = { x: 80, y: -56, value: 70 };
-        texts.length = 0;
-        game.draw(ctx, w, h, performance.now());
-        const popup = texts.find(t => t.text === "+70");
-        if (!popup || popup.top < 44) failures.push("Pickup popup outside playfield");
-        for (const t of texts.filter(t => /Auto-run|for height/.test(t.text))) {
-          if (t.left < 0 || t.right > w) failures.push(`Clipped platform instruction at ${w}`);
-        }
       }
     }
-    const buttons = Object.fromEntries(["left", "right", "rotate", "drop", "hard", "jump"].map(k => [k, document.createElement("button")]));
+    const buttons = Object.fromEntries(["left", "right", "rotate", "drop", "hard"].map(k => [k, document.createElement("button")]));
     buttons.hard.innerHTML = '<span class="warrior-tap-label">Slam</span>';
     buttons.drop.innerHTML = '<span class="warrior-tap-label--tetris">Drop</span><span class="warrior-tap-label--drmario">Step</span>';
     bindWarriorTouch({ touchFriendly: true, canvas: document.createElement("canvas"), getPhase: () => "well", getGame: () => null, buttons });
@@ -77,7 +73,7 @@ try {
     return failures;
   });
   assert.deepEqual(failures, []);
-  console.log("warrior-readability-regression: OK (5 canvas sizes, keyboard/touch, both puzzles, platform popup and labels)");
+  console.log("warrior-readability-regression: OK (5 canvas sizes, keyboard/touch, both puzzles and labels)");
 } finally {
   await browser?.close();
   await server.close();

@@ -2,14 +2,14 @@
 
 export const demplarEpigraphs = [
   "Pull up a chair — the well is open, the arcade is loud, the fish don't care who you are.",
-  "Moonlit water, honest casts, and three arcade trials when you're bored of waiting for a bite.",
+  "Moonlit water, honest casts, and two arcade puzzles while you wait for a bite.",
   "Neighbor legends drift in from X; we borrow the scenery and run our own scoreboard.",
   "This is a tavern. Fish, feast, cards, and the arcade in the back room.",
 ];
 
 export const knightHallWhispers = [
   "⚔ Crossed swords above the well mean arcade night — fish first if you're shy.",
-  "Tapestry threads show a desert sprint — borrowed set dressing for trial one.",
+  "The back-room cabinet awaits: Stack Attack, then Veil Cure.",
   "Someone on X keeps posting epic lore; we keep posting who caught what.",
   "The back-room cabinet glows green — stack attack, then pill puzzle, then back to the bar.",
   "Planet Sargaano is a mood, not a membership card.",
@@ -25,14 +25,13 @@ export const knightGateLines = [
 ];
 
 export const warriorTrialNames = {
-  platform: "I · Desert Sprint — platformer",
-  race: "II · Stack Attack — Tetris",
-  asteroids: "III · Veil Cure — Dr. Mario",
+  race: "01 / Stack Attack - Tetris",
+  asteroids: "02 / Veil Cure - Dr. Mario",
 } as const;
 
 export const warriorBriefLines = [
-  "Three tavern arcade trials — speed goes on our wall.",
-  "Borrowed scenery night: sprint, stack, cure the veil — then back to fishing.",
+  "Two tavern arcade puzzles, one combined score on our wall.",
+  "Stack Attack, then Veil Cure - then back to fishing.",
   "The well can wait. The cabinet cannot.",
   "Neighbor lore on X; the high scores are ours.",
 ];
@@ -45,13 +44,13 @@ export const warriorCompleteLines = [
 
 export const demplarWarriorChronicles = [
   "{angler} clears the tavern arcade — {score} on our wall.",
-  "⚔ {angler} sprints, stacks, and cures the veil — {score} at the Moonwell.",
+  "{angler} stacks and cures the veil - {score} at the Moonwell.",
   "Rim tavern: {angler} earns {score} on the back-room track.",
-  "{angler} survives three arcade trials — {score} in tavern chalk.",
+  "{angler} completes the puzzle combo - {score} in tavern chalk.",
 ];
 
 export const demplarWarriorSubtexts = [
-  "Run {platform} · Tetris {race} · Dr Mario {asteroids}",
+  "Stack Attack {race} / Veil Cure {asteroids}",
   "Back-room cabinet favors the bold — tavern night keeps the score.",
   "Arcade at the rim: speed over story, renown over doubt.",
 ];

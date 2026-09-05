@@ -45,7 +45,7 @@ try {
       rack: studio.poleRackStudioHtml({ xp: 10000, equippedId: "dockhand_reed", unlockedIds: ["dockhand_reed"] }),
       renown: studio.renownStudioHtml(snapshot, "A long tale of the well. ".repeat(15)),
       trivia: studio.triviaStudioHtml("Which tale belongs to the well?", ["A long answer that must wrap without losing its ending", "Another answer"]),
-      arcadeResult: studio.demplarResultStudioHtml({ platform: 100, race: 200, asteroids: 300, total: 600 }, 10, 2),
+      arcadeResult: studio.demplarResultStudioHtml({ race: 200, asteroids: 300, total: 500 }, 10, 2),
       catch: studio.catchResolveHtml({ name: "A remarkably long fish name", rarity: "rare", renown: 5, tokens: 1 }, "A fine catch", "The entire fish story remains readable. ".repeat(20)),
     };
   }, base);

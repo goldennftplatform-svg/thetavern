@@ -1,5 +1,5 @@
 /**
- * Charter Dr. Mario — trial III pill puzzle for Demplar Warrior.
+ * Veil Cure: the second puzzle in the combo.
  * Shorter burst trial: fewer viruses, clearer capsules, match flash.
  */
 
@@ -51,6 +51,8 @@ export class KnightDrMario {
   private comboTimer = 0;
 
   private grid: Cell[][] = [];
+  private bonds: number[][] = [];
+  private nextBond = 0;
   private pill: FallingPill | null = null;
   private nextPill: { a: PillColor; b: PillColor; horiz: boolean } | null = null;
   private dropMs = 0;
@@ -62,8 +64,11 @@ export class KnightDrMario {
   reset() {
     this.score = 0;
     this.combo = 0;
+    this.comboTimer = 0;
     this.finished = false;
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null) as Cell[]);
+    this.bonds = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+    this.nextBond = 0;
     this.seedViruses();
     this.pill = null;
     this.nextPill = null;
@@ -102,7 +107,7 @@ export class KnightDrMario {
     this.nextPill = {
       a: COLORS[Math.floor(Math.random() * 3)]!,
       b: COLORS[Math.floor(Math.random() * 3)]!,
-      horiz: Math.random() < 0.55,
+      horiz: true,
     };
   }
 
@@ -110,7 +115,7 @@ export class KnightDrMario {
     const next = this.nextPill ?? {
       a: COLORS[Math.floor(Math.random() * 3)]!,
       b: COLORS[Math.floor(Math.random() * 3)]!,
-      horiz: Math.random() < 0.55,
+      horiz: true,
     };
     this.queueNext();
     const pill: FallingPill = { x: 3, y: 0, horiz: next.horiz, a: next.a, b: next.b };
@@ -154,12 +159,14 @@ export class KnightDrMario {
     const p = this.pill;
     const next = !p.horiz;
     if (!this.pillBlocked(p, 0, 0, next)) {
+      if (!p.horiz) [p.a, p.b] = [p.b, p.a];
       p.horiz = next;
       return;
     }
     for (const kick of [-1, 1]) {
       if (!this.pillBlocked(p, kick, 0, next)) {
         p.x += kick;
+        if (!p.horiz) [p.a, p.b] = [p.b, p.a];
         p.horiz = next;
         return;
       }
@@ -203,8 +210,12 @@ export class KnightDrMario {
     const p = this.pill;
     if (!p) return;
     for (const [x, y, color] of this.pillCells(p)) {
-      if (y >= 0) this.grid[y]![x] = color;
+      if (y >= 0) {
+        this.grid[y]![x] = color;
+        this.bonds[y]![x] = this.nextBond;
+      }
     }
+    this.nextBond += 1;
     this.pill = null;
     this.resolveMatches();
     if (this.virusesLeft <= 0) {
@@ -249,6 +260,7 @@ export class KnightDrMario {
         if (col) this.flashCells.push({ x, y, color: col, virus: isVirus(cell) });
         if (isVirus(cell)) viruses += 1;
         this.grid[y]![x] = null;
+        this.bonds[y]![x] = -1;
       }
       this.flashMs = 180;
       this.virusesLeft = this.countViruses();
@@ -267,11 +279,28 @@ export class KnightDrMario {
         for (let y = ROWS - 2; y >= 0; y--) {
           const c = this.grid[y]![x];
           if (!c || isVirus(c)) continue;
-          if (!this.grid[y + 1]![x]) {
-            this.grid[y + 1]![x] = c;
-            this.grid[y]![x] = null;
-            moved = true;
+          const bond = this.bonds[y]![x];
+          const cells: [number, number][] = [[x, y]];
+          // Intact capsules fall together. Clearing one half releases the survivor.
+          if (bond >= 0) {
+            for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+              const nx = x + dx, ny = y + dy;
+              if (this.bonds[ny]?.[nx] === bond && this.grid[ny]?.[nx]) cells.push([nx, ny]);
+            }
           }
+          const canFall = cells.every(([cx, cy]) => cy + 1 < ROWS &&
+            (!this.grid[cy + 1]![cx] || cells.some(([px, py]) => px === cx && py === cy + 1)));
+          if (!canFall) continue;
+          const colors = cells.map(([cx, cy]) => this.grid[cy]![cx]);
+          for (const [cx, cy] of cells) {
+            this.grid[cy]![cx] = null;
+            this.bonds[cy]![cx] = -1;
+          }
+          cells.forEach(([cx, cy], i) => {
+            this.grid[cy + 1]![cx] = colors[i];
+            this.bonds[cy + 1]![cx] = bond;
+          });
+          moved = true;
         }
       }
       if (!moved) break;
@@ -385,7 +414,7 @@ export class KnightDrMario {
     ctx.fillStyle = "#e8b050";
     ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.042)))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("III · VEIL CURE", w / 2, oy - 10);
+    ctx.fillText("MATCH 4 ACROSS OR DOWN", w / 2, oy - 10);
     ctx.textAlign = "left";
 
     for (let y = 0; y < ROWS; y++) {
@@ -445,8 +474,8 @@ export class KnightDrMario {
     ctx.fillRect(x - 4, y - 2, pc * 3 + 16, pc * 3 + 28);
     ctx.strokeStyle = "rgba(200,120,232,0.5)";
     ctx.strokeRect(x - 4, y - 2, pc * 3 + 16, pc * 3 + 28);
-    ctx.fillStyle = "rgba(248,240,255,0.6)";
-    ctx.font = `${Math.max(11, pc)}px "VT323", monospace`;
+    ctx.fillStyle = "#f8f8e8";
+    ctx.font = `${Math.max(16, pc)}px "VT323", monospace`;
     ctx.fillText("NEXT", x + 2, y + 12);
     const n = this.nextPill;
     if (n.horiz) {
@@ -480,53 +509,31 @@ export class KnightDrMario {
     }
 
     if (virus) {
-      const cx = x + size / 2;
-      const cy = y + size / 2;
-      const r = size * 0.38;
+      const p = Math.max(1, Math.floor(size / 8));
+      const cx = x + Math.floor((size - p * 8) / 2);
+      const cy = y + Math.floor((size - p * 8) / 2);
       ctx.fillStyle = fill;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.45)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      // eyes
+      ctx.fillRect(cx + p, cy + p * 2, p * 6, p * 4);
+      ctx.fillRect(cx + p * 2, cy + p, p * 4, p * 6);
+      ctx.fillRect(cx + p, cy, p, p * 2);
+      ctx.fillRect(cx + p * 6, cy, p, p * 2);
       ctx.fillStyle = "#0a0e14";
-      ctx.beginPath();
-      ctx.arc(cx - r * 0.28, cy - r * 0.1, r * 0.16, 0, Math.PI * 2);
-      ctx.arc(cx + r * 0.28, cy - r * 0.1, r * 0.16, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(cx + p * 2, cy + p * 3, p, p);
+      ctx.fillRect(cx + p * 5, cy + p * 3, p, p);
+      ctx.fillRect(cx + p * 3, cy + p * 5, p * 2, p);
       ctx.fillStyle = hi;
-      ctx.beginPath();
-      ctx.arc(cx - r * 0.22, cy - r * 0.16, r * 0.07, 0, Math.PI * 2);
-      ctx.arc(cx + r * 0.34, cy - r * 0.16, r * 0.07, 0, Math.PI * 2);
-      ctx.fill();
-      // grin
-      ctx.strokeStyle = "#0a0e14";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(cx, cy + r * 0.15, r * 0.28, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
+      ctx.fillRect(cx + p * 2, cy + p, p * 3, p);
       return;
     }
 
     // Capsule half
-    const rad = Math.max(3, Math.floor(size * 0.22));
+    const rad = Math.max(1, Math.floor(size * 0.18));
     ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.moveTo(x + m + rad, y + m);
-    ctx.arcTo(x + size - m, y + m, x + size - m, y + size - m, rad);
-    ctx.arcTo(x + size - m, y + size - m, x + m, y + size - m, rad);
-    ctx.arcTo(x + m, y + size - m, x + m, y + m, rad);
-    ctx.arcTo(x + m, y + m, x + size - m, y + m, rad);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(x + m + rad, y + m, size - 2 * (m + rad), size - 2 * m);
+    ctx.fillRect(x + m, y + m + rad, size - 2 * m, size - 2 * (m + rad));
     ctx.fillStyle = hi;
     ctx.globalAlpha = 0.45;
     ctx.fillRect(x + m + 2, y + m + 2, Math.floor(size * 0.35), Math.floor(size * 0.22));
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = "rgba(0,0,0,0.35)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
   }
 }

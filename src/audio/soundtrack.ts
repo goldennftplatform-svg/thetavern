@@ -24,7 +24,7 @@ const media = new Map<HTMLMediaElement, () => void>();
 
 export function themeForPhase(phase: GamePhase, stage?: string, chance?: string): Theme {
   if (phase.startsWith("conflic_")) return "conflic";
-  if (phase === "demplar_warrior") return stage === "tetris" ? "tetris" : stage === "drmario" ? "drmario" : "warrior";
+  if (phase === "demplar_warrior") return stage === "drmario" || stage === "done" ? "drmario" : "tetris";
   if (phase.startsWith("fish_") || phase === "resolve" || phase === "pole_rack") return "fishing";
   if (phase.startsWith("chance_")) return chance === "red_black" && phase !== "chance_pick" ? "redblack" : "hilo";
   return "tavern";

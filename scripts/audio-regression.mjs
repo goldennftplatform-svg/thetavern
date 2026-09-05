@@ -43,7 +43,7 @@ try {
       ["enter", undefined, undefined, "tavern"], ["well", undefined, undefined, "tavern"],
       ["fish_cast", undefined, undefined, "fishing"], ["fish_wait", undefined, undefined, "fishing"],
       ["fish_reel", undefined, undefined, "fishing"], ["resolve", undefined, undefined, "fishing"],
-      ["demplar_warrior", "brief", undefined, "warrior"], ["demplar_warrior", "platform", undefined, "warrior"],
+      ["demplar_warrior", "brief", undefined, "tetris"],
       ["demplar_warrior", "tetris", undefined, "tetris"], ["demplar_warrior", "drmario", undefined, "drmario"],
       ["demplar_result", undefined, undefined, "tavern"], ["chance_pick", undefined, "red_black", "hilo"],
       ["chance_play", undefined, "high_low", "hilo"], ["chance_result", undefined, "red_black", "redblack"],
@@ -98,8 +98,15 @@ try {
   await page.click("[data-continue='well']");
   assert.equal((await state()).theme, "tavern");
   await page.click("[data-hub-action='demplar_warrior']");
-  for (const [stage, expected] of [["platform", "warrior"], ["tetris", "tetris"], ["drmario", "drmario"]]) {
-    await page.evaluate(stage => window.__tavernQA.getDemplar().advanceStage(performance.now(), stage), stage);
+  for (const [stage, expected] of [["tetris", "tetris"], ["drmario", "drmario"]]) {
+    await page.evaluate(stage => {
+      const game = window.__tavernQA.getDemplar();
+      if (stage === "drmario") {
+        game.tetris.finished = true;
+        game.update(0, performance.now());
+      }
+      game.rotate();
+    }, stage);
     await page.waitForFunction(async expected => (await import("/src/audio/soundtrack.ts")).audioState().theme === expected, expected);
   }
   await page.reload({ waitUntil: "domcontentloaded" });

@@ -311,7 +311,6 @@ export function crossedRenownMilestones(before: number, after: number): RenownMi
 
 export function composeDemplarDeed(
   angler: string,
-  platform: number,
   race: number,
   asteroids: number,
   total: number,
@@ -319,7 +318,6 @@ export function composeDemplarDeed(
   const chronicle = fill(pickLine(demplarWarriorChronicles), { angler, score: total });
   const subtext = fill(pickLine(demplarWarriorSubtexts), {
     angler,
-    platform,
     race,
     asteroids,
     score: total,

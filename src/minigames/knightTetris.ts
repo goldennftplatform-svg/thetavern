@@ -1,5 +1,5 @@
 /**
- * Charter Tetris — trial II stack for Demplar Warrior.
+ * Stack Attack: the first puzzle in the combo.
  * Arcade-fast: instant slam lock, primed spawns, ghost + next preview.
  */
 
@@ -15,12 +15,12 @@ const SHAPES: readonly (readonly [number, number])[][] = [
   [[0, 0], [1, 0], [2, 0], [2, 1]],
   [[0, 0], [1, 0], [2, 0], [0, 1]],
   [[0, 1], [1, 0], [1, 1], [2, 0]],
-  [[0, 0], [0, 1], [1, 1], [2, 1]],
-  [[2, 0], [0, 1], [1, 1], [2, 1]],
+  [[0, 0], [1, 0], [1, 1], [2, 1]],
+  [[1, 0], [0, 1], [1, 1], [2, 1]],
 ];
 
-const PALETTE = ["#68e8a8", "#e8b050", "#98b8e8", "#78d0b8", "#e87850", "#6898e8", "#d8a868"];
-const LOCK_DELAY_MS = 60;
+const PALETTE = ["#f8d858", "#58d8f8", "#fc9858", "#5878f8", "#58f8b0", "#fc5878", "#c878f8"];
+const LOCK_DELAY_MS = 300;
 const BASE_GRAVITY_MS = 480;
 const MIN_GRAVITY_MS = 140;
 const SOFT_DROP_MS = 42;
@@ -79,6 +79,7 @@ export class KnightTetris {
     this.softDrop = false;
     this.gravityMs = this.mobileEase ? BASE_GRAVITY_MS + 160 : BASE_GRAVITY_MS;
     this.flashMs = 0;
+    this.linesClearedThisDrop = 0;
     this.spawn(false);
   }
 
@@ -101,7 +102,7 @@ export class KnightTetris {
     if (this.bag.length < 2) this.refillBag();
     const shape = this.bag.shift()!;
     const color = shape as TetrisColor;
-    this.active = { shape, color, rot: 0, x: 3, y: -1 };
+    this.active = { shape, color, rot: 0, x: 3, y: 0 };
     this.lockMs = 0;
     this.dropMs = primeFall ? this.gravityMs * 0.82 : this.gravityMs * 0.35;
     if (this.collides(this.active)) {
@@ -130,7 +131,7 @@ export class KnightTetris {
   }
 
   move(dir: -1 | 1) {
-    if (!this.active || this.gameOver) return;
+    if (!this.active || this.gameOver || this.finished) return;
     const p = this.active;
     if (!this.collides(p, dir, 0)) {
       p.x += dir;
@@ -139,7 +140,7 @@ export class KnightTetris {
   }
 
   rotate() {
-    if (!this.active || this.gameOver) return;
+    if (!this.active || this.gameOver || this.finished || this.active.shape === 0) return;
     const p = this.active;
     const nextRot = (p.rot + 1) % 4;
     if (!this.collides(p, 0, 0, nextRot)) {
@@ -162,7 +163,7 @@ export class KnightTetris {
   }
 
   hardDrop() {
-    if (!this.active || this.gameOver) return;
+    if (!this.active || this.gameOver || this.finished) return;
     let dropped = 0;
     while (!this.collides(this.active, 0, 1)) {
       this.active.y += 1;
@@ -181,6 +182,11 @@ export class KnightTetris {
   private lockPiece(fromSlam = false) {
     const p = this.active;
     if (!p) return;
+    if (this.cells(p).some(([, y]) => y < 0)) {
+      this.gameOver = true;
+      this.freeze();
+      return;
+    }
     for (const [x, y] of this.cells(p)) {
       if (y >= 0 && y < ROWS && x >= 0 && x < COLS) this.grid[y]![x] = p.color;
     }
@@ -253,10 +259,11 @@ export class KnightTetris {
         this.active.y += 1;
         this.lockMs = 0;
         if (this.softDrop) this.score += 1;
-      } else {
-        this.lockMs += dt;
-        if (this.lockMs >= LOCK_DELAY_MS) this.lockPiece(false);
       }
+    }
+    if (this.active && this.collides(this.active, 0, 1)) {
+      this.lockMs += dt;
+      if (this.lockMs >= LOCK_DELAY_MS) this.lockPiece(false);
     }
     return false;
   }
@@ -286,7 +293,7 @@ export class KnightTetris {
     ctx.fillStyle = "#68e8a8";
     ctx.font = `${Math.max(16, Math.min(22, Math.floor(w * 0.042)))}px "VT323", monospace`;
     ctx.textAlign = "center";
-    if (!this.linesClearedThisDrop || this.flashMs <= 0) ctx.fillText("II · STACK ATTACK", w / 2, oy - 10);
+    if (!this.linesClearedThisDrop || this.flashMs <= 0) ctx.fillText("FILL A ROW TO CLEAR", w / 2, oy - 10);
     ctx.textAlign = "left";
 
     const flash = this.flashMs > 0 ? this.flashMs / 140 : 0;
@@ -294,7 +301,11 @@ export class KnightTetris {
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const c = this.grid[y]![x]!;
-        if (c < 0) continue;
+        if (c < 0) {
+          ctx.fillStyle = "#18203a";
+          ctx.fillRect(ox + x * cell + Math.floor(cell / 2), oy + y * cell + Math.floor(cell / 2), 1, 1);
+          continue;
+        }
         this.drawCell(ctx, ox + x * cell, oy + y * cell, cell, PALETTE[c]!);
       }
     }
@@ -350,8 +361,8 @@ export class KnightTetris {
     ctx.fillRect(x - 2, y - 2, previewCell * 4 + 8, previewCell * 3 + 16);
     ctx.strokeStyle = "rgba(104,232,168,0.45)";
     ctx.strokeRect(x - 2, y - 2, previewCell * 4 + 8, previewCell * 3 + 16);
-    ctx.fillStyle = "rgba(248,240,255,0.55)";
-    ctx.font = `${Math.max(12, previewCell)}px "VT323", monospace`;
+    ctx.fillStyle = "#f8f8e8";
+    ctx.font = `${Math.max(16, previewCell)}px "VT323", monospace`;
     ctx.fillText("NEXT", x + 2, y + 10);
     const cells = SHAPES[shape]!;
     const minX = Math.min(...cells.map(([cx]) => cx));
@@ -396,6 +407,8 @@ export class KnightTetris {
     ctx.lineWidth = 1;
     ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
     ctx.fillStyle = "rgba(255,255,255,0.18)";
-    ctx.fillRect(x + 2, y + 2, size - 6, 3);
+    ctx.fillRect(x + 2, y + 2, Math.max(1, size - 4), Math.max(1, Math.floor(size / 6)));
+    ctx.fillStyle = "#080c2044";
+    ctx.fillRect(x + 2, y + size - 4, Math.max(1, size - 4), 2);
   }
 }

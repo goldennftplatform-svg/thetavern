@@ -1,5 +1,4 @@
-import { warriorCompleteLines } from "../content/demplarKnights";
-import { pickLine } from "../content/arcaneLore";
+import "../css/tavern-select.css";
 import type { Season } from "../content/lore";
 import type { CatchResult } from "../game/types";
 import type { DemplarRunResult } from "../minigames/demplarWarrior";
@@ -22,7 +21,6 @@ import { formatPatronCaption } from "../hall/hallAssets";
 import {
   feastButtonHtml,
   hubBackHtml,
-  hubTableSeatHtml,
   hubTileHtml,
   studioStageHtml,
 } from "./tavernHub";
@@ -83,20 +81,19 @@ export function hubWellHtml(
   poleHint?: string,
   overheard: XLorePost[] = [],
 ): string {
-  const tableBg = `${import.meta.env.BASE_URL}media/tavern-table-bg.png`;
   const titleLine =
     s.titles.length > 0
-      ? `<p class="tavern-table-scene__titles">${escapeHtml(s.titles.slice(-2).join(" · "))}</p>`
+      ? `<p class="tavern-select__titles">${escapeHtml(s.titles.slice(-2).join(" · "))}</p>`
       : "";
   const crest = crestSrc
-    ? `<img class="tavern-table__crest" src="${escapeHtml(crestSrc)}" alt="" />`
+    ? `<img class="tavern-select__crest" src="${escapeHtml(crestSrc)}" alt="" />`
     : "";
   const poleLine = poleHint
-    ? `<p class="tavern-table-scene__pole">${escapeHtml(poleHint)}</p>`
+    ? `<span class="tavern-select__pole">${escapeHtml(poleHint)}</span>`
     : "";
   const face = avatarFaceHtml(s.avatarId, s.avatarCustom, {
     size: "md",
-    className: "tavern-table-scene__avatar",
+    className: "tavern-select__avatar",
     interactive: true,
   });
   const wire =
@@ -119,70 +116,51 @@ export function hubWellHtml(
           .join("")}
       </ul>
     </section>`
-      : `<p class="tavern-table-scene__lore tavern-table-scene__lore--wire"><button type="button" class="btn ghost" data-hub-action="herald_scroll">⚔ Neighbor lore / X wire ↓</button></p>`;
+      : `<p class="tavern-select__quiet">The wire is quiet. Visit the Herald for neighbor lore.</p>`;
 
-  const conflicBouyIcon = `<svg viewBox="0 0 32 32" role="img" aria-label="Anchor">
-    <path d="M14 4a2 2 0 1 1 4 0a2 2 0 0 1-4 0Zm1 4h2v14.7c3.9-.4 6.7-2.5 8-6.2l-3.2.8-.5-2.1 6.7-1.7-.2 7-2.2-.1.1-1.3c-1.8 4.2-5.1 6.5-9.7 6.5s-7.9-2.3-9.7-6.5l.1 1.3-2.2.1-.2-7 6.7 1.7-.5 2.1-3.2-.8c1.3 3.7 4.1 5.8 8 6.2V8Z" fill="currentColor"/>
-  </svg>`;
+  // Integer-coordinate silhouettes keep the game art crisp without emoji/platform branding.
+  const art = (kind: string, path: string) => `<span class="tavern-select__art tavern-select__art--${kind}" aria-hidden="true"><svg viewBox="0 0 96 64" shape-rendering="crispEdges"><path class="select-stars" d="M12 10h2v2h-2zM78 8h2v2h-2zM86 25h2v2h-2zM22 22h2v2h-2z"/><path d="${path}"/></svg></span>`;
+  const fishingArt = art("well", "M62 6h12v4H66v12h-4zM30 28h36v6H30zM26 34h44v8H26zM30 44h36v14H30zM34 46v8h10v-8zM48 46v8h14v-8zM44 14h4v14h-4zM48 14h12v4H48zM16 56h64v4H16z");
+  const puzzleArt = art("puzzle", "M22 12h12v12H22zM36 12h12v12H36zM36 26h12v12H36zM50 26h12v12H50zM22 40h12v12H22zM36 40h12v12H36zM50 40h12v12H50zM68 12h8v4h4v16h-4v4h-8v-4h-4V16h4z");
+  const fleetArt = art("fleet", "M46 8h4v34h-4zM52 14h4v4h4v4h4v4h4v8H52zM40 20h4v14H30v-4h4v-4h6zM24 40h52v6h-4v4h-4v4H32v-4h-4v-4h-4zM16 58h16v-2h16v2h16v-2h16v4H16z");
 
-  return `<div class="tavern-table-scene" style="--table-bg: url('${tableBg}')">
-    <div class="tavern-table-scene__veil" aria-hidden="true"></div>
-    <header class="tavern-table-scene__head">
-      <p class="tavern-table-scene__kicker">Tavern night · ${escapeHtml(charterNight)} <small>(resets 4am PT)</small></p>
-      <h2 class="tavern-table-scene__title">The Great Table</h2>
-      <p class="tavern-table-scene__night">${escapeHtml(nightTitle)}</p>
-      <p class="tavern-table-scene__tag">${escapeHtml(nightTagline)}</p>
+  return `<div class="tavern-select">
+    <header class="tavern-select__head">
+      ${crest}
+      <div><p class="tavern-select__eyebrow">Moonwell tavern / adventure select</p>
+      <h2>The Great Table</h2>
+      <p class="tavern-select__night">${escapeHtml(nightTitle)} <span>${escapeHtml(nightTagline)}</span></p></div>
+      <span class="tavern-select__night-number">${escapeHtml(charterNight)}<small>Resets 4am PT</small></span>
     </header>
-
-    <div class="tavern-table-scene__identity">
+    <section class="tavern-select__hud" aria-label="Your player">
       ${face}
-      <div class="tavern-table-scene__stats" aria-label="Your run">
-        <span class="tavern-table-scene__stat"><em>★</em> ${s.renown} <small>Legend</small></span>
-        <span class="tavern-table-scene__stat"><em>◎</em> ${s.tokens} <small>Tokens</small></span>
-        <span class="tavern-table-scene__stat"><em>🐟</em> ${s.catalogSize} <small>Caught</small></span>
-        <span class="tavern-table-scene__name">${escapeHtml(s.nickname)} · ${escapeHtml(s.seasonName)}</span>
+      <div class="tavern-select__identity"><strong>${escapeHtml(s.nickname)}</strong><span>${escapeHtml(s.seasonName)}</span>${titleLine}</div>
+      <dl class="tavern-select__stats"><div><dt>Legend</dt><dd>${s.renown}</dd></div><div><dt>Tokens</dt><dd>${s.tokens}</dd></div><div><dt>Caught</dt><dd>${s.catalogSize}</dd></div></dl>
+    </section>
+    <section class="tavern-select__games" aria-labelledby="select-heading">
+      <div class="tavern-select__section-head"><h3 id="select-heading">Choose your adventure</h3><span>Three ways to make a legend</span></div>
+      <div class="tavern-select__grid" id="hub-grid">
+        <button type="button" class="tavern-select__game" data-hub-action="fish"><span class="tavern-select__index">01 / THE MOONWELL</span>${fishingArt}<strong>Cast the Well</strong><span class="tavern-select__hint">Fish for renown &amp; pole XP</span><span class="tavern-select__start">Go fishing <b aria-hidden="true">&gt;</b></span></button>
+        <button type="button" class="tavern-select__game tavern-select__game--jade" data-hub-action="demplar_warrior"><span class="tavern-select__index">02 / BACK-ROOM ARCADE</span>${puzzleArt}<strong>Puzzle Combo</strong><span class="tavern-select__hint">Stack Attack + Veil Cure</span><span class="tavern-select__start">Play the combo <b aria-hidden="true">&gt;</b></span></button>
+        <button type="button" class="tavern-select__game" data-hub-action="conflic_bouy_entry"><span class="tavern-select__index">03 / THE FIVE WATERS</span>${fleetArt}<strong>Conflic Bouy</strong><span class="tavern-select__hint">Fleet tactics / solo &amp; rivals</span><span class="tavern-select__start">Command a fleet <b aria-hidden="true">&gt;</b></span></button>
       </div>
-    </div>
-    ${titleLine}
-    ${poleLine}
-
-    <section class="tavern-charter-board" aria-label="Tonight's adventure charter">
-      <span class="tavern-charter-board__pin tavern-charter-board__pin--left" aria-hidden="true"></span>
-      <span class="tavern-charter-board__pin tavern-charter-board__pin--right" aria-hidden="true"></span>
-      <p class="tavern-charter-board__label">Tonight&apos;s postings <small>Choose your seat</small></p>
-      <div class="tavern-table-wrap">
-        <div class="tavern-table" id="hub-grid" role="group" aria-label="Pick an adventure">
-          <div class="tavern-table__well" aria-hidden="true">
-            <span class="tavern-table__well-glow"></span>
-            ${crest}
-            <span class="tavern-table__well-label">☽ Moonwell</span>
-            <span class="tavern-table__well-hint">Pick what&apos;s in front of you</span>
-          </div>
-          ${hubTableSeatHtml("fish", "🎣", "Cast the Well", "Fish for renown & pole XP", "north", "gold")}
-          ${hubTableSeatHtml("demplar_warrior", "🕹", "Back-Room Arcade", "Sprint · stack · cure", "east", "gold")}
-          ${hubTableSeatHtml("conflic_bouy_entry", conflicBouyIcon, "Conflic Bouy", "Fleet tactics · 5 waters", "northeast", "gold", "NEW")}
-          ${hubTableSeatHtml("chance_menu", "🃏", "Divination Cards", "Hi-Lo & Red / Black", "south", "jade")}
-          ${hubTableSeatHtml("pole_rack", "🪓", "Pole Rack", "Equip wilder rods", "west", "jade")}
-          <span class="tavern-table__candle tavern-table__candle--a" aria-hidden="true"></span>
-          <span class="tavern-table__candle tavern-table__candle--b" aria-hidden="true"></span>
-          <span class="tavern-table__candle tavern-table__candle--c" aria-hidden="true"></span>
-        </div>
+      <div class="tavern-select__sidequests">
+        <button type="button" data-hub-action="chance_menu"><span class="tavern-select__mini-icon" aria-hidden="true">&#9830;</span><span><strong>Divination Cards</strong><small>Hi-Lo &amp; Red / Black</small></span><b aria-hidden="true">&gt;</b></button>
+        <button type="button" data-hub-action="pole_rack"><span class="tavern-select__mini-icon" aria-hidden="true">/</span><span><strong>Pole Rack</strong><small>Equip wilder rods</small>${poleLine}</span><b aria-hidden="true">&gt;</b></button>
       </div>
     </section>
-
-    <p class="tavern-table-scene__verse">${escapeHtml(s.seasonVerse)}</p>
-    <p class="tavern-table-scene__lore">${escapeHtml(hubVerse)}</p>
-    <p class="tavern-table-scene__lore tavern-table-scene__lore--extra">${escapeHtml(extraLore)}</p>
-    ${wire}
-
-    <footer class="tavern-table-scene__footer">
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="avatar_closet">☺ Face</button>
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="hall_view">📺 Hall view</button>
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="feast_menu">🍖 Kitchen</button>
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="ledger">Ledger</button>
-      <button type="button" class="btn primary tavern-table-scene__link" data-hub-action="herald_scroll">⚔ Neighbor lore ↓</button>
-      <button type="button" class="btn ghost tavern-table-scene__link" data-hub-action="charter">Rim notice</button>
-    </footer>
+    <nav class="tavern-select__utilities" aria-label="Tavern services">
+      <button type="button" data-hub-action="avatar_closet">Face</button>
+      <button type="button" data-hub-action="hall_view">Hall view</button>
+      <button type="button" data-hub-action="feast_menu">Kitchen</button>
+      <button type="button" data-hub-action="ledger">Ledger</button>
+      <button type="button" data-hub-action="herald_scroll">Herald / X</button>
+      <button type="button" data-hub-action="charter">Rim notice</button>
+    </nav>
+    <section class="tavern-select__chronicle" aria-label="Tonight at the tavern">
+      <div><p class="tavern-select__eyebrow">Tonight at the tavern</p><p>${escapeHtml(hubVerse)}</p><details><summary>Season lore &amp; overheard</summary><p>${escapeHtml(s.seasonVerse)}</p><p>${escapeHtml(extraLore)}</p>${wire}</details></div>
+      <span class="tavern-select__seal" aria-hidden="true">MW<br>EST. 8-BIT</span>
+    </section>
   </div>`;
 }
 
@@ -290,12 +268,11 @@ export function demplarResultStudioHtml(
       : "";
   return studioStageHtml(
     "Tavern Arcade",
-    `<p class="studio-flourish">${escapeHtml(pickLine(warriorCompleteLines))}</p>
-    <p class="studio-lore-line studio-lore-line--hint">Three back-room trials — scores on the tavern wall.</p>
+    `<p class="studio-flourish">Puzzle combo complete. Your mark is on the tavern wall.</p>
+    <p class="studio-lore-line studio-lore-line--hint">Stack Attack + Veil Cure / two trials, one total.</p>
     <div class="studio-scoreboard studio-scoreboard--demplar">
-      <span class="studio-stat"><em>I</em> ${r.platform} <small>Run</small></span>
-      <span class="studio-stat"><em>II</em> ${r.race} <small>Tetris</small></span>
-      <span class="studio-stat"><em>III</em> ${r.asteroids} <small>Dr Mario</small></span>
+      <span class="studio-stat"><em>I</em> ${r.race} <small>Stack Attack</small></span>
+      <span class="studio-stat"><em>II</em> ${r.asteroids} <small>Veil Cure</small></span>
     </div>
     <p class="studio-reward">Total ${r.total} · +${renown} ★ · +${tokens} ◎</p>
     ${bestLine}`,
